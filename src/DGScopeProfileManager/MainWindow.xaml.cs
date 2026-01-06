@@ -221,6 +221,8 @@ public partial class MainWindow : Window
                 return;
 
             var selectedTracon = traconWindow.SelectedTracon;
+            if (selectedTracon == null)
+                return;
 
             // If TRACON has multiple areas, show area selection window
             CrcArea? selectedArea = null;
@@ -230,7 +232,14 @@ public partial class MainWindow : Window
                 if (areaWindow.ShowDialog() != true)
                     return;
 
-                selectedArea = areaWindow.SelectedArea;
+                if (areaWindow.SelectedArea != null)
+                {
+                    selectedArea = areaWindow.SelectedArea;
+                }
+                else
+                {
+                    return;
+                }
             }
             else if (selectedTracon.Areas.Count == 1)
             {
