@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(del c:UsersyanjzDocumentsVSCode ProjectsDGScope-profile-managerpotomac_temp.json)",
+      "Bash(rm:*)",
+      "Bash(Get-Content \"ZDC.json\")",
+      "Bash(ConvertFrom-Json)",
+      "Bash(ConvertTo-Json -Depth 100)",
+      "Bash(Set-Content \"ZDC_formatted.json\")",
+      "Bash(dotnet build:*)",
+      "Bash(Select-String -Pattern \"error|warning|Build succeeded|Build FAILED\" -Context 0,2)",
+      "Bash(cat:*)",
+      "Bash(powershell -Command \"$json = Get-Content ''C:\\\\Users\\\\yanjz\\\\AppData\\\\Local\\\\CRC\\\\ARTCCs\\\\ZDC.json'' | ConvertFrom-Json; $pct = $json.facility.childFacilities | Where-Object { $_id -eq ''PCT'' }; $pct.starsConfiguration.ssaAirports\")",
+      "Bash(test:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

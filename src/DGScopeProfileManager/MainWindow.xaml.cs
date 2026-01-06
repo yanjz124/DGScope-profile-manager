@@ -1,0 +1,425 @@
+﻿using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
+using DGScopeProfileManager.Views;
+
+namespace DGScopeProfileManager;
+
+/// <summary>
+/// Interaction logic for MainWindow.xaml
+/// </summary>
+public partial class MainWindow : Window
+{
+    private AppSettings _settings;
+    private CrcProfileReader? _crcReader;
+    private FacilityScanner _facilityScanner;
+    private SettingsPersistenceService _persistenceService;
+    private List<CrcProfile> _crcProfiles = new();
+    private List<Facility> _facilities = new();
+    
+    public MainWindow()
+    {
+        InitializeComponent();
+        _persistenceService = new SettingsPersistenceService();
+        _settings = _persistenceService.LoadSettings();
+        _facilityScanner = new FacilityScanner();
+        
+        // Initialize with empty lists
+        CrcProfilesList.ItemsSource = _crcProfiles;
+        FacilitiesTree.ItemsSource = _facilities;
+        
+        // Disable buttons initially
+        GenerateButton.IsEnabled = false;
+        EditProfileButton.IsEnabled = false;
+        DeleteProfileButton.IsEnabled = false;
+        
+        UpdateStatus("Ready. Click Settings to configure paths, then Scan Folders to load profiles.");
+    }
+    
+    private async void LoadFolders()
+    {
+        try
+        {
+            UpdateStatus("Scanning folders...");
+            
+            _crcProfiles.Clear();
+            _facilities.Clear();
+            
+            // Force UI update
+            CrcProfilesList.ItemsSource = null;
+            FacilitiesTree.ItemsSource = null;
+            
+            int crcCount = 0;
+            int profileCount = 0;
+            
+            // Run scanning on background thread
+            await Task.Run(() =>
+            {
+                // Load CRC profiles
+                if (!string.IsNullOrWhiteSpace(_settings.CrcFolderPath) && 
+                    !string.IsNullOrWhiteSpace(_settings.CrcArtccFolderPath) && 
+                    Directory.Exists(_settings.CrcArtccFolderPath))
+                {
+                    try
+                    {
+                        _crcReader = new CrcProfileReader(_settings.CrcArtccFolderPath);
+                        _crcProfiles = _crcReader.GetAllProfiles() ?? new List<CrcProfile>();
+                        crcCount = _crcProfiles.Count;
+                    }
+                    catch
+                    {
+                        // Ignore CRC scan errors
+                    }
+                }
+                
+                // Load DGScope facilities
+                if (!string.IsNullOrWhiteSpace(_settings.DgScopeFolderPath) && 
+                    Directory.Exists(_settings.DgScopeFolderPath))
+                {
+                    try
+                    {
+                        _facilities = _facilityScanner.ScanFacilities(_settings.DgScopeFolderPath) ?? new List<Facility>();
+                        profileCount = _facilities.Sum(f => f.Profiles?.Count ?? 0);
+                    }
+                    catch
+                    {
+                        // Ignore DGScope scan errors
+                    }
+                }
+            });
+            
+            // Refresh UI bindings on UI thread
+            CrcProfilesList.ItemsSource = _crcProfiles;
+            FacilitiesTree.ItemsSource = _facilities;
+            
+            if (crcCount == 0 && profileCount == 0)
+            {
+                UpdateStatus("No profiles found. Check that paths are correct.");
+            }
+            else
+            {
+                UpdateStatus($"Loaded {crcCount} CRC profiles and {profileCount} DGScope profiles from {_facilities.Count} locations");
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus($"Error scanning folders");
+            MessageBox.Show($"Error scanning folders:\n\n{ex.Message}\n\nCheck that paths are correct and accessible.", "Scan Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new SettingsWindow(_settings);
+        if (settingsWindow.ShowDialog() == true)
+        {
+            _settings = settingsWindow.Settings;
+            _persistenceService.SaveSettings(_settings);
+            LoadFolders();
+        }
+    }
+    
+    private void CrcProfilesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        GenerateButton.IsEnabled = CrcProfilesList.SelectedItem != null;
+    }
+    private void ScanFolders_Click(object sender, RoutedEventArgs e)
+    {
+        LoadFolders();
+    }
+    
+    private void RefreshCrc_Click(object sender, RoutedEventArgs e)
+    {
+        if (_crcReader == null)
+        {
+            MessageBox.Show("Please configure CRC folder path in Settings first.",
+                "Configuration Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        
+        try
+        {
+            UpdateStatus("Refreshing CRC profiles...");
+            _crcProfiles.Clear();
+            _crcProfiles.AddRange(_crcReader.GetAllProfiles() ?? new List<CrcProfile>());
+            CrcProfilesList.Items.Refresh();
+            UpdateStatus($"Refreshed {_crcProfiles.Count} CRC profiles");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error refreshing CRC profiles: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private void FixAllPaths_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var result = MessageBox.Show(
+                "This will fix all video map paths in all profiles to use absolute paths.\n\nContinue?",
+                "Fix All Paths",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+                
+            if (result == MessageBoxResult.Yes)
+            {
+                int fixedCount = 0;
+                foreach (var facility in _facilities)
+                {
+                    var service = new DgScopeProfileService(facility.Path);
+                    foreach (var profile in facility.Profiles)
+                    {
+                        service.FixFilePaths(profile, makeAbsolute: true);
+                        service.SaveProfile(profile);
+                        fixedCount++;
+                    }
+                }
+                
+                UpdateStatus($"Fixed paths in {fixedCount} profiles");
+                MessageBox.Show($"Successfully fixed paths in {fixedCount} profiles", "Success", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error fixing paths: {ex.Message}", "Error", 
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private void GenerateProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (CrcProfilesList.SelectedItem is not CrcProfile selectedCrc)
+        {
+            MessageBox.Show("Please select an ARTCC profile first.", 
+                "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        
+        if (selectedCrc.Tracons.Count == 0)
+        {
+            MessageBox.Show($"No TRACONs found in {selectedCrc.ArtccCode} profile.", 
+                "No TRACONs", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        
+        try
+        {
+            if (string.IsNullOrEmpty(_settings.DgScopeFolderPath))
+            {
+                MessageBox.Show("Please configure DGScope folder path in Settings first.", 
+                    "Configuration Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            // Show TRACON selection window
+            var traconWindow = new TraconSelectionWindow(selectedCrc);
+            if (traconWindow.ShowDialog() != true)
+                return;
+
+            var selectedTracon = traconWindow.SelectedTracon;
+
+            // If TRACON has multiple areas, show area selection window
+            CrcArea? selectedArea = null;
+            if (selectedTracon.Areas.Count > 1)
+            {
+                var areaWindow = new AreaSelectionWindow(selectedTracon.Areas);
+                if (areaWindow.ShowDialog() != true)
+                    return;
+
+                selectedArea = areaWindow.SelectedArea;
+            }
+            else if (selectedTracon.Areas.Count == 1)
+            {
+                // Only one area, use it automatically
+                selectedArea = selectedTracon.Areas[0];
+            }
+
+            // Show video map selection window
+            if (selectedTracon.AvailableVideoMaps.Count == 0)
+            {
+                MessageBox.Show($"No video maps available for {selectedTracon.Name}.",
+                    "No Video Maps", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id);
+            if (videoMapWindow.ShowDialog() != true)
+                return;
+
+            var selectedVideoMap = videoMapWindow.SelectedVideoMap;
+            var profileName = videoMapWindow.ProfileName;
+
+            // Generate profile under profiles/ARTCC directory
+            // All settings are now automatically configured from CRC data
+            var outputDir = Path.Combine(_settings.DgScopeFolderPath, "profiles", selectedCrc.ArtccCode);
+            Directory.CreateDirectory(outputDir);
+
+            var generator = new ProfileGeneratorService();
+
+            var profile = generator.GenerateFromCrc(
+                selectedCrc,
+                outputDir,
+                selectedTracon,
+                selectedVideoMap,
+                _settings.CrcVideoMapFolderPath,
+                selectedArea,
+                profileName);
+            
+            if (profile != null)
+            {
+                UpdateStatus($"Generated profile: {profile.Name}");
+                MessageBox.Show($"Profile generated successfully:\n{profile.Name}\n\nPath: {outputDir}", 
+                    "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    
+                // Refresh the tree
+                LoadFolders();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error generating profile: {ex.Message}\n\n{ex.StackTrace}", "Error", 
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private void ApplyBatchSettings_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var selectedProfiles = GetAllSelectedProfiles();
+            
+            if (selectedProfiles.Count == 0)
+            {
+                MessageBox.Show("Please select one or more profiles from the tree.", 
+                    "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            var settings = new Dictionary<string, string>();
+            
+            if (!string.IsNullOrWhiteSpace(BatchRotation.Text))
+                settings["ScreenRotation"] = BatchRotation.Text;
+                
+            if (!string.IsNullOrWhiteSpace(BatchFontName.Text))
+                settings["FontName"] = BatchFontName.Text;
+                
+            if (!string.IsNullOrWhiteSpace(BatchFontSize.Text))
+                settings["FontSize"] = BatchFontSize.Text;
+                
+            if (settings.Count == 0)
+            {
+                MessageBox.Show("Please enter at least one setting to apply.", 
+                    "No Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            // Apply settings
+            foreach (var profile in selectedProfiles)
+            {
+                var facility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
+                if (facility != null)
+                {
+                    var service = new DgScopeProfileService(facility.Path);
+                    foreach (var setting in settings)
+                    {
+                        profile.AllSettings[setting.Key] = setting.Value;
+                    }
+                    service.SaveProfile(profile);
+                }
+            }
+            
+            UpdateStatus($"Applied batch settings to {selectedProfiles.Count} profiles");
+            MessageBox.Show($"Settings applied to {selectedProfiles.Count} profiles", 
+                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error applying settings: {ex.Message}", "Error", 
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+    
+    private void EditProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (FacilitiesTree.SelectedItem is DgScopeProfile profile)
+        {
+            var facility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
+            if (facility != null)
+            {
+                var editor = new ProfileEditorWindow(profile, facility);
+                editor.ShowDialog();
+                
+                // Refresh display
+                FacilitiesTree.Items.Refresh();
+            }
+        }
+    }
+    
+    private void DeleteProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (FacilitiesTree.SelectedItem is DgScopeProfile profile)
+        {
+            var result = MessageBox.Show(
+                $"Are you sure you want to delete the profile '{profile.Name}'?\n\nThis action cannot be undone.",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+                
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    File.Delete(profile.FilePath);
+                    LoadFolders();
+                    UpdateStatus($"Deleted profile: {profile.Name}");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error deleting profile: {ex.Message}", "Error", 
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+    }
+    
+    private void CrcProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        GenerateButton.IsEnabled = CrcProfilesList.SelectedItem != null;
+    }
+    
+    private void FacilityTree_SelectionChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        var selectedProfile = FacilitiesTree.SelectedItem as DgScopeProfile;
+        EditProfileButton.IsEnabled = selectedProfile != null;
+        DeleteProfileButton.IsEnabled = selectedProfile != null;
+    }
+    
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(
+            "DGScope Profile Manager\nVersion 1.0\n\nManage DGScope profiles and import from CRC data.",
+            "About",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+    
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+    
+    private void UpdateStatus(string message)
+    {
+        StatusText.Text = $"{DateTime.Now:HH:mm:ss} - {message}";
+    }
+    
+    private List<DgScopeProfile> GetAllSelectedProfiles()
+    {
+        // For now, return all profiles (could be extended with multi-select)
+        return _facilities.SelectMany(f => f.Profiles).ToList();
+    }
+}

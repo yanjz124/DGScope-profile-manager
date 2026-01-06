@@ -1,0 +1,53 @@
+<Window x:Class="DGScopeProfileManager.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="500" Width="700"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- CRC Folder -->
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="CRC Root Folder:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+        <TextBox Grid.Row="0" Grid.Column="1" Name="CrcFolderPath" Margin="0,0,5,10" VerticalAlignment="Center"/>
+        <Button Grid.Row="0" Grid.Column="2" Content="Browse..." Click="BrowseCrc_Click" Margin="0,0,0,10"/>
+
+        <!-- DGScope Folder -->
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="DGScope Root Folder:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+        <TextBox Grid.Row="1" Grid.Column="1" Name="DgScopeFolderPath" Margin="0,0,5,10" VerticalAlignment="Center"/>
+        <Button Grid.Row="1" Grid.Column="2" Content="Browse..." Click="BrowseDgScope_Click" Margin="0,0,0,10"/>
+
+        <!-- Info Panel -->
+        <Border Grid.Row="2" Grid.ColumnSpan="3" Background="LightYellow" BorderBrush="Gold" 
+                BorderThickness="1" Padding="10" Margin="0,10">
+            <StackPanel>
+                <TextBlock Text="Folder Structure:" FontWeight="Bold" Margin="0,0,0,5"/>
+                <TextBlock TextWrapping="Wrap" FontSize="11">
+                    • CRC Root Folder: Should contain ARTCCs\ and VideoMaps\ subfolders<LineBreak/>
+                    Example: C:\Users\YourName\AppData\Local\CRC<LineBreak/>
+                    <LineBreak/>
+                    • DGScope Root: Contains ARTCC/Facility/Profile.xml structure<LineBreak/>
+                    Example: DGScope Root/ZDC/PCT/PCT_north.xml<LineBreak/>
+                    <LineBreak/>
+                    • A default template is included - no need to provide your own
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" 
+                    HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="OK" IsDefault="True" Click="OK_Click" MinWidth="80" Margin="5"/>
+            <Button Content="Cancel" IsCancel="True" MinWidth="80" Margin="5"/>
+        </StackPanel>
+    </Grid>
+</Window>
