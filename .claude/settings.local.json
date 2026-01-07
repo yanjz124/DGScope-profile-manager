@@ -24,7 +24,8 @@
       "Bash(Get-Content ACY.xml)",
       "Bash(Select-String -Pattern \"Brightness\" -Context 0,17)",
       "Bash(dir \"%APPDATA%\\\\DGScopeProfileManager\")",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(curl:*)"
     ]
   }
 }
