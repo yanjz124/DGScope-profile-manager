@@ -39,16 +39,27 @@ jobs:
         shell: pwsh
 
       - name: Download DGScope Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the release info from yanjz124/scope
-          $releaseTag = "${{ github.event.inputs.scope_release }}" -eq '' ? 'latest' : "${{ github.event.inputs.scope_release }}"
-          
-          if ($releaseTag -eq 'latest') {
-            $release = (Invoke-WebRequest -Uri "https://api.github.com/repos/yanjz124/scope/releases/latest" -Headers @{"Accept"="application/vnd.github.v3+json"}).Content | ConvertFrom-Json
-          } else {
-            $release = (Invoke-WebRequest -Uri "https://api.github.com/repos/yanjz124/scope/releases/tags/$releaseTag" -Headers @{"Accept"="application/vnd.github.v3+json"}).Content | ConvertFrom-Json
+          # Get the release info from yanjz124/scope using authenticated requests to avoid rate limits
+          $releaseTag = "${{ github.event.inputs.scope_release }}"
+          if (-not $releaseTag) { $releaseTag = "latest" }
+
+          $headers = @{
+            "Accept"       = "application/vnd.github+json"
+            "Authorization" = "Bearer $env:GITHUB_TOKEN"
+            "User-Agent"    = "github-actions-dgscope-profile-manager"
           }
-          
+
+          $releaseUrl = if ($releaseTag -eq 'latest') {
+            "https://api.github.com/repos/yanjz124/scope/releases/latest"
+          } else {
+            "https://api.github.com/repos/yanjz124/scope/releases/tags/$releaseTag"
+          }
+
+          $release = (Invoke-WebRequest -Uri $releaseUrl -Headers $headers).Content | ConvertFrom-Json
+
           # Find the ZIP asset
           $zipAsset = $release.assets | Where-Object { $_.name -match "\.zip$" } | Select-Object -First 1
           
@@ -58,7 +69,7 @@ jobs:
           }
           
           Write-Host "Downloading $($zipAsset.name)..."
-          Invoke-WebRequest -Uri $zipAsset.browser_download_url -OutFile scope.zip
+          Invoke-WebRequest -Uri $zipAsset.browser_download_url -Headers $headers -OutFile scope.zip
           
           Write-Host "Extracting DGScope..."
           Expand-Archive -Path scope.zip -DestinationPath scope-extract
