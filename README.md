@@ -20,6 +20,9 @@ DGScope Profile Manager automates the creation of DGScope XML profiles by extrac
 - **Custom Profile Names**: Create multiple profiles per facility (e.g., `ACY_main.xml`, `ACY_backup.xml`)
 - **Automatic Configuration**: All facility-specific settings configured automatically from CRC data
 - **Profile Management**: Browse, view, and manage existing DGScope profiles
+- **Direct DGScope Launch**: Launch DGScope directly with selected profile, bypassing file selection dialog
+- **Apply-to-All Defaults**: Set default settings once and apply to all generated profiles
+- **Profile Editor**: Edit existing profiles with live preview
 
 ## Installation
 
@@ -36,7 +39,8 @@ DGScope Profile Manager automates the creation of DGScope XML profiles by extrac
 3. Run `DGScopeProfileManager.exe`
 4. Configure paths in Settings:
    - **CRC Folder**: Path to CRC installation (e.g., `C:\Users\{username}\AppData\Local\CRC`)
-   - **DGScope Folder**: Path to DGScope installation
+   - **DGScope Folder**: Path to DGScope profiles root (contains ARTCC folders)
+   - **DGScope Executable**: Path to DGScope.exe to enable "Launch DGScope" feature
 
 ## Usage
 
@@ -48,6 +52,27 @@ DGScope Profile Manager automates the creation of DGScope XML profiles by extrac
 4. **Set Profile Name**: Enter a custom name or use the default facility ID
 5. **Select Video Map**: Choose the video map to use
 6. **Generate**: Profile is created at `{DGScope}\profiles\{ARTCC}\{FacilityID}_{ProfileName}.xml`
+
+### Using Apply-to-All Defaults
+
+1. Open Settings and configure your preferred default settings
+2. Click "Apply to All" to set as template for all new profiles
+3. Generate new profiles - they will inherit these defaults
+4. Individual profiles can still be edited after creation
+
+### Launching DGScope
+
+1. **Configure**: Set DGScope.exe path in Settings (one-time setup)
+2. **Select Profile**: Click on any profile in the profile list
+3. **Launch**: Click the green "Launch DGScope" button
+4. DGScope opens directly with the selected profile, skipping file selection
+
+### Editing Profiles
+
+1. Select an existing profile from the list
+2. Click "Edit Profile" to modify settings
+3. Changes are saved immediately
+4. Live preview shows the updated XML
 
 ### Profile Structure
 
@@ -210,3 +235,9 @@ For issues, feature requests, or questions:
 - Altimeter station auto-configuration with ICAO prefixes
 - Video map copying with human-readable filenames
 - Profile browsing and management
+- **NEW**: Direct DGScope launch integration - open profiles with one click
+- **NEW**: Apply-to-All defaults - set template settings for all new profiles
+- **NEW**: Unified profile editor with live XML preview
+- **NEW**: Headless testing mode for automated testing
+- Fixed null reference warnings in default settings
+- Improved loading indicators with spinners

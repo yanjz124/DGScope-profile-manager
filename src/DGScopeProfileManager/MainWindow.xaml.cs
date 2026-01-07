@@ -28,6 +28,18 @@ public partial class MainWindow : Window
         _settings = _persistenceService.LoadSettings();
         _facilityScanner = new FacilityScanner();
 
+        // Auto-detect DGScope.exe if not configured
+        if (string.IsNullOrWhiteSpace(_settings.DgScopeExePath))
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var localScope = Path.Combine(appDir, "scope", "scope.exe");
+            if (File.Exists(localScope))
+            {
+                _settings.DgScopeExePath = localScope;
+                _persistenceService.SaveSettings(_settings);
+            }
+        }
+
         // Initialize with empty lists
         CrcProfilesList.ItemsSource = _crcProfiles;
         FacilitiesTree.ItemsSource = _facilities;
