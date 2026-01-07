@@ -22,7 +22,8 @@
       "Bash(git push)",
       "Bash(powershell -Command:*)",
       "Bash(Get-Content ACY.xml)",
-      "Bash(Select-String -Pattern \"Brightness\" -Context 0,17)"
+      "Bash(Select-String -Pattern \"Brightness\" -Context 0,17)",
+      "Bash(dir \"%APPDATA%\\\\DGScopeProfileManager\")"
     ]
   }
 }

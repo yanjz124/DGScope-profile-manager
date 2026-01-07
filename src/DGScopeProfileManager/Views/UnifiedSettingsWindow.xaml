@@ -75,11 +75,11 @@
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Font Size:"/>
                                 <TextBox Grid.Row="0" Grid.Column="3" Name="FontSizeBox"/>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="DBC Font Name:"/>
-                                <ComboBox Grid.Row="1" Grid.Column="1" Name="DBCFontNameBox"
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="DCB Font Name:"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" Name="DCBFontNameBox"
                                           IsEditable="True" IsTextSearchEnabled="True"/>
-                                <TextBlock Grid.Row="1" Grid.Column="2" Text="DBC Font Size:"/>
-                                <TextBox Grid.Row="1" Grid.Column="3" Name="DBCFontSizeBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="DCB Font Size:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="DCBFontSizeBox"/>
                             </Grid>
                         </GroupBox>
 

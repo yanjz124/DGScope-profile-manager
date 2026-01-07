@@ -12,8 +12,8 @@ public class PrefSetSettings
     public string FontName { get; set; } = "FixedDemiBold";
     public int FontSize { get; set; } = 10;
     public string FontSizeUnit { get; set; } = "Point";
-    public string DBCFontName { get; set; } = "Consolas";
-    public int DBCFontSize { get; set; } = 10;
+    public string DCBFontName { get; set; } = "Consolas";
+    public int DCBFontSize { get; set; } = 10;
     public string DCBFontSizeUnit { get; set; } = "Point";
 
     // ===== CurrentPrefSet Settings =====
@@ -79,9 +79,9 @@ public class PrefSetSettings
             return false;
         }
 
-        if (DBCFontSize < 4 || DBCFontSize > 72)
+        if (DCBFontSize < 4 || DCBFontSize > 72)
         {
-            error = "DBC Font Size must be between 4 and 72";
+            error = "DCB Font Size must be between 4 and 72";
             return false;
         }
 

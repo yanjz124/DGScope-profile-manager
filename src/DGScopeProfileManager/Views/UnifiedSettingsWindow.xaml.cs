@@ -57,7 +57,7 @@ public partial class UnifiedSettingsWindow : Window
         var fonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source).Select(f => f.Source).ToList();
 
         FontNameBox.ItemsSource = fonts;
-        DBCFontNameBox.ItemsSource = fonts;
+        DCBFontNameBox.ItemsSource = fonts;
     }
 
     /// <summary>
@@ -119,8 +119,8 @@ public partial class UnifiedSettingsWindow : Window
         // Font Settings
         FontNameBox.Text = _settings.FontName;
         FontSizeBox.Text = _settings.FontSize.ToString();
-        DBCFontNameBox.Text = _settings.DBCFontName;
-        DBCFontSizeBox.Text = _settings.DBCFontSize.ToString();
+        DCBFontNameBox.Text = _settings.DCBFontName;
+        DCBFontSizeBox.Text = _settings.DCBFontSize.ToString();
 
         // Screen Position
         ScreenCenterLatBox.Text = _settings.ScreenCenterPointLatitude.ToString("F6");
@@ -191,8 +191,8 @@ public partial class UnifiedSettingsWindow : Window
             // Font Settings
             _settings.FontName = FontNameBox.Text;
             _settings.FontSize = int.Parse(FontSizeBox.Text);
-            _settings.DBCFontName = DBCFontNameBox.Text;
-            _settings.DBCFontSize = int.Parse(DBCFontSizeBox.Text);
+            _settings.DCBFontName = DCBFontNameBox.Text;
+            _settings.DCBFontSize = int.Parse(DCBFontSizeBox.Text);
 
             // Screen Position
             _settings.ScreenCenterPointLatitude = double.Parse(ScreenCenterLatBox.Text);

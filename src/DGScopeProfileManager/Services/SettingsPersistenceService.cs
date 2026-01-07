@@ -40,11 +40,19 @@ public class SettingsPersistenceService
             
             if (data != null)
             {
-                return new AppSettings
+                var settings = new AppSettings
                 {
                     CrcFolderPath = data.CrcFolderPath,
                     DgScopeFolderPath = data.DgScopeFolderPath
                 };
+
+                // Load default settings if present
+                if (data.DefaultSettings != null)
+                {
+                    settings.DefaultSettings = data.DefaultSettings;
+                }
+
+                return settings;
             }
         }
         catch (Exception ex)
@@ -65,7 +73,8 @@ public class SettingsPersistenceService
             var data = new SettingsData
             {
                 CrcFolderPath = settings.CrcFolderPath,
-                DgScopeFolderPath = settings.DgScopeFolderPath
+                DgScopeFolderPath = settings.DgScopeFolderPath,
+                DefaultSettings = settings.DefaultSettings
             };
             
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
@@ -81,5 +90,6 @@ public class SettingsPersistenceService
     {
         public string CrcFolderPath { get; set; } = string.Empty;
         public string DgScopeFolderPath { get; set; } = string.Empty;
+        public ProfileDefaultSettings? DefaultSettings { get; set; }
     }
 }
