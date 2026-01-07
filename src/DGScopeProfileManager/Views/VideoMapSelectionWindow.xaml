@@ -30,9 +30,13 @@
                          Name="ProfileNameBox"
                          Height="30"
                          Background="#3E3E42"
-                         Foreground="#CCCCCC"
+                         Foreground="#999999"
                          BorderBrush="#555555"
-                         Padding="5"/>
+                         Padding="5"
+                         Text="default"
+                         GotFocus="ProfileNameBox_GotFocus"
+                         LostFocus="ProfileNameBox_LostFocus"
+                         TextChanged="ProfileNameBox_TextChanged"/>
                 <TextBlock Grid.Column="2"
                            Text=".xml"
                            FontSize="14"

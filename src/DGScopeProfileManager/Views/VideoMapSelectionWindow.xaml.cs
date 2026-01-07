@@ -10,14 +10,15 @@ public partial class VideoMapSelectionWindow : Window
 {
     public VideoMapInfo? SelectedVideoMap { get; private set; }
     public string ProfileName { get; private set; } = string.Empty;
+    private bool _isPlaceholder = true;
 
     public VideoMapSelectionWindow(List<VideoMapInfo> availableVideoMaps, string facilityId)
     {
         InitializeComponent();
 
-        // Set prefix label and clear textbox (facility ID will be added as prefix automatically)
+        // Set prefix label - textbox already has "default" placeholder
         ProfilePrefixLabel.Text = $"{facilityId}_";
-        ProfileNameBox.Text = string.Empty;
+        _isPlaceholder = true;
 
         // Add display text property to each video map
         foreach (var map in availableVideoMaps)
@@ -68,7 +69,41 @@ public partial class VideoMapSelectionWindow : Window
     {
         DialogResult = false;
     }
-    
+
+    private void ProfileNameBox_GotFocus(object sender, RoutedEventArgs e)
+    {
+        // Clear placeholder text when user clicks in the box
+        if (_isPlaceholder)
+        {
+            ProfileNameBox.Text = string.Empty;
+            ProfileNameBox.Foreground = new System.Windows.Media.SolidColorBrush(
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#CCCCCC"));
+        }
+    }
+
+    private void ProfileNameBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        // Restore placeholder if box is empty
+        if (string.IsNullOrWhiteSpace(ProfileNameBox.Text))
+        {
+            ProfileNameBox.Text = "default";
+            ProfileNameBox.Foreground = new System.Windows.Media.SolidColorBrush(
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#999999"));
+            _isPlaceholder = true;
+        }
+    }
+
+    private void ProfileNameBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        // Once user types anything, it's no longer a placeholder
+        if (_isPlaceholder && ProfileNameBox.Text != "default")
+        {
+            _isPlaceholder = false;
+            ProfileNameBox.Foreground = new System.Windows.Media.SolidColorBrush(
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#CCCCCC"));
+        }
+    }
+
     /// <summary>
     /// Wrapper class to add display properties to VideoMapInfo
     /// </summary>
