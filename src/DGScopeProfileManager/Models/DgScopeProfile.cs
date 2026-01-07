@@ -46,4 +46,26 @@ public class DgScopeProfile
     public List<string> VideoMapPaths { get; set; } = new();
     
     public override string ToString() => Name;
+
+    /// <summary>
+    /// Load PrefSetSettings from the profile, or create new with default values
+    /// </summary>
+    public PrefSetSettings LoadPrefSetSettings()
+    {
+        // If CurrentPrefSet exists, return it
+        if (CurrentPrefSet != null)
+            return CurrentPrefSet;
+
+        // Otherwise create a new PrefSetSettings with current values
+        var settings = new PrefSetSettings();
+
+        // Copy basic settings from profile
+        if (!string.IsNullOrWhiteSpace(FontName))
+            settings.FontName = FontName;
+        
+        if (FontSize.HasValue)
+            settings.FontSize = FontSize.Value;
+
+        return settings;
+    }
 }

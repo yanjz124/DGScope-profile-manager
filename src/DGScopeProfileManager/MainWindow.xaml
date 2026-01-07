@@ -112,37 +112,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- Batch Settings Panel -->
-                        <Expander Grid.Row="0" Header="Batch Settings" IsExpanded="False" Margin="0,0,0,10">
-                            <StackPanel>
-                                <TextBlock Text="Apply settings to all selected profiles:" FontStyle="Italic" Margin="0,5"/>
-                                
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Screen Rotation:"/>
-                                    <TextBox Grid.Row="0" Grid.Column="1" Name="BatchRotation" Margin="5"/>
-                                    
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Font Name:"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Name="BatchFontName" Margin="5"/>
-                                    
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Font Size:"/>
-                                    <TextBox Grid.Row="2" Grid.Column="1" Name="BatchFontSize" Margin="5"/>
-                                    
-                                    <Button Grid.Row="3" Grid.Column="1" Content="Apply to Selected" 
-                                            Click="ApplyBatchSettings_Click" HorizontalAlignment="Right"/>
-                                </Grid>
-                            </StackPanel>
-                        </Expander>
+                        <!-- Batch Settings Panel removed per request -->
                         
                         <!-- TreeView for hierarchical display -->
                         <TreeView Grid.Row="1" Name="FacilitiesTree" 

@@ -296,62 +296,6 @@ public partial class MainWindow : Window
         }
     }
     
-    private void ApplyBatchSettings_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var selectedProfiles = GetAllSelectedProfiles();
-            
-            if (selectedProfiles.Count == 0)
-            {
-                MessageBox.Show("Please select one or more profiles from the tree.", 
-                    "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-            
-            var settings = new Dictionary<string, string>();
-            
-            if (!string.IsNullOrWhiteSpace(BatchRotation.Text))
-                settings["ScreenRotation"] = BatchRotation.Text;
-                
-            if (!string.IsNullOrWhiteSpace(BatchFontName.Text))
-                settings["FontName"] = BatchFontName.Text;
-                
-            if (!string.IsNullOrWhiteSpace(BatchFontSize.Text))
-                settings["FontSize"] = BatchFontSize.Text;
-                
-            if (settings.Count == 0)
-            {
-                MessageBox.Show("Please enter at least one setting to apply.", 
-                    "No Settings", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-            
-            // Apply settings
-            foreach (var profile in selectedProfiles)
-            {
-                var facility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
-                if (facility != null)
-                {
-                    var service = new DgScopeProfileService(facility.Path);
-                    foreach (var setting in settings)
-                    {
-                        profile.AllSettings[setting.Key] = setting.Value;
-                    }
-                    service.SaveProfile(profile);
-                }
-            }
-            
-            UpdateStatus($"Applied batch settings to {selectedProfiles.Count} profiles");
-            MessageBox.Show($"Settings applied to {selectedProfiles.Count} profiles", 
-                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error applying settings: {ex.Message}", "Error", 
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
     
     private void EditProfile_Click(object sender, RoutedEventArgs e)
     {
@@ -360,8 +304,16 @@ public partial class MainWindow : Window
             var facility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
             if (facility != null)
             {
-                var editor = new ProfileEditorWindow(profile, facility);
-                editor.ShowDialog();
+                // Load profile settings
+                var profileSettings = profile.LoadPrefSetSettings();
+                
+                // Open unified settings window in profile mode
+                var editor = new UnifiedSettingsWindow(_settings, profile, profileSettings);
+                if (editor.ShowDialog() == true)
+                {
+                    // Settings were saved in the dialog
+                    UpdateStatus($"Profile {profile.Name} updated");
+                }
                 
                 // Refresh display
                 FacilitiesTree.Items.Refresh();
@@ -427,9 +379,5 @@ public partial class MainWindow : Window
         StatusText.Text = $"{DateTime.Now:HH:mm:ss} - {message}";
     }
     
-    private List<DgScopeProfile> GetAllSelectedProfiles()
-    {
-        // For now, return all profiles (could be extended with multi-select)
-        return _facilities.SelectMany(f => f.Profiles).ToList();
-    }
+    
 }

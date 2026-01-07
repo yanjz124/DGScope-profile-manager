@@ -21,6 +21,26 @@
             <Setter Property="Margin" Value="5"/>
             <Setter Property="Padding" Value="10"/>
         </Style>
+        
+        <!-- NumericUpDown Style -->
+        <Style x:Key="NumericTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinWidth" Value="60"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        </Style>
+        
+        <Style x:Key="SpinButtonStyle" TargetType="RepeatButton">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="13"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="8"/>
+            <Setter Property="FontFamily" Value="Marlett"/>
+            <Setter Property="Background" Value="#F0F0F0"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
     </Window.Resources>
 
     <DockPanel>
@@ -55,6 +75,35 @@
             <TabItem Header="Common Settings">
                 <ScrollViewer>
                     <StackPanel>
+                                                <!-- Profile Information (Only visible in Profile Mode) -->
+                                                <GroupBox Name="ProfileInfoPanel" Header="Profile Information" Visibility="Collapsed">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Profile Name:" Margin="5"/>
+                                                        <TextBlock Grid.Row="0" Grid.Column="1" Name="ProfileNameText" FontWeight="Bold" Margin="5"/>
+
+                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="File Path:" Margin="5"/>
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Name="ProfileFilePathText" 
+                                                                   TextWrapping="Wrap" Margin="5" FontSize="10" Foreground="Gray"/>
+
+                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Video Map:" Margin="5"/>
+                                                        <TextBox Grid.Row="2" Grid.Column="1" Name="VideoMapPathBox" 
+                                                                 IsReadOnly="True" Margin="5"/>
+                                                        <Button Grid.Row="2" Grid.Column="2" Content="Browse..." 
+                                                                Click="BrowseVideoMap_Click" Width="80" Margin="5"/>
+                                                    </Grid>
+                                                </GroupBox>
+
                         <!-- Font Settings -->
                         <GroupBox Header="Font Settings">
                             <Grid>
@@ -62,7 +111,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="100"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -73,13 +122,39 @@
                                 <ComboBox Grid.Row="0" Grid.Column="1" Name="FontNameBox"
                                           IsEditable="True" IsTextSearchEnabled="True"/>
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Font Size:"/>
-                                <TextBox Grid.Row="0" Grid.Column="3" Name="FontSizeBox"/>
+                                <Grid Grid.Row="0" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="FontSizeBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="FontSizeUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="FontSizeDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="DCB Font Name:"/>
                                 <ComboBox Grid.Row="1" Grid.Column="1" Name="DCBFontNameBox"
                                           IsEditable="True" IsTextSearchEnabled="True"/>
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="DCB Font Size:"/>
-                                <TextBox Grid.Row="1" Grid.Column="3" Name="DCBFontSizeBox"/>
+                                <Grid Grid.Row="1" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="DCBFontSizeBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="DCBFontSizeUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="DCBFontSizeDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
                         </GroupBox>
 
@@ -88,11 +163,11 @@
                             <Grid Margin="10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
-                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="100"/>
                                     <ColumnDefinition Width="140"/>
-                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="100"/>
                                     <ColumnDefinition Width="140"/>
-                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="100"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -105,49 +180,270 @@
 
                                 <!-- Row 0 -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="DCB:"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Name="BrightnessDCBBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="0" Grid.Column="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessDCBBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessDCBUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessDCBDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Background:"/>
-                                <TextBox Grid.Row="0" Grid.Column="3" Name="BrightnessBackgroundBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="0" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessBackgroundBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessBackgroundUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessBackgroundDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="0" Grid.Column="4" Text="Map A:"/>
-                                <TextBox Grid.Row="0" Grid.Column="5" Name="BrightnessMapABox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="0" Grid.Column="5" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessMapABox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessMapAUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessMapADown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Row 1 -->
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Map B:"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Name="BrightnessMapBBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="1" Grid.Column="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessMapBBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessMapBUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessMapBDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="Full Data Blocks:"/>
-                                <TextBox Grid.Row="1" Grid.Column="3" Name="BrightnessFullDataBlocksBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="1" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessFullDataBlocksBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessFullDataBlocksUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessFullDataBlocksDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="1" Grid.Column="4" Text="Lists:"/>
-                                <TextBox Grid.Row="1" Grid.Column="5" Name="BrightnessListsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="1" Grid.Column="5" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessListsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessListsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessListsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Row 2 -->
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Position Symbols:"/>
-                                <TextBox Grid.Row="2" Grid.Column="1" Name="BrightnessPositionSymbolsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="2" Grid.Column="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessPositionSymbolsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessPositionSymbolsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessPositionSymbolsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="2" Grid.Column="2" Text="Limited Data Blocks:"/>
-                                <TextBox Grid.Row="2" Grid.Column="3" Name="BrightnessLimitedDataBlocksBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="2" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessLimitedDataBlocksBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessLimitedDataBlocksUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessLimitedDataBlocksDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="2" Grid.Column="4" Text="Other FDBs:"/>
-                                <TextBox Grid.Row="2" Grid.Column="5" Name="BrightnessOtherFDBsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="2" Grid.Column="5" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessOtherFDBsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessOtherFDBsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessOtherFDBsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Row 3 -->
                                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Tools:"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Name="BrightnessToolsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="3" Grid.Column="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessToolsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessToolsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessToolsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="3" Grid.Column="2" Text="Range Rings:"/>
-                                <TextBox Grid.Row="3" Grid.Column="3" Name="BrightnessRangeRingsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="3" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessRangeRingsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessRangeRingsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessRangeRingsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="3" Grid.Column="4" Text="Compass:"/>
-                                <TextBox Grid.Row="3" Grid.Column="5" Name="BrightnessCompassBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="3" Grid.Column="5" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessCompassBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessCompassUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessCompassDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Row 4 -->
                                 <TextBlock Grid.Row="4" Grid.Column="0" Text="Beacon Targets:"/>
-                                <TextBox Grid.Row="4" Grid.Column="1" Name="BrightnessBeaconTargetsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="4" Grid.Column="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessBeaconTargetsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessBeaconTargetsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessBeaconTargetsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="4" Grid.Column="2" Text="Primary Targets:"/>
-                                <TextBox Grid.Row="4" Grid.Column="3" Name="BrightnessPrimaryTargetsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="4" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessPrimaryTargetsBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessPrimaryTargetsUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessPrimaryTargetsDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="4" Grid.Column="4" Text="History:"/>
-                                <TextBox Grid.Row="4" Grid.Column="5" Name="BrightnessHistoryBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="4" Grid.Column="5" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessHistoryBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessHistoryUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessHistoryDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Row 5 -->
                                 <TextBlock Grid.Row="5" Grid.Column="0" Text="Weather:"/>
-                                <TextBox Grid.Row="5" Grid.Column="1" Name="BrightnessWeatherBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="5" Grid.Column="1" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessWeatherBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessWeatherUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessWeatherDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                                 <TextBlock Grid.Row="5" Grid.Column="2" Text="Weather Contrast:"/>
-                                <TextBox Grid.Row="5" Grid.Column="3" Name="BrightnessWeatherContrastBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <Grid Grid.Row="5" Grid.Column="3" Margin="5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="18"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Name="BrightnessWeatherContrastBox" Style="{StaticResource NumericTextBoxStyle}" 
+                                             Margin="0" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <RepeatButton Content="5" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessWeatherContrastUp_Click" Height="13"/>
+                                        <RepeatButton Content="6" Style="{StaticResource SpinButtonStyle}" 
+                                                     Click="BrightnessWeatherContrastDown_Click" Height="13" Margin="0,-1,0,0"/>
+                                    </StackPanel>
+                                </Grid>
                             </Grid>
                         </GroupBox>
                     </StackPanel>

@@ -5,6 +5,8 @@ namespace DGScopeProfileManager.Models;
 /// </summary>
 public class ProfileDefaultSettings
 {
+    // Complete snapshot of PrefSet settings
+    public PrefSetSettings PrefSet { get; set; } = new PrefSetSettings();
     // Brightness Settings (detailed)
     public BrightnessSettings Brightness { get; set; } = new BrightnessSettings();
 
@@ -30,13 +32,13 @@ public class ProfileDefaultSettings
 
     public ProfileDefaultSettings()
     {
-        // Initialize with common defaults
-        Brightness = new BrightnessSettings(); // Already has default values
-        ScreenCenterPoint = "0, 0";
-        OwnedDataBlockPosition = "N";
-        PreviewAreaLocation = "{X=0, Y=0}";
-        FontName = "Consolas";
-        FontSize = "10";
+        // Initialize with common defaults and sync legacy fields
+        Brightness = PrefSet.Brightness;
+        ScreenCenterPoint = $"{PrefSet.ScreenCenterPointLatitude:F6}, {PrefSet.ScreenCenterPointLongitude:F6}";
+        OwnedDataBlockPosition = PrefSet.OwnedDataBlockPosition;
+        PreviewAreaLocation = $"{{X={PrefSet.PreviewAreaLocationX:F6}, Y={PrefSet.PreviewAreaLocationY:F6}}}";
+        FontName = PrefSet.FontName;
+        FontSize = PrefSet.FontSize.ToString();
         ScreenRotation = "0";
     }
 
@@ -45,6 +47,12 @@ public class ProfileDefaultSettings
     /// </summary>
     public PrefSetSettings ToPrefSetSettings()
     {
+        // Prefer the full snapshot when available
+        if (PrefSet != null)
+        {
+            return PrefSet;
+        }
+
         var settings = new PrefSetSettings
         {
             Brightness = this.Brightness
@@ -88,11 +96,16 @@ public class ProfileDefaultSettings
     /// </summary>
     public void UpdateFromPrefSetSettings(PrefSetSettings settings)
     {
+        // Store full snapshot
+        PrefSet = settings;
+
+        // Keep legacy string fields in sync for backward compatibility
         Brightness = settings.Brightness;
         FontName = settings.FontName;
         FontSize = settings.FontSize.ToString();
         ScreenCenterPoint = $"{settings.ScreenCenterPointLatitude:F6}, {settings.ScreenCenterPointLongitude:F6}";
         OwnedDataBlockPosition = settings.OwnedDataBlockPosition;
+        PreviewAreaLocation = $"{{X={settings.PreviewAreaLocationX:F6}, Y={settings.PreviewAreaLocationY:F6}}}";
     }
 
     /// <summary>

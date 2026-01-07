@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Win32;
 using DGScopeProfileManager.Models;
 using DGScopeProfileManager.Services;
 
@@ -82,6 +83,94 @@ public partial class UnifiedSettingsWindow : Window
         }
     }
 
+    // Numeric spinner button handlers
+    private void IncrementTextBox(System.Windows.Controls.TextBox textBox, int min = 0, int max = 100)
+    {
+        if (int.TryParse(textBox.Text, out var value))
+        {
+            if (value < max)
+            {
+                textBox.Text = (value + 1).ToString();
+            }
+        }
+    }
+
+    private void DecrementTextBox(System.Windows.Controls.TextBox textBox, int min = 0, int max = 100)
+    {
+        if (int.TryParse(textBox.Text, out var value))
+        {
+            if (value > min)
+            {
+                textBox.Text = (value - 1).ToString();
+            }
+        }
+    }
+
+    // Font Size spinners
+    private void FontSizeUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(FontSizeBox, 1, 72);
+    private void FontSizeDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(FontSizeBox, 1, 72);
+    private void DCBFontSizeUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(DCBFontSizeBox, 1, 72);
+    private void DCBFontSizeDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(DCBFontSizeBox, 1, 72);
+
+    // Brightness spinners
+    private void BrightnessDCBUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessDCBBox);
+    private void BrightnessDCBDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessDCBBox);
+    private void BrightnessBackgroundUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessBackgroundBox);
+    private void BrightnessBackgroundDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessBackgroundBox);
+    private void BrightnessMapAUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessMapABox);
+    private void BrightnessMapADown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessMapABox);
+    private void BrightnessMapBUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessMapBBox);
+    private void BrightnessMapBDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessMapBBox);
+    private void BrightnessFullDataBlocksUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessFullDataBlocksBox);
+    private void BrightnessFullDataBlocksDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessFullDataBlocksBox);
+    private void BrightnessListsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessListsBox);
+    private void BrightnessListsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessListsBox);
+    private void BrightnessPositionSymbolsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessPositionSymbolsBox);
+    private void BrightnessPositionSymbolsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessPositionSymbolsBox);
+    private void BrightnessLimitedDataBlocksUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessLimitedDataBlocksBox);
+    private void BrightnessLimitedDataBlocksDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessLimitedDataBlocksBox);
+    private void BrightnessOtherFDBsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessOtherFDBsBox);
+    private void BrightnessOtherFDBsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessOtherFDBsBox);
+    private void BrightnessToolsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessToolsBox);
+    private void BrightnessToolsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessToolsBox);
+    private void BrightnessRangeRingsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessRangeRingsBox);
+    private void BrightnessRangeRingsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessRangeRingsBox);
+    private void BrightnessCompassUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessCompassBox);
+    private void BrightnessCompassDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessCompassBox);
+    private void BrightnessBeaconTargetsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessBeaconTargetsBox);
+    private void BrightnessBeaconTargetsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessBeaconTargetsBox);
+    private void BrightnessPrimaryTargetsUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessPrimaryTargetsBox);
+    private void BrightnessPrimaryTargetsDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessPrimaryTargetsBox);
+    private void BrightnessHistoryUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessHistoryBox);
+    private void BrightnessHistoryDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessHistoryBox);
+    private void BrightnessWeatherUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessWeatherBox);
+    private void BrightnessWeatherDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessWeatherBox);
+    private void BrightnessWeatherContrastUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessWeatherContrastBox);
+    private void BrightnessWeatherContrastDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessWeatherContrastBox);
+    // Video Map File Browser
+    private void BrowseVideoMap_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select Video Map File",
+            Filter = "GeoJSON Files (*.geojson)|*.geojson|All Files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        // Set initial directory to CRC VideoMaps folder if available
+        if (!string.IsNullOrWhiteSpace(_appSettings.CrcVideoMapFolderPath) && 
+            System.IO.Directory.Exists(_appSettings.CrcVideoMapFolderPath))
+        {
+            dialog.InitialDirectory = _appSettings.CrcVideoMapFolderPath;
+        }
+
+        if (dialog.ShowDialog() == true)
+        {
+            VideoMapPathBox.Text = dialog.FileName;
+        }
+    }
+
+
     private void ConfigureForDefaultMode()
     {
         Title = "DGScope Default Settings Template";
@@ -103,6 +192,15 @@ public partial class UnifiedSettingsWindow : Window
         Title = $"Profile Settings - {_profile?.Name}";
         InstructionsText.Text =
             $"Edit settings for profile '{_profile?.Name}'. You can save to this profile only, or save as the default template and optionally apply to all profiles.";
+        // Show profile information panel
+        ProfileInfoPanel.Visibility = Visibility.Visible;
+        if (_profile != null)
+        {
+            ProfileNameText.Text = _profile.Name;
+            ProfileFilePathText.Text = _profile.FilePath;
+            VideoMapPathBox.Text = _profile.VideoMapFilename ?? string.Empty;
+        }
+
 
         // Hide default mode buttons
         SaveDefaultButton.Visibility = Visibility.Collapsed;
@@ -281,12 +379,8 @@ public partial class UnifiedSettingsWindow : Window
 
         try
         {
-            // Update the app settings default template
-            _appSettings.DefaultSettings.FontName = _settings.FontName;
-            _appSettings.DefaultSettings.FontSize = _settings.FontSize.ToString();
-            _appSettings.DefaultSettings.ScreenCenterPoint =
-                $"{_settings.ScreenCenterPointLatitude:F6}, {_settings.ScreenCenterPointLongitude:F6}";
-            _appSettings.DefaultSettings.Brightness = _settings.Brightness;
+            // Update the app settings default template with ALL settings from _settings
+            _appSettings.DefaultSettings.UpdateFromPrefSetSettings(_settings);
 
             // Save to persistent storage
             var persistenceService = new SettingsPersistenceService();
@@ -320,8 +414,10 @@ public partial class UnifiedSettingsWindow : Window
 
         try
         {
-            // First save the default template
-            SaveDefault_Click(sender, e);
+            // First persist these settings as the default template (without closing the window)
+            _appSettings.DefaultSettings.UpdateFromPrefSetSettings(_settings);
+            var persistenceService = new SettingsPersistenceService();
+            persistenceService.SaveSettings(_appSettings);
 
             // Then apply to all profiles
             if (string.IsNullOrWhiteSpace(_appSettings.DgScopeFolderPath))
@@ -340,8 +436,7 @@ public partial class UnifiedSettingsWindow : Window
                 var service = new DgScopeProfileService(facility.Path);
                 foreach (var profile in facility.Profiles)
                 {
-                    // Apply settings to profile (would need implementation in service)
-                    // service.SavePrefSetSettings(profile, _settings);
+                    service.ApplyPrefSetSettings(profile, _settings);
                     appliedCount++;
                 }
             }
@@ -368,9 +463,18 @@ public partial class UnifiedSettingsWindow : Window
             if (_profile == null)
                 return;
 
-            // Would need to implement SavePrefSetSettings in service
-            // var service = new DgScopeProfileService(_profile.FacilityPath);
-            // service.SavePrefSetSettings(_profile, _settings);
+            // Update profile's CurrentPrefSet
+            _profile.CurrentPrefSet = _settings;
+
+            // Update video map path if changed
+            if (!string.IsNullOrWhiteSpace(VideoMapPathBox.Text))
+            {
+                _profile.VideoMapFilename = VideoMapPathBox.Text;
+            }
+
+            // Save profile to XML (writes CurrentPrefSet subtree and root fonts; also updates VideoMapFilename)
+            var profileService = new DgScopeProfileService(_appSettings.DgScopeFolderPath);
+            profileService.ApplyPrefSetSettings(_profile, _settings);
 
             MessageBox.Show($"Profile settings saved successfully!", "Success",
                 MessageBoxButton.OK, MessageBoxImage.Information);
@@ -391,12 +495,8 @@ public partial class UnifiedSettingsWindow : Window
 
         try
         {
-            // Update the app settings default template
-            _appSettings.DefaultSettings.FontName = _settings.FontName;
-            _appSettings.DefaultSettings.FontSize = _settings.FontSize.ToString();
-            _appSettings.DefaultSettings.ScreenCenterPoint =
-                $"{_settings.ScreenCenterPointLatitude:F6}, {_settings.ScreenCenterPointLongitude:F6}";
-            _appSettings.DefaultSettings.Brightness = _settings.Brightness;
+            // Update the app settings default template with ALL settings from _settings
+            _appSettings.DefaultSettings.UpdateFromPrefSetSettings(_settings);
 
             // Save to persistent storage
             var persistenceService = new SettingsPersistenceService();
@@ -425,10 +525,45 @@ public partial class UnifiedSettingsWindow : Window
         if (result != MessageBoxResult.Yes)
             return;
 
-        // First save as default
-        SaveAsDefault_Click(sender, e);
+        if (!SaveSettingsFromUI())
+            return;
 
-        // Then apply to all
-        ApplyToAll_Click(sender, e);
+        try
+        {
+            // Persist defaults
+            _appSettings.DefaultSettings.UpdateFromPrefSetSettings(_settings);
+            var persistenceService = new SettingsPersistenceService();
+            persistenceService.SaveSettings(_appSettings);
+
+            if (string.IsNullOrWhiteSpace(_appSettings.DgScopeFolderPath))
+            {
+                MessageBox.Show("Please configure DGScope folder path in Settings first.",
+                    "Configuration Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var scanner = new FacilityScanner();
+            var facilities = scanner.ScanFacilities(_appSettings.DgScopeFolderPath);
+            int appliedCount = 0;
+            foreach (var facility in facilities)
+            {
+                var service = new DgScopeProfileService(facility.Path);
+                foreach (var profile in facility.Profiles)
+                {
+                    service.ApplyPrefSetSettings(profile, _settings);
+                    appliedCount++;
+                }
+            }
+
+            MessageBox.Show($"Saved defaults and applied to {appliedCount} profiles!", "Success",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+
+            DialogResult = true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error saving and applying settings: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 }

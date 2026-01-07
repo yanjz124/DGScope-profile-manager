@@ -245,4 +245,157 @@ public class DgScopeProfileService
             SaveProfile(profile);
         }
     }
+
+    private static void SetOrCreateElement(XElement parent, string elementName, string value)
+    {
+        var element = parent.Element(elementName);
+        if (element != null)
+        {
+            element.Value = value;
+        }
+        else
+        {
+            parent.Add(new XElement(elementName, value));
+        }
+    }
+
+    /// <summary>
+    /// Applies a full PrefSetSettings object to the given profile XML and saves it.
+    /// Writes root font settings and the CurrentPrefSet subtree.
+    /// Also updates VideoMapFilename if present on the profile.
+    /// </summary>
+    public void ApplyPrefSetSettings(DgScopeProfile profile, PrefSetSettings settings)
+    {
+        var doc = XDocument.Load(profile.FilePath);
+        var root = doc.Root ?? throw new InvalidOperationException($"Invalid XML file: {profile.FilePath}");
+
+        // Root-level font settings
+        SetOrCreateElement(root, "FontName", settings.FontName);
+        SetOrCreateElement(root, "FontSize", settings.FontSize.ToString());
+        SetOrCreateElement(root, "FontSizeUnit", settings.FontSizeUnit);
+        SetOrCreateElement(root, "DCBFontName", settings.DCBFontName);
+        SetOrCreateElement(root, "DCBFontSize", settings.DCBFontSize.ToString());
+        SetOrCreateElement(root, "DCBFontSizeUnit", settings.DCBFontSizeUnit);
+
+        // Update video map filename if present
+        if (!string.IsNullOrWhiteSpace(profile.VideoMapFilename))
+        {
+            SetOrCreateElement(root, "VideoMapFilename", profile.VideoMapFilename);
+        }
+
+        // Ensure CurrentPrefSet exists
+        var currentPrefSet = root.Element("CurrentPrefSet");
+        if (currentPrefSet == null)
+        {
+            currentPrefSet = new XElement("CurrentPrefSet");
+            root.Add(currentPrefSet);
+        }
+
+        string b(bool v) => v ? "true" : "false";
+
+        // ScreenCenterPoint
+        var screenCenter = currentPrefSet.Element("ScreenCenterPoint");
+        if (screenCenter == null)
+        {
+            screenCenter = new XElement("ScreenCenterPoint");
+            currentPrefSet.Add(screenCenter);
+        }
+        SetOrCreateElement(screenCenter, "Latitude", settings.ScreenCenterPointLatitude.ToString("F7"));
+        SetOrCreateElement(screenCenter, "Longitude", settings.ScreenCenterPointLongitude.ToString("F7"));
+
+        // PreviewAreaLocation
+        var previewLoc = currentPrefSet.Element("PreviewAreaLocation");
+        if (previewLoc == null)
+        {
+            previewLoc = new XElement("PreviewAreaLocation");
+            currentPrefSet.Add(previewLoc);
+        }
+        SetOrCreateElement(previewLoc, "X", settings.PreviewAreaLocationX.ToString("F6"));
+        SetOrCreateElement(previewLoc, "Y", settings.PreviewAreaLocationY.ToString("F6"));
+
+        // StatusAreaLocation
+        var statusLoc = currentPrefSet.Element("StatusAreaLocation");
+        if (statusLoc == null)
+        {
+            statusLoc = new XElement("StatusAreaLocation");
+            currentPrefSet.Add(statusLoc);
+        }
+        SetOrCreateElement(statusLoc, "X", settings.StatusAreaLocationX.ToString("F6"));
+        SetOrCreateElement(statusLoc, "Y", settings.StatusAreaLocationY.ToString("F6"));
+
+        // Range rings displayed
+        SetOrCreateElement(currentPrefSet, "RangeRingsDisplayed", b(settings.RangeRingsDisplayed));
+
+        // RangeRingLocation
+        var rangeRingLoc = currentPrefSet.Element("RangeRingLocation");
+        if (rangeRingLoc == null)
+        {
+            rangeRingLoc = new XElement("RangeRingLocation");
+            currentPrefSet.Add(rangeRingLoc);
+        }
+        SetOrCreateElement(rangeRingLoc, "Latitude", settings.RangeRingLocationLatitude.ToString("F7"));
+        SetOrCreateElement(rangeRingLoc, "Longitude", settings.RangeRingLocationLongitude.ToString("F7"));
+
+        // RangeRingSpacing
+        SetOrCreateElement(currentPrefSet, "RangeRingSpacing", settings.RangeRingSpacing.ToString());
+
+        // Data block and visibility settings
+        SetOrCreateElement(currentPrefSet, "DCBLocation", settings.DCBLocation);
+        SetOrCreateElement(currentPrefSet, "OwnedDataBlockPosition", settings.OwnedDataBlockPosition);
+        SetOrCreateElement(currentPrefSet, "UnownedDataBlockPosition", settings.UnownedDataBlockPosition);
+        SetOrCreateElement(currentPrefSet, "UnassociatedDataBlockPosition", settings.UnassociatedDataBlockPosition);
+        SetOrCreateElement(currentPrefSet, "DCBVisible", b(settings.DCBVisible));
+
+        // Centering and range
+        SetOrCreateElement(currentPrefSet, "RangeRingsCentered", b(settings.RangeRingsCentered));
+        SetOrCreateElement(currentPrefSet, "ScopeCentered", b(settings.ScopeCentered));
+        SetOrCreateElement(currentPrefSet, "Range", settings.Range.ToString());
+
+        // PTL, history, leader
+        SetOrCreateElement(currentPrefSet, "PTLLength", settings.PTLLength.ToString());
+        SetOrCreateElement(currentPrefSet, "PTLOwn", b(settings.PTLOwn));
+        SetOrCreateElement(currentPrefSet, "PTLAll", b(settings.PTLAll));
+        SetOrCreateElement(currentPrefSet, "HistoryNum", settings.HistoryNum.ToString());
+        SetOrCreateElement(currentPrefSet, "HistoryRate", settings.HistoryRate.ToString("F1"));
+        SetOrCreateElement(currentPrefSet, "LeaderLength", settings.LeaderLength.ToString());
+
+        // Altitude filters
+        SetOrCreateElement(currentPrefSet, "AltitudeFilterAssociatedMax", settings.AltitudeFilterAssociatedMax.ToString());
+        SetOrCreateElement(currentPrefSet, "AltitudeFilterAssociatedMin", settings.AltitudeFilterAssociatedMin.ToString());
+        SetOrCreateElement(currentPrefSet, "AltitudeFilterUnAssociatedMax", settings.AltitudeFilterUnAssociatedMax.ToString());
+        SetOrCreateElement(currentPrefSet, "AltitudeFilterUnAssociatedMin", settings.AltitudeFilterUnAssociatedMin.ToString());
+
+        // Brightness subtree
+        var brightness = currentPrefSet.Element("Brightness");
+        if (brightness == null)
+        {
+            brightness = new XElement("Brightness");
+            currentPrefSet.Add(brightness);
+        }
+        SetOrCreateElement(brightness, "DCB", settings.Brightness.DCB.ToString());
+        SetOrCreateElement(brightness, "Background", settings.Brightness.Background.ToString());
+        SetOrCreateElement(brightness, "MapA", settings.Brightness.MapA.ToString());
+        SetOrCreateElement(brightness, "MapB", settings.Brightness.MapB.ToString());
+        SetOrCreateElement(brightness, "FullDataBlocks", settings.Brightness.FullDataBlocks.ToString());
+        SetOrCreateElement(brightness, "Lists", settings.Brightness.Lists.ToString());
+        SetOrCreateElement(brightness, "PositionSymbols", settings.Brightness.PositionSymbols.ToString());
+        SetOrCreateElement(brightness, "LimitedDataBlocks", settings.Brightness.LimitedDataBlocks.ToString());
+        SetOrCreateElement(brightness, "OtherFDBs", settings.Brightness.OtherFDBs.ToString());
+        SetOrCreateElement(brightness, "Tools", settings.Brightness.Tools.ToString());
+        SetOrCreateElement(brightness, "RangeRings", settings.Brightness.RangeRings.ToString());
+        SetOrCreateElement(brightness, "Compass", settings.Brightness.Compass.ToString());
+        SetOrCreateElement(brightness, "BeaconTargets", settings.Brightness.BeaconTargets.ToString());
+        SetOrCreateElement(brightness, "PrimaryTargets", settings.Brightness.PrimaryTargets.ToString());
+        SetOrCreateElement(brightness, "History", settings.Brightness.History.ToString());
+        SetOrCreateElement(brightness, "Weather", settings.Brightness.Weather.ToString());
+        SetOrCreateElement(brightness, "WeatherContrast", settings.Brightness.WeatherContrast.ToString());
+
+        // Save
+        doc.Save(profile.FilePath);
+
+        // Update in-memory for convenience
+        profile.CurrentPrefSet = settings;
+        profile.FontName = settings.FontName;
+        profile.FontSize = settings.FontSize;
+    }
 }
