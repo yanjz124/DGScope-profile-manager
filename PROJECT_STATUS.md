@@ -798,8 +798,136 @@ dotnet build -c Release 2>&1 | Where-Object {$_ -match "^Build"}
 
 ---
 
-**Version**: 1.0.0-alpha  
-**Build Status**: ✅ Passing (0 Errors, 0 Warnings)  
-**Last Updated**: January 6, 2026  
-**Current Phase**: Phase 11 - Testing & Validation (In Progress)  
-**Next Milestone**: Successful end-to-end profile generation with facility data
+### Phase 12: UI Refinements & Default Settings System ✅ COMPLETE
+**Objective**: Improve UI workflow and add default settings template system
+
+**Date**: January 7, 2026
+
+#### 12.1 Button Reorganization ✅
+**Changes to MainWindow**:
+- Replaced "Refresh All" button with "DGScope Default Settings" button in top action bar
+- Changed "Refresh CRC" button to "Refresh All" in CRC panel
+- Added auto-refresh on app launch when paths are configured
+- Updated menu items to match new button structure
+
+**Implementation**:
+- Modified [MainWindow.xaml](src/DGScopeProfileManager/MainWindow.xaml#L60-L86)
+- Updated [MainWindow.xaml.cs](src/DGScopeProfileManager/MainWindow.xaml.cs#L40-L45) to auto-refresh on load
+- Changed handler names: `RefreshAll_Click` now calls `LoadFolders()`
+
+#### 12.2 Default Settings Template System ✅
+**Files Created**:
+- `Models/ProfileDefaultSettings.cs` - Template model for default settings
+- `Views/DefaultSettingsWindow.xaml` - Template editor UI
+- `Views/DefaultSettingsWindow.xaml.cs` - Template editor logic
+- `Views/ProfileSelectionWindow.xaml` - Profile selector for applying defaults
+- `Views/ProfileSelectionWindow.xaml.cs` - Profile selector logic
+
+**Features Implemented**:
+
+1. **Template Storage**:
+   - Default settings stored in `AppSettings.DefaultSettings` property
+   - Persisted to JSON with other app settings
+   - Includes: Brightness, Screen Position, Font settings, Display settings, Location, etc.
+
+2. **Template Editor** (DefaultSettingsWindow):
+   - Comprehensive form with all common DGScope settings
+   - Three action buttons:
+     - "Save Template" - Saves template to persistent storage
+     - "Apply to All Profiles" - Applies settings to all profiles in DGScope folder
+     - "Apply to Selected Profile" - Opens profile selector to apply to one profile
+   - Organized into logical groups: Brightness, Screen Position, Font, Display, Location, Other
+
+3. **Profile Selection Dialog**:
+   - Hierarchical tree view showing all facilities and profiles
+   - Same visual style as main window
+   - Returns selected profile for targeted template application
+
+**Settings Included in Template**:
+```
+- Brightness (PrefSet): DGScope.STARS.PrefSet+BrightnessSettings
+- Screen Center Point: 0, 0
+- Owned DataBlock Position: N
+- Preview Area Location: {X=0, Y=0}
+- Font Name: Consolas, 10pt
+- Font Size: 10
+- Screen Rotation: 0
+- Background Color
+- Home Latitude/Longitude
+- Altimeter Stations
+```
+
+#### 12.3 Two-Mode Profile Editor ✅
+**Enhancement to ProfileEditorWindow**:
+
+**Simple Mode (Default)**:
+- Shows most commonly used settings:
+  - Brightness (PrefSet)
+  - Screen Center Point
+  - Font Name and Size
+  - Screen Rotation
+- Ideal for quick edits and common adjustments
+
+**Detailed Mode**:
+- Shows all settings including:
+  - All Simple Mode settings
+  - Advanced Display Settings:
+    - Back Color
+    - Owned DataBlock Position
+    - Preview Area Location
+  - Location Settings:
+    - Home Latitude
+    - Home Longitude
+  - Other Settings:
+    - Altimeter Stations
+
+**UI Implementation**:
+- Checkbox toggle: "Show Detailed Settings"
+- Advanced sections initially collapsed
+- Toggle shows/hides three additional GroupBoxes
+- Modified [ProfileEditorWindow.xaml](src/DGScopeProfileManager/Views/ProfileEditorWindow.xaml#L7-L16) with mode toggle
+- Added `DetailedMode_Changed` handler to control visibility
+
+**Inspired By**: DGScope's built-in "New Profile" builder with simple/detailed views
+
+#### 12.4 Integration & Testing ✅
+**Updated Files**:
+- [Models/AppSettings.cs](src/DGScopeProfileManager/Models/AppSettings.cs#L18) - Added DefaultSettings property
+- [MainWindow.xaml.cs](src/DGScopeProfileManager/MainWindow.xaml.cs#L133-L140) - Added DefaultSettings_Click handler
+- Modified all button event handlers to use new naming
+
+**Build Results**:
+```
+dotnet build -c Release
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+Time Elapsed 00:00:03.49
+```
+
+**Key Benefits**:
+1. **Streamlined Workflow**: Auto-refresh eliminates manual step
+2. **Template Management**: Create default settings once, apply to many profiles
+3. **Batch Operations**: Apply defaults to all profiles or select specific ones
+4. **User-Friendly**: Simple mode keeps UI clean, detailed mode available when needed
+5. **Consistent Profiles**: Ensure all profiles have standardized settings
+
+**Usage Flow**:
+```
+1. User clicks "DGScope Default Settings"
+2. DefaultSettingsWindow opens with saved template
+3. User edits template values
+4. User has three options:
+   a) "Save Template" - Just save for future use
+   b) "Apply to All" - Apply to every profile immediately
+   c) "Apply to Selected" - Choose specific profile to update
+5. Settings persisted and applied as requested
+```
+
+---
+
+**Version**: 1.0.1-alpha
+**Build Status**: ✅ Passing (0 Errors, 0 Warnings)
+**Last Updated**: January 7, 2026
+**Current Phase**: Phase 12 - UI Refinements Complete
+**Next Milestone**: User testing and feedback collection

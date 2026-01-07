@@ -14,6 +14,9 @@ public class AppSettings
     public string CrcArtccFolderPath => Path.Combine(CrcFolderPath, "ARTCCs");
     public string CrcVideoMapFolderPath => Path.Combine(CrcFolderPath, "VideoMaps");
 
+    // Default settings template
+    public ProfileDefaultSettings DefaultSettings { get; set; } = new ProfileDefaultSettings();
+
     public AppSettings()
     {
         // Set default to CRC root folder

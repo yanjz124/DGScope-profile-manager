@@ -34,7 +34,8 @@
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem Header="_Fix All Video Map Paths" Click="FixAllPaths_Click"/>
-                <MenuItem Header="_Refresh All" Click="ScanFolders_Click"/>
+                <MenuItem Header="_Refresh All" Click="RefreshAll_Click"/>
+                <MenuItem Header="_DGScope Default Settings" Click="DefaultSettings_Click"/>
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About" Click="About_Click"/>
@@ -58,7 +59,7 @@
             <!-- Top Action Bar -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                 <Button Content="Settings" Click="Settings_Click"/>
-                <Button Content="Refresh All" Click="ScanFolders_Click"/>
+                <Button Content="DGScope Default Settings" Click="DefaultSettings_Click"/>
                 <Button Content="Fix All Paths" Click="FixAllPaths_Click"/>
                 <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="10,0"/>
                 <TextBlock Text="Quick Actions:" FontWeight="Bold"/>
@@ -83,7 +84,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" Content="Generate Profile" Click="GenerateProfile_Click" Name="GenerateButton" Margin="0,0,5,0"/>
-                                <Button Grid.Column="1" Content="Refresh CRC" Click="RefreshCrc_Click" Margin="5,0,0,0"/>
+                                <Button Grid.Column="1" Content="Refresh All" Click="RefreshAll_Click" Margin="5,0,0,0"/>
                             </Grid>
                         </StackPanel>
 

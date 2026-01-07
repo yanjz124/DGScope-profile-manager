@@ -4,12 +4,17 @@
         Title="Profile Editor" Height="600" Width="500"
         WindowStartupLocation="CenterOwner">
     <DockPanel>
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" 
-                    HorizontalAlignment="Right" Margin="10">
-            <Button Content="Save" Click="Save_Click" MinWidth="80" Margin="5"/>
-            <Button Content="Cancel" IsCancel="True" MinWidth="80" Margin="5"/>
+        <!-- Mode Toggle and Buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Margin="10">
+            <CheckBox Name="DetailedModeCheckBox" Content="Show Detailed Settings"
+                      Checked="DetailedMode_Changed" Unchecked="DetailedMode_Changed"
+                      Margin="0,0,0,10"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Save" Click="Save_Click" MinWidth="80" Margin="5"/>
+                <Button Content="Cancel" IsCancel="True" MinWidth="80" Margin="5"/>
+            </StackPanel>
         </StackPanel>
-        
+
         <ScrollViewer>
             <StackPanel Margin="20">
                 <TextBlock Text="Profile Settings" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
@@ -39,36 +44,66 @@
                     </Grid>
                 </GroupBox>
                 
-                <GroupBox Header="Display Settings" Margin="0,0,0,15">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Screen Rotation:" Margin="5"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Name="ScreenRotation" Margin="5"/>
-                            
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Font Name:" Margin="5"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Name="FontName" Margin="5"/>
-                            
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Font Size:" Margin="5"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Name="FontSizeBox" Margin="5"/>
-                            
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Back Color:" Margin="5"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" Name="BackColor" Margin="5"/>
-                        </Grid>
-                    </StackPanel>
+                <!-- Simple Mode Settings -->
+                <GroupBox Header="Display Settings (Common)" Margin="0,0,0,15">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Brightness (PrefSet):" Margin="5"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="Brightness" Margin="5"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Screen Center Point:" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="ScreenCenterPoint" Margin="5"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Font Name:" Margin="5"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Name="FontName" Margin="5"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Font Size:" Margin="5"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Name="FontSizeBox" Margin="5"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Screen Rotation:" Margin="5"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" Name="ScreenRotation" Margin="5"/>
+                    </Grid>
+                </GroupBox>
+
+                <!-- Detailed Mode Settings (Initially Hidden) -->
+                <GroupBox Name="DetailedSettingsPanel" Header="Advanced Display Settings"
+                          Margin="0,0,0,15" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Back Color:" Margin="5"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="BackColor" Margin="5"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Owned DataBlock Position:" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="OwnedDataBlockPosition" Margin="5"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Preview Area Location:" Margin="5"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Name="PreviewAreaLocation" Margin="5"/>
+                    </Grid>
                 </GroupBox>
                 
-                <GroupBox Header="Location Settings" Margin="0,0,0,15">
+                <!-- Detailed Mode Only: Location and Other Settings -->
+                <GroupBox Name="LocationSettingsPanel" Header="Location Settings"
+                          Margin="0,0,0,15" Visibility="Collapsed">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="150"/>
@@ -78,16 +113,16 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        
+
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Home Latitude:" Margin="5"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Name="HomeLatitude" Margin="5"/>
-                        
+
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Home Longitude:" Margin="5"/>
                         <TextBox Grid.Row="1" Grid.Column="1" Name="HomeLongitude" Margin="5"/>
                     </Grid>
                 </GroupBox>
-                
-                <GroupBox Header="Other Settings">
+
+                <GroupBox Name="OtherSettingsPanel" Header="Other Settings" Visibility="Collapsed">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="150"/>
@@ -96,7 +131,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        
+
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Altimeter Stations:" Margin="5"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Name="AltimeterStations" Margin="5"/>
                     </Grid>

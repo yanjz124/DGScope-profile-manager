@@ -25,17 +25,24 @@ public partial class MainWindow : Window
         _persistenceService = new SettingsPersistenceService();
         _settings = _persistenceService.LoadSettings();
         _facilityScanner = new FacilityScanner();
-        
+
         // Initialize with empty lists
         CrcProfilesList.ItemsSource = _crcProfiles;
         FacilitiesTree.ItemsSource = _facilities;
-        
+
         // Disable buttons initially
         GenerateButton.IsEnabled = false;
         EditProfileButton.IsEnabled = false;
         DeleteProfileButton.IsEnabled = false;
-        
+
         UpdateStatus("Ready. Click Settings to configure paths, then Scan Folders to load profiles.");
+
+        // Auto-refresh on launch if paths are configured
+        if (!string.IsNullOrWhiteSpace(_settings.CrcFolderPath) ||
+            !string.IsNullOrWhiteSpace(_settings.DgScopeFolderPath))
+        {
+            Loaded += (s, e) => LoadFolders();
+        }
     }
     
     private async void LoadFolders()
@@ -125,32 +132,17 @@ public partial class MainWindow : Window
     {
         GenerateButton.IsEnabled = CrcProfilesList.SelectedItem != null;
     }
-    private void ScanFolders_Click(object sender, RoutedEventArgs e)
+    private void RefreshAll_Click(object sender, RoutedEventArgs e)
     {
         LoadFolders();
     }
-    
-    private void RefreshCrc_Click(object sender, RoutedEventArgs e)
+
+    private void DefaultSettings_Click(object sender, RoutedEventArgs e)
     {
-        if (_crcReader == null)
+        var defaultSettingsWindow = new DefaultSettingsWindow(_settings);
+        if (defaultSettingsWindow.ShowDialog() == true)
         {
-            MessageBox.Show("Please configure CRC folder path in Settings first.",
-                "Configuration Required", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        
-        try
-        {
-            UpdateStatus("Refreshing CRC profiles...");
-            _crcProfiles.Clear();
-            _crcProfiles.AddRange(_crcReader.GetAllProfiles() ?? new List<CrcProfile>());
-            CrcProfilesList.Items.Refresh();
-            UpdateStatus($"Refreshed {_crcProfiles.Count} CRC profiles");
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error refreshing CRC profiles: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            UpdateStatus("Default settings updated");
         }
     }
     
