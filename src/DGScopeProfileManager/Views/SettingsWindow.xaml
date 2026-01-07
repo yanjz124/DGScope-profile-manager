@@ -7,6 +7,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -26,8 +27,13 @@
         <TextBox Grid.Row="1" Grid.Column="1" Name="DgScopeFolderPath" Margin="0,0,5,10" VerticalAlignment="Center"/>
         <Button Grid.Row="1" Grid.Column="2" Content="Browse..." Click="BrowseDgScope_Click" Margin="0,0,0,10"/>
 
+        <!-- DGScope Executable -->
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="DGScope Executable:" VerticalAlignment="Center" Margin="0,0,10,10"/>
+        <TextBox Grid.Row="2" Grid.Column="1" Name="DgScopeExePath" Margin="0,0,5,10" VerticalAlignment="Center"/>
+        <Button Grid.Row="2" Grid.Column="2" Content="Browse..." Click="BrowseDgScopeExe_Click" Margin="0,0,0,10"/>
+
         <!-- Info Panel -->
-        <Border Grid.Row="2" Grid.ColumnSpan="3" Background="LightYellow" BorderBrush="Gold" 
+        <Border Grid.Row="3" Grid.ColumnSpan="3" Background="LightYellow" BorderBrush="Gold" 
                 BorderThickness="1" Padding="10" Margin="0,10">
             <StackPanel>
                 <TextBlock Text="Folder Structure:" FontWeight="Bold" Margin="0,0,0,5"/>
@@ -37,6 +43,9 @@
                     <LineBreak/>
                     • DGScope Root: Contains ARTCC/Facility/Profile.xml structure<LineBreak/>
                     Example: DGScope Root/ZDC/PCT/PCT_north.xml<LineBreak/>
+                    <LineBreak/>
+                    • DGScope Executable: Path to DGScope.exe to enable "Launch DGScope" feature<LineBreak/>
+                    Example: C:\DGScope\scope\DGScope.exe<LineBreak/>
                     <LineBreak/>
                     • A default template is included - no need to provide your own
                 </TextBlock>

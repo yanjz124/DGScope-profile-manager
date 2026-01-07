@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
         GenerateButton.IsEnabled = false;
         EditProfileButton.IsEnabled = false;
         DeleteProfileButton.IsEnabled = false;
+        LaunchDGScopeButton.IsEnabled = false;
 
         UpdateStatus("Ready. Click Settings to configure paths, then Scan Folders to load profiles.");
 
@@ -358,6 +360,68 @@ public partial class MainWindow : Window
         var selectedProfile = FacilitiesTree.SelectedItem as DgScopeProfile;
         EditProfileButton.IsEnabled = selectedProfile != null;
         DeleteProfileButton.IsEnabled = selectedProfile != null;
+        LaunchDGScopeButton.IsEnabled = selectedProfile != null;
+    }
+    
+    private void LaunchDGScope_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedProfile = FacilitiesTree.SelectedItem as DgScopeProfile;
+        if (selectedProfile == null)
+        {
+            MessageBox.Show("Please select a profile first.", "No Profile Selected", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Check if DGScope path is configured
+        if (string.IsNullOrWhiteSpace(_settings.DgScopeExePath))
+        {
+            MessageBox.Show(
+                "DGScope executable path is not configured.\n\nPlease go to Settings and set the path to DGScope.exe",
+                "DGScope Not Configured",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        // Check if DGScope executable exists
+        if (!File.Exists(_settings.DgScopeExePath))
+        {
+            var result = MessageBox.Show(
+                $"DGScope executable not found at:\n{_settings.DgScopeExePath}\n\nWould you like to update the path in Settings?",
+                "DGScope Not Found",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            
+            if (result == MessageBoxResult.Yes)
+            {
+                Settings_Click(sender, e);
+            }
+            return;
+        }
+
+        try
+        {
+            // Launch DGScope with the selected profile as command-line argument
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = _settings.DgScopeExePath,
+                Arguments = $"\"{selectedProfile.FilePath}\"",
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(_settings.DgScopeExePath)
+            };
+
+            Process.Start(startInfo);
+            UpdateStatus($"Launched DGScope with profile: {selectedProfile.Name}");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to launch DGScope:\n\n{ex.Message}",
+                "Launch Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
     
     private void About_Click(object sender, RoutedEventArgs e)

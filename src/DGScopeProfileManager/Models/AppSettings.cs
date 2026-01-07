@@ -9,6 +9,7 @@ public class AppSettings
 {
     public string CrcFolderPath { get; set; } = string.Empty;
     public string DgScopeFolderPath { get; set; } = string.Empty;
+    public string DgScopeExePath { get; set; } = string.Empty;
 
     // Computed properties for CRC subfolders
     public string CrcArtccFolderPath => Path.Combine(CrcFolderPath, "ARTCCs");

@@ -16,6 +16,7 @@ public partial class SettingsWindow : Window
         // Load current settings
         CrcFolderPath.Text = settings.CrcFolderPath;
         DgScopeFolderPath.Text = settings.DgScopeFolderPath;
+        DgScopeExePath.Text = settings.DgScopeExePath;
     }
 
     private void BrowseCrc_Click(object sender, RoutedEventArgs e)
@@ -44,10 +45,26 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void BrowseDgScopeExe_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Select DGScope Executable",
+            Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            DgScopeExePath.Text = dialog.FileName;
+        }
+    }
+
     private void OK_Click(object sender, RoutedEventArgs e)
     {
         Settings.CrcFolderPath = CrcFolderPath.Text;
         Settings.DgScopeFolderPath = DgScopeFolderPath.Text;
+        Settings.DgScopeExePath = DgScopeExePath.Text;
 
         DialogResult = true;
         Close();
