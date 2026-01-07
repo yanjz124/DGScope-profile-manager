@@ -12,7 +12,7 @@ public class PrefSetSettings
     public string FontName { get; set; } = "FixedDemiBold";
     public int FontSize { get; set; } = 10;
     public string FontSizeUnit { get; set; } = "Point";
-    public string DCBFontName { get; set; } = "Consolas";
+    public string DCBFontName { get; set; } = "Consolas";  // DCB = Data Block Controller
     public int DCBFontSize { get; set; } = 10;
     public string DCBFontSizeUnit { get; set; } = "Point";
 
