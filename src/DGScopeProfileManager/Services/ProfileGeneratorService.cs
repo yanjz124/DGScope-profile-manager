@@ -195,14 +195,13 @@ public class ProfileGeneratorService
 
         if (ssaAirports != null && ssaAirports.Count > 0)
         {
-            // Determine prefix based on ARTCC code
-            var artccCode = crcProfile.ArtccCode.ToUpper();
-            var isPacific = artccCode == "ZAN" || artccCode == "ZHN" || artccCode == "ZUA";
-            var prefix = isPacific ? "P" : "K";
+            // Use AirportLookupService for accurate FAA LID to ICAO conversion
+            var lookupService = AirportLookupService.Instance;
+            var artccCode = crcProfile.ArtccCode;
 
             var altimeterStations = ssaAirports.Select(airport =>
             {
-                return prefix + airport.ToUpper();
+                return lookupService.ConvertToIcao(airport, artccCode);
             }).ToList();
 
             UpdateAltimeterStations(root, altimeterStations);

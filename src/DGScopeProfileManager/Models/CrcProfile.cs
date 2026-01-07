@@ -1,3 +1,5 @@
+using DGScopeProfileManager.Services;
+
 namespace DGScopeProfileManager.Models;
 
 /// <summary>
@@ -71,16 +73,15 @@ public class CrcTracon
 
     /// <summary>
     /// Convert SSA airport codes to ICAO altimeter station codes
-    /// Uses ARTCC code to determine prefix: 'P' for Pacific (ZAN, ZHN, ZUA), 'K' for all others
+    /// Uses AirportLookupService to convert FAA LID to proper ICAO codes
     /// </summary>
     public List<string> GetAltimeterStations(string artccCode)
     {
-        var isPacific = artccCode.ToUpper() is "ZAN" or "ZHN" or "ZUA";
-        var prefix = isPacific ? "P" : "K";
+        var lookupService = AirportLookupService.Instance;
 
         return SsaAirports.Select(airport =>
         {
-            return prefix + airport.ToUpper();
+            return lookupService.ConvertToIcao(airport, artccCode);
         }).ToList();
     }
 

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\DefaultTemplate.xml" />
+    <EmbeddedResource Include="Resources\airports.csv" />
     <None Include="..\..\nexrad-stations.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
