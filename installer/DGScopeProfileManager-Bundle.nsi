@@ -32,11 +32,11 @@ Section "Install"
   
   ; Copy Profile Manager files
   SetOutPath "$INSTDIR\ProfileManager"
-  File /r "..\..\publish\ProfileManager\*.*"
+  File /r "ProfileManager\*.*"
   
   ; Copy DGScope files
   SetOutPath "$INSTDIR\scope"
-  File /r "..\..\publish\scope\*.*"
+  File /r "scope\*.*"
   
   ; Create ARTCC profile directories
   SetOutPath "$INSTDIR\profiles"

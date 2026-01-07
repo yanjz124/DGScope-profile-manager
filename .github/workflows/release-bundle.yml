@@ -141,6 +141,12 @@ jobs:
             $releaseVersion = "1.0.0"
           }
           
+          # Copy published files to installer directory for NSIS to find them
+          Write-Host "Preparing files for NSIS..."
+          Copy-Item "publish/ProfileManager" -Destination "installer/ProfileManager" -Recurse -Force
+          Copy-Item "publish/scope" -Destination "installer/scope" -Recurse -Force
+          Copy-Item "publish/profiles" -Destination "installer/profiles" -Recurse -Force
+          
           # Create directory structure
           $artccs = @("ZAN", "ZAK", "ZDV", "ZDC", "ZID", "ZIN", "ZJX", "ZKC", "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL", "ZUA")
           $createDirs = ($artccs | ForEach-Object { "            CreateDirectory `"`$$INSTDIR\profiles\$_`"" }) -join "`n"
@@ -156,12 +162,15 @@ jobs:
           
           # Build with NSIS
           Write-Host "Building NSIS installer..."
-          & "C:\Program Files (x86)\NSIS\makensis.exe" "installer/build-bundle.nsi"
+          & "C:\Program Files (x86)\NSIS\makensis.exe" "installer\build-bundle.nsi"
           
           if ($LASTEXITCODE -ne 0) {
             Write-Error "NSIS build failed"
             exit 1
           }
+          
+          # Move installer to root
+          Move-Item "installer/DGScope-Profile-Manager-v$releaseVersion-Setup.exe" -Destination "DGScope-Profile-Manager-v$releaseVersion-Setup.exe" -Force
           
           Write-Host "NSIS installer created"
         shell: pwsh
