@@ -70,6 +70,19 @@ public class ProfileGeneratorService
         {
             // Load existing similar profile as template - preserve EVERYTHING
             doc = XDocument.Load(templateProfile);
+
+            // Fix old DBC tags to DCB for backward compatibility
+            var dbcFontName = doc.Descendants("DBCFontName").FirstOrDefault();
+            if (dbcFontName != null)
+            {
+                dbcFontName.Name = "DCBFontName";
+            }
+
+            var dbcFontSize = doc.Descendants("DBCFontSize").FirstOrDefault();
+            if (dbcFontSize != null)
+            {
+                dbcFontSize.Name = "DCBFontSize";
+            }
         }
         else
         {
