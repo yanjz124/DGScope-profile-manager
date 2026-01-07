@@ -129,18 +129,9 @@ jobs:
 
       - name: Setup NSIS
         run: |
-          # Download NSIS
-          $nsis_url = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.11/nsis-3.11-setup.exe/download"
-          $nsis_installer = "$env:TEMP\nsis-setup.exe"
-          
-          Write-Host "Downloading NSIS..."
-          Invoke-WebRequest -Uri $nsis_url -OutFile $nsis_installer
-          
-          Write-Host "Installing NSIS..."
-          & $nsis_installer /S
-          
+          Write-Host "Installing NSIS using winget..."
+          winget install NSIS.NSIS -h --accept-source-agreements --accept-package-agreements
           Write-Host "NSIS installed"
-          Remove-Item $nsis_installer -Force
         shell: pwsh
 
       - name: Build NSIS Installer
