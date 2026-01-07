@@ -69,18 +69,17 @@ public class ProfileGeneratorService
         if (templateProfile != null)
         {
             // Load existing similar profile as template - preserve EVERYTHING
-            doc = XDocument.Load(templateProfile);
+            // First read as text to fix old DBC tags before XML parsing
+            var xmlText = File.ReadAllText(templateProfile);
 
             // Fix old DBC tags to DCB for backward compatibility
-            foreach (var element in doc.Descendants("DBCFontName").ToList())
-            {
-                element.Name = "DCBFontName";
-            }
+            xmlText = xmlText.Replace("<DBCFontName>", "<DCBFontName>");
+            xmlText = xmlText.Replace("</DBCFontName>", "</DCBFontName>");
+            xmlText = xmlText.Replace("<DBCFontSize>", "<DCBFontSize>");
+            xmlText = xmlText.Replace("</DBCFontSize>", "</DCBFontSize>");
 
-            foreach (var element in doc.Descendants("DBCFontSize").ToList())
-            {
-                element.Name = "DCBFontSize";
-            }
+            // Now parse the fixed XML
+            doc = XDocument.Parse(xmlText);
         }
         else
         {
