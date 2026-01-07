@@ -13,7 +13,7 @@
             <Button Content="Cancel" Click="Cancel_Click" Padding="20,8" Margin="5" IsCancel="True"/>
         </StackPanel>
         
-        <ListBox Name="TraconListBox" SelectionMode="Single">
+        <ListBox Name="TraconListBox" SelectionMode="Single" MouseDoubleClick="TraconListBox_MouseDoubleClick">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel>

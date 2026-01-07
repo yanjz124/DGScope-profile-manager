@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 using DGScopeProfileManager.Models;
 
 namespace DGScopeProfileManager.Views;
@@ -18,6 +19,12 @@ public partial class AreaSelectionWindow : Window
         {
             AreasList.SelectedIndex = 0;
         }
+    }
+
+    private void AreasList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // Double-click to select and confirm
+        OkButton_Click(sender, e);
     }
 
     private void OkButton_Click(object sender, RoutedEventArgs e)

@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using DGScopeProfileManager.Models;
 using DGScopeProfileManager.Services;
 using DGScopeProfileManager.Views;
@@ -184,6 +185,12 @@ public partial class MainWindow : Window
         }
     }
     
+    private void CrcProfilesList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // Double-click to generate profile
+        GenerateProfile_Click(sender, e);
+    }
+
     private void GenerateProfile_Click(object sender, RoutedEventArgs e)
     {
         if (CrcProfilesList.SelectedItem is not CrcProfile selectedCrc)

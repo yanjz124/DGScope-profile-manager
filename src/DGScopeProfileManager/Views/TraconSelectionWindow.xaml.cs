@@ -1,19 +1,26 @@
 using DGScopeProfileManager.Models;
 using System.Windows;
+using System.Windows.Input;
 
 namespace DGScopeProfileManager.Views;
 
 public partial class TraconSelectionWindow : Window
 {
     public CrcTracon? SelectedTracon { get; private set; }
-    
+
     public TraconSelectionWindow(CrcProfile profile)
     {
         InitializeComponent();
         Title = $"Select TRACON to generate - {profile.ArtccCode}";
         TraconListBox.ItemsSource = profile.Tracons;
     }
-    
+
+    private void TraconListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // Double-click to select and confirm
+        Generate_Click(sender, e);
+    }
+
     private void Generate_Click(object sender, RoutedEventArgs e)
     {
         SelectedTracon = TraconListBox.SelectedItem as CrcTracon;

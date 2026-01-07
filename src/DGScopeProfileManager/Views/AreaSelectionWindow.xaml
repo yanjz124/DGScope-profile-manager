@@ -28,7 +28,8 @@
                  Foreground="#CCCCCC"
                  BorderBrush="#555555"
                  SelectionMode="Single"
-                 Margin="0 0 0 15">
+                 Margin="0 0 0 15"
+                 MouseDoubleClick="AreasList_MouseDoubleClick">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Vertical" Margin="5">

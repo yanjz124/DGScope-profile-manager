@@ -72,16 +72,14 @@ public class ProfileGeneratorService
             doc = XDocument.Load(templateProfile);
 
             // Fix old DBC tags to DCB for backward compatibility
-            var dbcFontName = doc.Descendants("DBCFontName").FirstOrDefault();
-            if (dbcFontName != null)
+            foreach (var element in doc.Descendants("DBCFontName").ToList())
             {
-                dbcFontName.Name = "DCBFontName";
+                element.Name = "DCBFontName";
             }
 
-            var dbcFontSize = doc.Descendants("DBCFontSize").FirstOrDefault();
-            if (dbcFontSize != null)
+            foreach (var element in doc.Descendants("DBCFontSize").ToList())
             {
-                dbcFontSize.Name = "DCBFontSize";
+                element.Name = "DCBFontSize";
             }
         }
         else

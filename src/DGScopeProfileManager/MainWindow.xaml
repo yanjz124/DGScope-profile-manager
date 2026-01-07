@@ -88,9 +88,10 @@
                             </Grid>
                         </StackPanel>
 
-                        <ListBox Name="CrcProfilesList" 
+                        <ListBox Name="CrcProfilesList"
                                  SelectionMode="Single"
-                                 SelectionChanged="CrcProfilesList_SelectionChanged">
+                                 SelectionChanged="CrcProfilesList_SelectionChanged"
+                                 MouseDoubleClick="CrcProfilesList_MouseDoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding ArtccCode}" FontSize="14" FontWeight="Bold"/>
