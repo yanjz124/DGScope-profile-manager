@@ -1,0 +1,317 @@
+name: Build Release Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      scope_release:
+        description: 'DGScope release tag (or "latest")'
+        required: true
+        default: 'latest'
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-bundle:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Profile Manager
+        run: |
+          dotnet publish src/DGScopeProfileManager/DGScopeProfileManager.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained `
+            -p:PublishSingleFile=true `
+            -o publish/ProfileManager
+        shell: pwsh
+
+      - name: Download DGScope Release
+        run: |
+          # Get the release info from yanjz124/scope
+          $releaseTag = "${{ github.event.inputs.scope_release }}" -eq '' ? 'latest' : "${{ github.event.inputs.scope_release }}"
+          
+          if ($releaseTag -eq 'latest') {
+            $release = (Invoke-WebRequest -Uri "https://api.github.com/repos/yanjz124/scope/releases/latest" -Headers @{"Accept"="application/vnd.github.v3+json"}).Content | ConvertFrom-Json
+          } else {
+            $release = (Invoke-WebRequest -Uri "https://api.github.com/repos/yanjz124/scope/releases/tags/$releaseTag" -Headers @{"Accept"="application/vnd.github.v3+json"}).Content | ConvertFrom-Json
+          }
+          
+          # Find the ZIP asset
+          $zipAsset = $release.assets | Where-Object { $_.name -match "\.zip$" } | Select-Object -First 1
+          
+          if (-not $zipAsset) {
+            Write-Error "No ZIP asset found in release"
+            exit 1
+          }
+          
+          Write-Host "Downloading $($zipAsset.name)..."
+          Invoke-WebRequest -Uri $zipAsset.browser_download_url -OutFile scope.zip
+          
+          Write-Host "Extracting DGScope..."
+          Expand-Archive -Path scope.zip -DestinationPath scope-extract
+          
+          # Find scope folder and copy it
+          $scopeFolder = Get-ChildItem scope-extract -Directory -Recurse -Filter "scope" | Select-Object -First 1
+          if (-not $scopeFolder) {
+            $scopeExe = Get-ChildItem scope-extract -File -Recurse -Filter "scope.exe" | Select-Object -First 1
+            if ($scopeExe) {
+              $scopeFolder = $scopeExe.Directory
+            } else {
+              Write-Error "Could not find scope.exe or scope folder"
+              exit 1
+            }
+          }
+          
+          Copy-Item $scopeFolder.FullName -Destination publish/scope -Recurse
+          Write-Host "DGScope copied to publish/scope"
+          
+          # Cleanup
+          Remove-Item scope.zip -Force
+          Remove-Item scope-extract -Recurse -Force
+        shell: pwsh
+
+      - name: Create Profiles Directory Structure
+        run: |
+          $artccs = @("ZAN", "ZAK", "ZDV", "ZDC", "ZID", "ZIN", "ZJX", "ZKC", "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL", "ZUA")
+          
+          New-Item -ItemType Directory -Path "publish/profiles" -Force | Out-Null
+          
+          foreach ($artcc in $artccs) {
+            New-Item -ItemType Directory -Path "publish/profiles/$artcc" -Force | Out-Null
+          }
+          
+          Write-Host "Created profiles directory structure"
+        shell: pwsh
+
+      - name: Create README
+        run: |
+          $readme = @"
+# DGScope Profile Manager Bundle
+
+Complete package with DGScope, Profile Manager, and empty profile directories.
+
+## Contents
+
+- **ProfileManager/**: DGScope Profile Manager application (ready to run)
+- **scope/**: DGScope radar simulation (prebuilt executable)
+- **profiles/**: Empty ARTCC profile folders (auto-detected and auto-populated)
+
+## Quick Start
+
+1. Extract or install this bundle
+2. Run `ProfileManager\DGScopeProfileManager.exe`
+3. (Optional) Configure your CRC root folder in Settings
+4. The app will auto-detect the bundled DGScope
+5. Generate or select profiles
+6. Click "Launch DGScope" to open profiles directly
+
+## Auto-Detection
+
+The Profile Manager automatically detects `scope/scope.exe` relative to the application.
+No manual configuration needed!
+
+## Manual Configuration
+
+To use a different DGScope installation:
+1. Open Settings in Profile Manager (gear icon)
+2. Browse for DGScope Executable
+3. Select your scope.exe location
+4. Click OK to save
+
+## Features
+
+- **Automatic Profile Generation**: Extract facility data from CRC
+- **Direct Launch**: Open profiles in DGScope with one click
+- **Profile Management**: Edit, delete, and organize profiles
+- **Apply-to-All Defaults**: Set template defaults for new profiles
+- **Auto-Detection**: Bundled DGScope found automatically
+
+## Documentation
+
+For usage instructions and feature details:
+https://github.com/yanjz124/DGScope-profile-manager
+
+## Support
+
+Report issues or request features:
+https://github.com/yanjz124/DGScope-profile-manager/issues
+
+## License
+
+See LICENSE file in repository
+"@
+          
+          $readme | Out-File -FilePath "publish/README.md" -Encoding UTF8
+          Write-Host "README.md created"
+        shell: pwsh
+
+      - name: Create ZIP Distribution
+        run: |
+          $releaseVersion = "${{ github.event.inputs.release_version }}"
+          if (-not $releaseVersion) {
+            $releaseVersion = "1.0.0"
+          }
+          
+          # Create a temporary folder with clean structure
+          New-Item -ItemType Directory -Path "release-temp" -Force | Out-Null
+          New-Item -ItemType Directory -Path "release-temp/DGScope-Profile-Manager" -Force | Out-Null
+          
+          Copy-Item publish/* -Destination "release-temp/DGScope-Profile-Manager" -Recurse -Force
+          
+          # Create ZIP
+          $zipName = "DGScope-Profile-Manager-v$releaseVersion.zip"
+          Compress-Archive -Path "release-temp/DGScope-Profile-Manager" -DestinationPath $zipName -Force
+          
+          Write-Host "Created $zipName"
+          Write-Host "zip_file=$zipName" >> $env:GITHUB_OUTPUT
+          
+          # Cleanup
+          Remove-Item release-temp -Recurse -Force
+        shell: pwsh
+        id: create_zip
+
+      - name: Setup NSIS
+        run: |
+          # Download NSIS
+          $nsis_url = "https://sourceforge.net/projects/nsis/files/NSIS%203/3.11/nsis-3.11-setup.exe/download"
+          $nsis_installer = "$env:TEMP\nsis-setup.exe"
+          
+          Write-Host "Downloading NSIS..."
+          Invoke-WebRequest -Uri $nsis_url -OutFile $nsis_installer
+          
+          Write-Host "Installing NSIS..."
+          & $nsis_installer /S
+          
+          Write-Host "NSIS installed"
+          Remove-Item $nsis_installer -Force
+        shell: pwsh
+
+      - name: Build NSIS Installer
+        run: |
+          $releaseVersion = "${{ github.event.inputs.release_version }}"
+          if (-not $releaseVersion) {
+            $releaseVersion = "1.0.0"
+          }
+          
+          $nsiScript = @"
+          ; DGScope Profile Manager Bundle Installer
+          
+          !include "MUI2.nsh"
+          !include "nsDialogs.nsh"
+          !include "LogicLib.nsh"
+          
+          Name "DGScope Profile Manager Bundle v$releaseVersion"
+          OutFile "..\DGScope-Profile-Manager-v$releaseVersion-Setup.exe"
+          InstallDir "`$$PROGRAMFILES\DGScope Profile Manager"
+          InstallDirRegKey HKCU "Software\DGScope Profile Manager" "InstallDir"
+          RequestExecutionLevel admin
+          
+          !insertmacro MUI_PAGE_WELCOME
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_PAGE_FINISH
+          !insertmacro MUI_LANGUAGE "English"
+          
+          Section "Install"
+            SetOutPath "`$$INSTDIR"
+            
+            CreateDirectory "`$$INSTDIR\ProfileManager"
+            CreateDirectory "`$$INSTDIR\scope"
+            CreateDirectory "`$$INSTDIR\profiles"
+            
+            SetOutPath "`$$INSTDIR\ProfileManager"
+            File /r "..\..\publish\ProfileManager\*.*"
+            
+            SetOutPath "`$$INSTDIR\scope"
+            File /r "..\..\publish\scope\*.*"
+            
+            SetOutPath "`$$INSTDIR\profiles"
+            `${CreateDirectories}
+            
+            CreateDirectory "`$$SMPROGRAMS\DGScope Profile Manager"
+            CreateShortCut "`$$SMPROGRAMS\DGScope Profile Manager\Profile Manager.lnk" "`$$INSTDIR\ProfileManager\DGScopeProfileManager.exe"
+            CreateShortCut "`$$SMPROGRAMS\DGScope Profile Manager\DGScope.lnk" "`$$INSTDIR\scope\scope.exe"
+            CreateShortCut "`$$SMPROGRAMS\DGScope Profile Manager\Uninstall.lnk" "`$$INSTDIR\uninstall.exe"
+            CreateShortCut "`$$DESKTOP\DGScope Profile Manager.lnk" "`$$INSTDIR\ProfileManager\DGScopeProfileManager.exe"
+            
+            WriteRegStr HKCU "Software\DGScope Profile Manager" "InstallDir" "`$$INSTDIR"
+            WriteUninstaller "`$$INSTDIR\uninstall.exe"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DGScope Profile Manager" "DisplayName" "DGScope Profile Manager Bundle v$releaseVersion"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DGScope Profile Manager" "UninstallString" "`$$INSTDIR\uninstall.exe"
+            
+            MessageBox MB_OK "DGScope Profile Manager Bundle installed!`n`nStart Menu and Desktop shortcuts created."
+          SectionEnd
+          
+          Section "Uninstall"
+            Delete "`$$SMPROGRAMS\DGScope Profile Manager\*.*"
+            RMDir "`$$SMPROGRAMS\DGScope Profile Manager"
+            Delete "`$$DESKTOP\DGScope Profile Manager.lnk"
+            RMDir /r "`$$INSTDIR"
+            DeleteRegKey HKCU "Software\DGScope Profile Manager"
+            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DGScope Profile Manager"
+            MessageBox MB_OK "Uninstalled successfully."
+          SectionEnd
+"@
+          
+          # Create directory structure placeholder for installer
+          $artccs = @("ZAN", "ZAK", "ZDV", "ZDC", "ZID", "ZIN", "ZJX", "ZKC", "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL", "ZUA")
+          $createDirs = ($artccs | ForEach-Object { "CreateDirectory `"`$$INSTDIR\profiles\$_`"" }) -join "`n            "
+          
+          $nsiScript = $nsiScript -replace "`${CreateDirectories}", $createDirs
+          
+          $nsiScript | Out-File -FilePath "installer/build-bundle.nsi" -Encoding ASCII
+          
+          # Build with NSIS
+          Write-Host "Building NSIS installer..."
+          & "C:\Program Files (x86)\NSIS\makensis.exe" "installer/build-bundle.nsi"
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "NSIS build failed"
+            exit 1
+          }
+          
+          Write-Host "NSIS installer created"
+        shell: pwsh
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: DGScope Profile Manager ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DGScope-Profile-Manager-Bundle
+          path: |
+            DGScope-Profile-Manager-*.zip
+            DGScope-Profile-Manager-*-Setup.exe
+          retention-days: 90
+
+      - name: Upload Release Assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            DGScope-Profile-Manager-*.zip
+            DGScope-Profile-Manager-*-Setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -191,6 +191,21 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 
 Output: `src/DGScopeProfileManager/bin/Release/net10.0-windows/win-x64/publish/DGScopeProfileManager.exe`
 
+## Release Bundles
+
+Complete bundles (Profile Manager + DGScope + profiles) are automatically built by GitHub Actions and available at:
+https://github.com/yanjz124/DGScope-profile-manager/releases
+
+**Bundle Contents:**
+- ProfileManager/ - Ready-to-run Profile Manager executable
+- scope/ - Prebuilt DGScope from [yanjz124/scope](https://github.com/yanjz124/scope)
+- profiles/ - Empty ARTCC profile directories
+- README.md - Quick start guide
+
+**Auto-Detection:** Profile Manager automatically detects bundled scope.exe - no configuration needed!
+
+For building releases locally, see [RELEASE_PROCESS.md](RELEASE_PROCESS.md)
+
 ## Future Enhancements
 
 See [TODO.md](TODO.md) for planned features:
