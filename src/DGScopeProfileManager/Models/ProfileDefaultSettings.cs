@@ -5,8 +5,8 @@ namespace DGScopeProfileManager.Models;
 /// </summary>
 public class ProfileDefaultSettings
 {
-    // Brightness Settings
-    public string? Brightness { get; set; }
+    // Brightness Settings (detailed)
+    public BrightnessSettings Brightness { get; set; } = new BrightnessSettings();
 
     // Screen Position Settings
     public string? ScreenCenterPoint { get; set; }
@@ -31,7 +31,7 @@ public class ProfileDefaultSettings
     public ProfileDefaultSettings()
     {
         // Initialize with common defaults
-        Brightness = "DGScope.STARS.PrefSet+BrightnessSettings";
+        Brightness = new BrightnessSettings(); // Already has default values
         ScreenCenterPoint = "0, 0";
         OwnedDataBlockPosition = "N";
         PreviewAreaLocation = "{X=0, Y=0}";
@@ -41,12 +41,60 @@ public class ProfileDefaultSettings
     }
 
     /// <summary>
-    /// Apply these default settings to a profile's AllSettings dictionary
+    /// Convert to PrefSetSettings for use in the unified settings window
+    /// </summary>
+    public PrefSetSettings ToPrefSetSettings()
+    {
+        var settings = new PrefSetSettings
+        {
+            Brightness = this.Brightness
+        };
+
+        // Parse font settings
+        if (!string.IsNullOrWhiteSpace(FontName))
+            settings.FontName = FontName;
+
+        if (int.TryParse(FontSize, out var fontSize))
+            settings.FontSize = fontSize;
+
+        // Parse screen center point
+        if (!string.IsNullOrWhiteSpace(ScreenCenterPoint))
+        {
+            var parts = ScreenCenterPoint.Split(',');
+            if (parts.Length == 2)
+            {
+                if (double.TryParse(parts[0].Trim(), out var lat))
+                    settings.ScreenCenterPointLatitude = lat;
+                if (double.TryParse(parts[1].Trim(), out var lon))
+                    settings.ScreenCenterPointLongitude = lon;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(OwnedDataBlockPosition))
+            settings.OwnedDataBlockPosition = OwnedDataBlockPosition;
+
+        return settings;
+    }
+
+    /// <summary>
+    /// Update from PrefSetSettings after editing
+    /// </summary>
+    public void UpdateFromPrefSetSettings(PrefSetSettings settings)
+    {
+        Brightness = settings.Brightness;
+        FontName = settings.FontName;
+        FontSize = settings.FontSize.ToString();
+        ScreenCenterPoint = $"{settings.ScreenCenterPointLatitude:F6}, {settings.ScreenCenterPointLongitude:F6}";
+        OwnedDataBlockPosition = settings.OwnedDataBlockPosition;
+    }
+
+    /// <summary>
+    /// Apply these default settings to a profile
+    /// Note: Brightness is handled separately via Brightness XML element
     /// </summary>
     public void ApplyToProfile(DgScopeProfile profile)
     {
-        if (!string.IsNullOrWhiteSpace(Brightness))
-            profile.AllSettings["Brightness"] = Brightness;
+        // Brightness is handled via the Brightness property, not AllSettings
 
         if (!string.IsNullOrWhiteSpace(ScreenCenterPoint))
             profile.AllSettings["ScreenCenterPoint"] = ScreenCenterPoint;

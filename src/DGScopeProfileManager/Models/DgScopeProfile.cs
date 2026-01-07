@@ -30,14 +30,17 @@ public class DgScopeProfile
     // Altitude settings
     public int? MaxAltitude { get; set; }
     public int? MinAltitude { get; set; }
-    
+
     // General settings
     public bool? ShowRangeRings { get; set; }
     public string? WindowState { get; set; }
     public int? TargetFrameRate { get; set; }
     public string? VSync { get; set; }
     public bool? ATPAActive { get; set; }
-    
+
+    // CurrentPrefSet settings
+    public PrefSetSettings? CurrentPrefSet { get; set; }
+
     // All settings as key-value pairs for preservation
     public Dictionary<string, string> AllSettings { get; set; } = new();
     public List<string> VideoMapPaths { get; set; } = new();

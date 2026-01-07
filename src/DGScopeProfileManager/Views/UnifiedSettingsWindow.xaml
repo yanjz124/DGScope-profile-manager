@@ -1,0 +1,348 @@
+<Window x:Class="DGScopeProfileManager.Views.UnifiedSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="DGScope Settings" Height="800" Width="1000"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Margin" Value="5,5,10,5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="MinWidth" Value="150"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinWidth" Value="100"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- Bottom Buttons (change based on mode) -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Margin="10">
+            <!-- Default Settings Mode Buttons -->
+            <Button Name="SaveDefaultButton" Content="Save Default Settings"
+                    Click="SaveDefault_Click" MinWidth="140" Margin="5"/>
+            <Button Name="ApplyToAllButton" Content="Apply to All Profiles"
+                    Click="ApplyToAll_Click" MinWidth="140" Margin="5"/>
+
+            <!-- Profile Settings Mode Buttons -->
+            <Button Name="SaveProfileButton" Content="Save Profile Settings"
+                    Click="SaveProfile_Click" MinWidth="140" Margin="5" Visibility="Collapsed"/>
+            <Button Name="SaveAsDefaultButton" Content="Save as Default"
+                    Click="SaveAsDefault_Click" MinWidth="120" Margin="5" Visibility="Collapsed"/>
+            <Button Name="SaveAsDefaultApplyAllButton" Content="Save as Default &amp; Apply to All"
+                    Click="SaveAsDefaultApplyAll_Click" MinWidth="190" Margin="5" Visibility="Collapsed"/>
+
+            <Button Content="Close" IsCancel="True" MinWidth="80" Margin="5"/>
+        </StackPanel>
+
+        <!-- Instructions Panel -->
+        <GroupBox DockPanel.Dock="Top" Header="Instructions" Margin="10,10,10,5">
+            <TextBlock Name="InstructionsText" TextWrapping="Wrap" Margin="5"/>
+        </GroupBox>
+
+        <!-- Main Content with TabControl -->
+        <TabControl Margin="10">
+            <!-- Tab 1: Common Settings (Simple Mode) -->
+            <TabItem Header="Common Settings">
+                <ScrollViewer>
+                    <StackPanel>
+                        <!-- Font Settings -->
+                        <GroupBox Header="Font Settings">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Font Name:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="FontNameBox"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Font Size:"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="FontSizeBox"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="DBC Font Name:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="DBCFontNameBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="DBC Font Size:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="DBCFontSizeBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Screen Position -->
+                        <GroupBox Header="Screen Position">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Center Latitude:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="ScreenCenterLatBox"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Center Longitude:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="ScreenCenterLonBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Brightness Settings (Expandable) -->
+                        <Expander Header="Brightness Settings" IsExpanded="True">
+                            <Grid Margin="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="100"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0 -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="DCB:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="BrightnessDCBBox"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Background:"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="BrightnessBackgroundBox"/>
+                                <TextBlock Grid.Row="0" Grid.Column="4" Text="Map A:"/>
+                                <TextBox Grid.Row="0" Grid.Column="5" Name="BrightnessMapABox"/>
+
+                                <!-- Row 1 -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Map B:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="BrightnessMapBBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Full Data Blocks:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="BrightnessFullDataBlocksBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="Lists:"/>
+                                <TextBox Grid.Row="1" Grid.Column="5" Name="BrightnessListsBox"/>
+
+                                <!-- Row 2 -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Position Symbols:"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="BrightnessPositionSymbolsBox"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Limited Data Blocks:"/>
+                                <TextBox Grid.Row="2" Grid.Column="3" Name="BrightnessLimitedDataBlocksBox"/>
+                                <TextBlock Grid.Row="2" Grid.Column="4" Text="Other FDBs:"/>
+                                <TextBox Grid.Row="2" Grid.Column="5" Name="BrightnessOtherFDBsBox"/>
+
+                                <!-- Row 3 -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Tools:"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Name="BrightnessToolsBox"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="Range Rings:"/>
+                                <TextBox Grid.Row="3" Grid.Column="3" Name="BrightnessRangeRingsBox"/>
+                                <TextBlock Grid.Row="3" Grid.Column="4" Text="Compass:"/>
+                                <TextBox Grid.Row="3" Grid.Column="5" Name="BrightnessCompassBox"/>
+
+                                <!-- Row 4 -->
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Beacon Targets:"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" Name="BrightnessBeaconTargetsBox"/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="Primary Targets:"/>
+                                <TextBox Grid.Row="4" Grid.Column="3" Name="BrightnessPrimaryTargetsBox"/>
+                                <TextBlock Grid.Row="4" Grid.Column="4" Text="History:"/>
+                                <TextBox Grid.Row="4" Grid.Column="5" Name="BrightnessHistoryBox"/>
+
+                                <!-- Row 5 -->
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Weather:"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" Name="BrightnessWeatherBox"/>
+                                <TextBlock Grid.Row="5" Grid.Column="2" Text="Weather Contrast:"/>
+                                <TextBox Grid.Row="5" Grid.Column="3" Name="BrightnessWeatherContrastBox"/>
+                            </Grid>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Advanced Settings -->
+            <TabItem Header="Advanced Settings">
+                <ScrollViewer>
+                    <StackPanel>
+                        <!-- Range and Scope Settings -->
+                        <GroupBox Header="Range and Scope Settings">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Range (nm):"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="RangeBox"/>
+                                <CheckBox Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2"
+                                          Name="ScopeCenteredCheck" Content="Scope Centered"/>
+
+                                <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                          Name="RangeRingsDisplayedCheck" Content="Range Rings Displayed"/>
+                                <CheckBox Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2"
+                                          Name="RangeRingsCenteredCheck" Content="Range Rings Centered"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Range Ring Details -->
+                        <GroupBox Header="Range Ring Details">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Ring Spacing (nm):"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="RangeRingSpacingBox"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Ring Location Latitude:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="RangeRingLatBox"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Ring Location Longitude:"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="RangeRingLonBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Data Block Settings -->
+                        <GroupBox Header="Data Block Settings">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="DCB Location:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="DCBLocationBox"/>
+                                <CheckBox Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2"
+                                          Name="DCBVisibleCheck" Content="DCB Visible"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Owned DB Position:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="OwnedDataBlockPosBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Unowned DB Position:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="UnownedDataBlockPosBox"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Unassociated DB Position:"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="UnassociatedDataBlockPosBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- PTL and History Settings -->
+                        <GroupBox Header="PTL and History Settings">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="PTL Length:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="PTLLengthBox"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Leader Length:"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="LeaderLengthBox"/>
+
+                                <CheckBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                          Name="PTLOwnCheck" Content="PTL Own"/>
+                                <CheckBox Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2"
+                                          Name="PTLAllCheck" Content="PTL All"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="History Num:"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="HistoryNumBox"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="History Rate:"/>
+                                <TextBox Grid.Row="2" Grid.Column="3" Name="HistoryRateBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Altitude Filters -->
+                        <GroupBox Header="Altitude Filters">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Associated Max:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="AltFilterAssocMaxBox"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Associated Min:"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="AltFilterAssocMinBox"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Unassociated Max:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="AltFilterUnassocMaxBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Unassociated Min:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="AltFilterUnassocMinBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Preview and Status Areas -->
+                        <GroupBox Header="Preview and Status Area Locations">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Preview Area X:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="PreviewAreaXBox"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Preview Area Y:"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="PreviewAreaYBox"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Status Area X:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="StatusAreaXBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Status Area Y:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="StatusAreaYBox"/>
+                            </Grid>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>

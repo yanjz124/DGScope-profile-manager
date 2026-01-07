@@ -139,9 +139,11 @@ public partial class MainWindow : Window
 
     private void DefaultSettings_Click(object sender, RoutedEventArgs e)
     {
-        var defaultSettingsWindow = new DefaultSettingsWindow(_settings);
-        if (defaultSettingsWindow.ShowDialog() == true)
+        var prefSetSettings = _settings.DefaultSettings.ToPrefSetSettings();
+        var unifiedWindow = new UnifiedSettingsWindow(_settings, prefSetSettings);
+        if (unifiedWindow.ShowDialog() == true)
         {
+            _settings.DefaultSettings.UpdateFromPrefSetSettings(prefSetSettings);
             UpdateStatus("Default settings updated");
         }
     }

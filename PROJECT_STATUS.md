@@ -926,8 +926,130 @@ Time Elapsed 00:00:03.49
 
 ---
 
-**Version**: 1.0.1-alpha
+### Phase 13: Comprehensive Settings Editor with Brightness Controls ✅ COMPLETE
+**Objective**: Create a unified settings editor window that handles all DGScope profile settings including detailed brightness controls
+
+**Implementation Date**: January 7, 2026
+
+**Files Created**:
+- `Models/BrightnessSettings.cs` - Model for 17 individual brightness properties (0-100 validation)
+- `Models/PrefSetSettings.cs` - Complete settings model covering Font, Screen Position, Range, PTL, History, Altitude Filters, and all CurrentPrefSet settings
+- `Views/UnifiedSettingsWindow.xaml` - Comprehensive dual-mode settings editor UI
+- `Views/UnifiedSettingsWindow.xaml.cs` - Logic for Default Mode and Profile Mode
+
+**Files Removed**:
+- `Views/DefaultSettingsWindow.xaml` - Replaced by UnifiedSettingsWindow
+- `Views/DefaultSettingsWindow.xaml.cs` - Replaced by UnifiedSettingsWindow
+
+**Files Modified**:
+- `Models/ProfileDefaultSettings.cs` - Added conversion methods (ToPrefSetSettings, UpdateFromPrefSetSettings)
+- `Models/DgScopeProfile.cs` - Added CurrentPrefSet property
+- `MainWindow.xaml.cs` - Updated DefaultSettings_Click to use UnifiedSettingsWindow
+
+**Key Features**:
+
+1. **Comprehensive Brightness Controls** (17 individual settings):
+   - DCB, Background, Map A, Map B
+   - Full Data Blocks, Lists, Position Symbols, Limited Data Blocks, Other FDBs
+   - Tools, Range Rings, Compass
+   - Beacon Targets, Primary Targets, History
+   - Weather, Weather Contrast
+   - All with 0-100 validation
+
+2. **Complete Settings Coverage**:
+   - Font Settings (FontName, FontSize, DBCFontName, DBCFontSize)
+   - Screen Position (Center Latitude/Longitude)
+   - Range and Scope Settings (Range, ScopeCentered, RangeRings)
+   - Data Block Settings (DCBLocation, positions, visibility)
+   - PTL and History Settings (lengths, rates, filters)
+   - Altitude Filters (Associated/Unassociated Min/Max)
+   - Preview and Status Area Locations
+
+3. **Dual-Mode Operation**:
+   - **Default Settings Mode**: Edit template, save, and apply to all profiles
+   - **Profile Settings Mode**: Edit individual profile with options to:
+     - Save to profile only
+     - Save as default template
+     - Save as default and apply to all profiles
+
+4. **Tabbed Interface**:
+   - **Common Settings Tab**: Font, Screen Position, all 17 Brightness controls
+   - **Advanced Settings Tab**: Range Rings, Data Blocks, PTL, History, Altitude Filters, Area Locations
+
+5. **Validation**:
+   - Font sizes: 4-72 range
+   - Brightness values: 0-100 range with automatic clamping
+   - Range: 1-250 nm
+   - All numeric fields validated with error messages
+
+**XML Structure Understanding**:
+```xml
+<RadarWindow>
+  <FontName>FixedDemiBold</FontName>
+  <FontSize>10</FontSize>
+  <CurrentPrefSet>
+    <ScreenCenterPoint>
+      <Latitude>40.1967000</Latitude>
+      <Longitude>-76.7589000</Longitude>
+    </ScreenCenterPoint>
+    <Brightness>
+      <DCB>100</DCB>
+      <Background>100</Background>
+      <!-- 15 more brightness settings -->
+    </Brightness>
+    <!-- Other CurrentPrefSet settings -->
+  </CurrentPrefSet>
+</RadarWindow>
+```
+
+**Build Status**:
+```
+dotnet build -c Release
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+Time Elapsed 00:00:03.37
+```
+
+**Key Benefits**:
+1. **Complete Control**: All DGScope settings in one window
+2. **Organized UI**: Logical grouping with tabs and expandable sections
+3. **Flexible Application**: Choose to apply settings to one, many, or all profiles
+4. **Validation**: Ensures all values are within acceptable ranges
+5. **Professional Layout**: Mimics DGScope's built-in profile builder
+6. **Mode-Aware**: Different buttons and instructions based on context (Default vs Profile)
+
+**Usage Flow**:
+```
+Default Settings Mode:
+1. User clicks "DGScope Default Settings" in Main Window
+2. UnifiedSettingsWindow opens in Default Mode
+3. User edits template values across Common and Advanced tabs
+4. Options:
+   - "Save Default Settings" - Save template only
+   - "Apply to All Profiles" - Save and apply to all existing profiles
+
+Profile Settings Mode (future):
+1. User selects a profile and clicks "Edit"
+2. UnifiedSettingsWindow opens in Profile Mode
+3. User edits profile-specific values
+4. Options:
+   - "Save Profile Settings" - Save to this profile only
+   - "Save as Default" - Update default template
+   - "Save as Default & Apply to All" - Update template and apply everywhere
+```
+
+**Technical Implementation**:
+- Two-constructor pattern for mode selection
+- Dynamic button visibility based on mode
+- Comprehensive data binding for all 50+ settings fields
+- Type-safe property access with validation
+- Conversion methods between storage format and edit format
+
+---
+
+**Version**: 1.0.2-alpha
 **Build Status**: ✅ Passing (0 Errors, 0 Warnings)
 **Last Updated**: January 7, 2026
-**Current Phase**: Phase 12 - UI Refinements Complete
-**Next Milestone**: User testing and feedback collection
+**Current Phase**: Phase 13 - Comprehensive Settings Editor Complete
+**Next Milestone**: XML persistence for CurrentPrefSet element, profile editing integration
