@@ -502,8 +502,8 @@
   <FontName>FixedDemiBold</FontName>
   <FontSize>10</FontSize>
   <FontSizeUnit>Point</FontSizeUnit>
-  <DBCFontName>Consolas</DBCFontName>
-  <DBCFontSize>10</DBCFontSize>
+  <DCBFontName>Consolas</DCBFontName>
+  <DCBFontSize>10</DCBFontSize>
   <DCBFontSizeUnit>Point</DCBFontSizeUnit>
   <AutoOffset>false</AutoOffset>
   <NTPServerAddress>pool.ntp.org</NTPServerAddress>
