@@ -150,71 +150,16 @@ jobs:
             $releaseVersion = "1.0.0"
           }
           
-          $nsiScript = @"
-          ; DGScope Profile Manager Bundle Installer
-          
-          !include "MUI2.nsh"
-          !include "nsDialogs.nsh"
-          !include "LogicLib.nsh"
-          
-          Name "DGScope Profile Manager Bundle v$releaseVersion"
-          OutFile "..\DGScope-Profile-Manager-v$releaseVersion-Setup.exe"
-          InstallDir "`$$PROGRAMFILES\DGScope Profile Manager"
-          InstallDirRegKey HKCU "Software\DGScope Profile Manager" "InstallDir"
-          RequestExecutionLevel admin
-          
-          !insertmacro MUI_PAGE_WELCOME
-          !insertmacro MUI_PAGE_DIRECTORY
-          !insertmacro MUI_PAGE_INSTFILES
-          !insertmacro MUI_PAGE_FINISH
-          !insertmacro MUI_LANGUAGE "English"
-          
-          Section "Install"
-            SetOutPath "`$$INSTDIR"
-            
-            CreateDirectory "`$$INSTDIR\ProfileManager"
-            CreateDirectory "`$$INSTDIR\scope"
-            CreateDirectory "`$$INSTDIR\profiles"
-            
-            SetOutPath "`$$INSTDIR\ProfileManager"
-            File /r "..\..\publish\ProfileManager\*.*"
-            
-            SetOutPath "`$$INSTDIR\scope"
-            File /r "..\..\publish\scope\*.*"
-            
-            SetOutPath "`$$INSTDIR\profiles"
-            `${CreateDirectories}
-            
-            CreateDirectory "`$$SMPROGRAMS\DGScope Profile Manager"
-            CreateShortCut "`$$SMPROGRAMS\DGScope Profile Manager\Profile Manager.lnk" "`$$INSTDIR\ProfileManager\DGScopeProfileManager.exe"
-            CreateShortCut "`$$SMPROGRAMS\DGScope Profile Manager\DGScope.lnk" "`$$INSTDIR\scope\scope.exe"
-            CreateShortCut "`$$SMPROGRAMS\DGScope Profile Manager\Uninstall.lnk" "`$$INSTDIR\uninstall.exe"
-            CreateShortCut "`$$DESKTOP\DGScope Profile Manager.lnk" "`$$INSTDIR\ProfileManager\DGScopeProfileManager.exe"
-            
-            WriteRegStr HKCU "Software\DGScope Profile Manager" "InstallDir" "`$$INSTDIR"
-            WriteUninstaller "`$$INSTDIR\uninstall.exe"
-            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DGScope Profile Manager" "DisplayName" "DGScope Profile Manager Bundle v$releaseVersion"
-            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DGScope Profile Manager" "UninstallString" "`$$INSTDIR\uninstall.exe"
-            
-            MessageBox MB_OK "DGScope Profile Manager Bundle installed!`n`nStart Menu and Desktop shortcuts created."
-          SectionEnd
-          
-          Section "Uninstall"
-            Delete "`$$SMPROGRAMS\DGScope Profile Manager\*.*"
-            RMDir "`$$SMPROGRAMS\DGScope Profile Manager"
-            Delete "`$$DESKTOP\DGScope Profile Manager.lnk"
-            RMDir /r "`$$INSTDIR"
-            DeleteRegKey HKCU "Software\DGScope Profile Manager"
-            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DGScope Profile Manager"
-            MessageBox MB_OK "Uninstalled successfully."
-          SectionEnd
-"@
-          
-          # Create directory structure placeholder for installer
+          # Create directory structure
           $artccs = @("ZAN", "ZAK", "ZDV", "ZDC", "ZID", "ZIN", "ZJX", "ZKC", "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL", "ZUA")
-          $createDirs = ($artccs | ForEach-Object { "CreateDirectory `"`$$INSTDIR\profiles\$_`"" }) -join "`n            "
+          $createDirs = ($artccs | ForEach-Object { "            CreateDirectory `"`$$INSTDIR\profiles\$_`"" }) -join "`n"
           
-          $nsiScript = $nsiScript -replace "`${CreateDirectories}", $createDirs
+          # Read template
+          $nsiTemplate = Get-Content "installer/DGScopeProfileManager-Bundle.nsi" -Raw
+          
+          # Replace version and directory creation
+          $nsiScript = $nsiTemplate -replace "RELEASE_VERSION", $releaseVersion
+          $nsiScript = $nsiScript -replace "CREATE_DIRECTORIES_HERE", $createDirs
           
           $nsiScript | Out-File -FilePath "installer/build-bundle.nsi" -Encoding ASCII
           

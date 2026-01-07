@@ -1,4 +1,4 @@
-; DGScope Profile Manager Complete Bundle Installer
+; DGScope Profile Manager Bundle Installer
 ; Includes DGScope, Profiles, and Profile Manager in one installer
 
 !include "MUI2.nsh"
@@ -6,8 +6,8 @@
 !include "LogicLib.nsh"
 
 ; Name and file
-Name "DGScope Profile Manager Bundle"
-OutFile "DGScopeProfileManager-Bundle.exe"
+Name "DGScope Profile Manager Bundle v RELEASE_VERSION"
+OutFile "DGScope-Profile-Manager-vRELEASE_VERSION-Setup.exe"
 InstallDir "$PROGRAMFILES\DGScope Profile Manager"
 InstallDirRegKey HKCU "Software\DGScope Profile Manager" "InstallDir"
 
@@ -32,33 +32,15 @@ Section "Install"
   
   ; Copy Profile Manager files
   SetOutPath "$INSTDIR\ProfileManager"
-  File /r "ProfileManager\*.*"
+  File /r "..\..\publish\ProfileManager\*.*"
   
   ; Copy DGScope files
   SetOutPath "$INSTDIR\scope"
-  File /r "scope\*.*"
+  File /r "..\..\publish\scope\*.*"
   
   ; Create ARTCC profile directories
   SetOutPath "$INSTDIR\profiles"
-  CreateDirectory "$INSTDIR\profiles\ZAN"
-  CreateDirectory "$INSTDIR\profiles\ZAK"
-  CreateDirectory "$INSTDIR\profiles\ZDV"
-  CreateDirectory "$INSTDIR\profiles\ZDC"
-  CreateDirectory "$INSTDIR\profiles\ZID"
-  CreateDirectory "$INSTDIR\profiles\ZIN"
-  CreateDirectory "$INSTDIR\profiles\ZJX"
-  CreateDirectory "$INSTDIR\profiles\ZKC"
-  CreateDirectory "$INSTDIR\profiles\ZLA"
-  CreateDirectory "$INSTDIR\profiles\ZLC"
-  CreateDirectory "$INSTDIR\profiles\ZMA"
-  CreateDirectory "$INSTDIR\profiles\ZME"
-  CreateDirectory "$INSTDIR\profiles\ZMP"
-  CreateDirectory "$INSTDIR\profiles\ZNY"
-  CreateDirectory "$INSTDIR\profiles\ZOA"
-  CreateDirectory "$INSTDIR\profiles\ZOB"
-  CreateDirectory "$INSTDIR\profiles\ZSE"
-  CreateDirectory "$INSTDIR\profiles\ZTL"
-  CreateDirectory "$INSTDIR\profiles\ZUA"
+CREATE_DIRECTORIES_HERE
   
   ; Create Start Menu shortcuts
   CreateDirectory "$SMPROGRAMS\DGScope Profile Manager"
