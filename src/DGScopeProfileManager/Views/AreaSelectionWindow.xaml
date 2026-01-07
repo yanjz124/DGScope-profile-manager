@@ -5,6 +5,7 @@
         Title="Select Area"
         WindowStartupLocation="CenterOwner"
         Width="500" Height="450"
+        MinHeight="450"
         Background="#2D2D30"
         Foreground="#CCCCCC">
     <Grid Margin="20">

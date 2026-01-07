@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
 using DGScopeProfileManager.Models;
 using DGScopeProfileManager.Services;
 
@@ -26,6 +28,7 @@ public partial class UnifiedSettingsWindow : Window
         _settings = defaultSettings;
         _profile = null;
 
+        PopulateFontDropdowns();
         ConfigureForDefaultMode();
         LoadSettings();
     }
@@ -41,8 +44,42 @@ public partial class UnifiedSettingsWindow : Window
         _settings = profileSettings;
         _profile = profile;
 
+        PopulateFontDropdowns();
         ConfigureForProfileMode();
         LoadSettings();
+    }
+
+    /// <summary>
+    /// Populate font dropdowns with installed system fonts
+    /// </summary>
+    private void PopulateFontDropdowns()
+    {
+        var fonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source).Select(f => f.Source).ToList();
+
+        FontNameBox.ItemsSource = fonts;
+        DBCFontNameBox.ItemsSource = fonts;
+    }
+
+    /// <summary>
+    /// Numeric-only validation for brightness textboxes (0-100)
+    /// </summary>
+    private void NumericOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        // Allow only digits
+        e.Handled = !e.Text.All(char.IsDigit);
+
+        // Additional check: ensure value will be between 0-100
+        if (!e.Handled && sender is System.Windows.Controls.TextBox textBox)
+        {
+            var proposedText = textBox.Text.Insert(textBox.SelectionStart, e.Text);
+            if (int.TryParse(proposedText, out var value))
+            {
+                if (value < 0 || value > 100)
+                {
+                    e.Handled = true;
+                }
+            }
+        }
     }
 
     private void ConfigureForDefaultMode()

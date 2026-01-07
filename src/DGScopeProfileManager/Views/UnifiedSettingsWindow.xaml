@@ -62,26 +62,102 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Font Name:"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Name="FontNameBox"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Name="FontNameBox"
+                                          IsEditable="True" IsTextSearchEnabled="True"/>
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Font Size:"/>
                                 <TextBox Grid.Row="0" Grid.Column="3" Name="FontSizeBox"/>
 
                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="DBC Font Name:"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Name="DBCFontNameBox"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" Name="DBCFontNameBox"
+                                          IsEditable="True" IsTextSearchEnabled="True"/>
                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="DBC Font Size:"/>
                                 <TextBox Grid.Row="1" Grid.Column="3" Name="DBCFontSizeBox"/>
                             </Grid>
                         </GroupBox>
 
+                        <!-- Brightness Settings (Always Expanded) -->
+                        <GroupBox Header="Brightness Settings (0-100)">
+                            <Grid Margin="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0 -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="DCB:"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="BrightnessDCBBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Background:"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="BrightnessBackgroundBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="0" Grid.Column="4" Text="Map A:"/>
+                                <TextBox Grid.Row="0" Grid.Column="5" Name="BrightnessMapABox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+
+                                <!-- Row 1 -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Map B:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="BrightnessMapBBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Full Data Blocks:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="BrightnessFullDataBlocksBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="Lists:"/>
+                                <TextBox Grid.Row="1" Grid.Column="5" Name="BrightnessListsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+
+                                <!-- Row 2 -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Position Symbols:"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="BrightnessPositionSymbolsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Limited Data Blocks:"/>
+                                <TextBox Grid.Row="2" Grid.Column="3" Name="BrightnessLimitedDataBlocksBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="2" Grid.Column="4" Text="Other FDBs:"/>
+                                <TextBox Grid.Row="2" Grid.Column="5" Name="BrightnessOtherFDBsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+
+                                <!-- Row 3 -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Tools:"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" Name="BrightnessToolsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="Range Rings:"/>
+                                <TextBox Grid.Row="3" Grid.Column="3" Name="BrightnessRangeRingsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="3" Grid.Column="4" Text="Compass:"/>
+                                <TextBox Grid.Row="3" Grid.Column="5" Name="BrightnessCompassBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+
+                                <!-- Row 4 -->
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Beacon Targets:"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" Name="BrightnessBeaconTargetsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="Primary Targets:"/>
+                                <TextBox Grid.Row="4" Grid.Column="3" Name="BrightnessPrimaryTargetsBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="4" Grid.Column="4" Text="History:"/>
+                                <TextBox Grid.Row="4" Grid.Column="5" Name="BrightnessHistoryBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+
+                                <!-- Row 5 -->
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Weather:"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" Name="BrightnessWeatherBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                                <TextBlock Grid.Row="5" Grid.Column="2" Text="Weather Contrast:"/>
+                                <TextBox Grid.Row="5" Grid.Column="3" Name="BrightnessWeatherContrastBox" PreviewTextInput="NumericOnly_PreviewTextInput"/>
+                            </Grid>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Tab 2: Advanced Settings -->
+            <TabItem Header="Advanced Settings">
+                <ScrollViewer>
+                    <StackPanel>
                         <!-- Screen Position -->
                         <GroupBox Header="Screen Position">
                             <Grid>
@@ -102,81 +178,6 @@
                             </Grid>
                         </GroupBox>
 
-                        <!-- Brightness Settings (Expandable) -->
-                        <Expander Header="Brightness Settings" IsExpanded="True">
-                            <Grid Margin="10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="100"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="100"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="100"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Row 0 -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="DCB:"/>
-                                <TextBox Grid.Row="0" Grid.Column="1" Name="BrightnessDCBBox"/>
-                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Background:"/>
-                                <TextBox Grid.Row="0" Grid.Column="3" Name="BrightnessBackgroundBox"/>
-                                <TextBlock Grid.Row="0" Grid.Column="4" Text="Map A:"/>
-                                <TextBox Grid.Row="0" Grid.Column="5" Name="BrightnessMapABox"/>
-
-                                <!-- Row 1 -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Map B:"/>
-                                <TextBox Grid.Row="1" Grid.Column="1" Name="BrightnessMapBBox"/>
-                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Full Data Blocks:"/>
-                                <TextBox Grid.Row="1" Grid.Column="3" Name="BrightnessFullDataBlocksBox"/>
-                                <TextBlock Grid.Row="1" Grid.Column="4" Text="Lists:"/>
-                                <TextBox Grid.Row="1" Grid.Column="5" Name="BrightnessListsBox"/>
-
-                                <!-- Row 2 -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Position Symbols:"/>
-                                <TextBox Grid.Row="2" Grid.Column="1" Name="BrightnessPositionSymbolsBox"/>
-                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Limited Data Blocks:"/>
-                                <TextBox Grid.Row="2" Grid.Column="3" Name="BrightnessLimitedDataBlocksBox"/>
-                                <TextBlock Grid.Row="2" Grid.Column="4" Text="Other FDBs:"/>
-                                <TextBox Grid.Row="2" Grid.Column="5" Name="BrightnessOtherFDBsBox"/>
-
-                                <!-- Row 3 -->
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Tools:"/>
-                                <TextBox Grid.Row="3" Grid.Column="1" Name="BrightnessToolsBox"/>
-                                <TextBlock Grid.Row="3" Grid.Column="2" Text="Range Rings:"/>
-                                <TextBox Grid.Row="3" Grid.Column="3" Name="BrightnessRangeRingsBox"/>
-                                <TextBlock Grid.Row="3" Grid.Column="4" Text="Compass:"/>
-                                <TextBox Grid.Row="3" Grid.Column="5" Name="BrightnessCompassBox"/>
-
-                                <!-- Row 4 -->
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Beacon Targets:"/>
-                                <TextBox Grid.Row="4" Grid.Column="1" Name="BrightnessBeaconTargetsBox"/>
-                                <TextBlock Grid.Row="4" Grid.Column="2" Text="Primary Targets:"/>
-                                <TextBox Grid.Row="4" Grid.Column="3" Name="BrightnessPrimaryTargetsBox"/>
-                                <TextBlock Grid.Row="4" Grid.Column="4" Text="History:"/>
-                                <TextBox Grid.Row="4" Grid.Column="5" Name="BrightnessHistoryBox"/>
-
-                                <!-- Row 5 -->
-                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Weather:"/>
-                                <TextBox Grid.Row="5" Grid.Column="1" Name="BrightnessWeatherBox"/>
-                                <TextBlock Grid.Row="5" Grid.Column="2" Text="Weather Contrast:"/>
-                                <TextBox Grid.Row="5" Grid.Column="3" Name="BrightnessWeatherContrastBox"/>
-                            </Grid>
-                        </Expander>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-
-            <!-- Tab 2: Advanced Settings -->
-            <TabItem Header="Advanced Settings">
-                <ScrollViewer>
-                    <StackPanel>
                         <!-- Range and Scope Settings -->
                         <GroupBox Header="Range and Scope Settings">
                             <Grid>

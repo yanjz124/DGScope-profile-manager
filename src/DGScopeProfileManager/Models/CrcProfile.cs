@@ -71,18 +71,16 @@ public class CrcTracon
 
     /// <summary>
     /// Convert SSA airport codes to ICAO altimeter station codes
-    /// Add 'K' prefix for most, 'P' prefix for ZAN and HCF
+    /// Uses ARTCC code to determine prefix: 'P' for Pacific (ZAN, ZHN, ZUA), 'K' for all others
     /// </summary>
-    public List<string> GetAltimeterStations()
+    public List<string> GetAltimeterStations(string artccCode)
     {
+        var isPacific = artccCode.ToUpper() is "ZAN" or "ZHN" or "ZUA";
+        var prefix = isPacific ? "P" : "K";
+
         return SsaAirports.Select(airport =>
         {
-            var upper = airport.ToUpper();
-            // Pacific stations need 'P' prefix
-            if (upper == "ZAN" || upper == "HCF")
-                return "P" + upper;
-            // All others get 'K' prefix
-            return "K" + upper;
+            return prefix + airport.ToUpper();
         }).ToList();
     }
 

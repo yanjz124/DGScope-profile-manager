@@ -35,7 +35,7 @@ public class ProfileDefaultSettings
         ScreenCenterPoint = "0, 0";
         OwnedDataBlockPosition = "N";
         PreviewAreaLocation = "{X=0, Y=0}";
-        FontName = "Consolas, 10pt";
+        FontName = "Consolas";
         FontSize = "10";
         ScreenRotation = "0";
     }
@@ -50,9 +50,16 @@ public class ProfileDefaultSettings
             Brightness = this.Brightness
         };
 
-        // Parse font settings
+        // Parse font settings - remove any size suffix like ", 10pt"
         if (!string.IsNullOrWhiteSpace(FontName))
-            settings.FontName = FontName;
+        {
+            var fontName = FontName;
+            // Remove size suffix if present (e.g., "Consolas, 10pt" -> "Consolas")
+            var commaIndex = fontName.IndexOf(',');
+            if (commaIndex > 0)
+                fontName = fontName.Substring(0, commaIndex).Trim();
+            settings.FontName = fontName;
+        }
 
         if (int.TryParse(FontSize, out var fontSize))
             settings.FontSize = fontSize;

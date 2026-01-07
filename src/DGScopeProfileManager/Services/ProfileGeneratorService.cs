@@ -185,14 +185,14 @@ public class ProfileGeneratorService
 
         if (ssaAirports != null && ssaAirports.Count > 0)
         {
+            // Determine prefix based on ARTCC code
+            var artccCode = crcProfile.ArtccCode.ToUpper();
+            var isPacific = artccCode == "ZAN" || artccCode == "ZHN" || artccCode == "ZUA";
+            var prefix = isPacific ? "P" : "K";
+
             var altimeterStations = ssaAirports.Select(airport =>
             {
-                var upper = airport.ToUpper();
-                // Pacific stations need 'P' prefix
-                if (upper == "ZAN" || upper == "HCF")
-                    return "P" + upper;
-                // All others get 'K' prefix
-                return "K" + upper;
+                return prefix + airport.ToUpper();
             }).ToList();
 
             UpdateAltimeterStations(root, altimeterStations);
