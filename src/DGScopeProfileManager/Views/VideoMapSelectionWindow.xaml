@@ -13,13 +13,33 @@
                        FontSize="14"
                        Foreground="#FFFFFF"
                        Margin="0 0 0 5"/>
-            <TextBox Name="ProfileNameBox"
-                     Height="30"
-                     Background="#3E3E42"
-                     Foreground="#CCCCCC"
-                     BorderBrush="#555555"
-                     Padding="5"
-                     Margin="0 0 0 15"/>
+            <Grid Margin="0 0 0 15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Name="ProfilePrefixLabel"
+                           Text="A11_"
+                           FontSize="14"
+                           Foreground="#FFFFFF"
+                           VerticalAlignment="Center"
+                           Margin="0 0 5 0"/>
+                <TextBox Grid.Column="1"
+                         Name="ProfileNameBox"
+                         Height="30"
+                         Background="#3E3E42"
+                         Foreground="#CCCCCC"
+                         BorderBrush="#555555"
+                         Padding="5"/>
+                <TextBlock Grid.Column="2"
+                           Text=".xml"
+                           FontSize="14"
+                           Foreground="#FFFFFF"
+                           VerticalAlignment="Center"
+                           Margin="5 0 0 0"/>
+            </Grid>
 
             <TextBlock Text="Available Video Maps"
                        FontSize="14"

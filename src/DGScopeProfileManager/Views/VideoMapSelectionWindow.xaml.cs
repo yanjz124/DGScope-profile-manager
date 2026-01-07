@@ -15,8 +15,9 @@ public partial class VideoMapSelectionWindow : Window
     {
         InitializeComponent();
 
-        // Set default profile name to facility ID
-        ProfileNameBox.Text = facilityId;
+        // Set prefix label and clear textbox (facility ID will be added as prefix automatically)
+        ProfilePrefixLabel.Text = $"{facilityId}_";
+        ProfileNameBox.Text = string.Empty;
 
         // Add display text property to each video map
         foreach (var map in availableVideoMaps)
