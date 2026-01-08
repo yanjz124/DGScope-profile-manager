@@ -3,10 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="DGScopeProfileManager.Views.VideoMapSelectionWindow"
         Title="Select Video Map"
-        WindowStartupLocation="CenterOwner"
-        Width="500" Height="620"
+        WindowStartupLocation="Manual"
+        Width="600" Height="650"
         Background="#2D2D30"
-        Foreground="#CCCCCC">
+        Foreground="#CCCCCC"
+        Loaded="Window_Loaded">
     <Grid Margin="20">
         <StackPanel VerticalAlignment="Stretch">
             <TextBlock Text="Profile Name"
@@ -45,10 +46,23 @@
                            Margin="5 0 0 0"/>
             </Grid>
 
-            <TextBlock Text="Available Video Maps (select one or more to combine)"
-                       FontSize="14"
-                       Foreground="#FFFFFF"
-                       Margin="0 0 0 10"/>
+            <Grid Margin="0 0 0 10">
+                <TextBlock Text="Available Video Maps (select one or more to combine)"
+                           FontSize="14"
+                           Foreground="#FFFFFF"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"/>
+                <Button Name="SelectAllButton"
+                        Content="Select All"
+                        Width="80"
+                        Height="25"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Click="SelectAllButton_Click"
+                        Background="#555555"
+                        Foreground="#FFFFFF"
+                        FontSize="12"/>
+            </Grid>
 
             <ListBox Name="VideoMapsList"
                      Height="380"
@@ -59,13 +73,18 @@
                      Margin="0 0 0 15">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Vertical" Margin="0 5">
                             <TextBlock Text="{Binding DisplayName}" 
                                        FontWeight="Bold"
+                                       FontSize="13"
                                        Foreground="#FFFFFF"/>
-                            <TextBlock Text="{Binding DisplayDetails}" 
+                            <TextBlock Text="{Binding DisplayShortName}" 
                                        FontSize="11"
-                                       Foreground="#999999"
+                                       Foreground="#AAAAAA"
+                                       Margin="0 2 0 0"/>
+                            <TextBlock Text="{Binding DisplayDetails}" 
+                                       FontSize="10"
+                                       Foreground="#888888"
                                        Margin="0 2 0 0"/>
                         </StackPanel>
                     </DataTemplate>

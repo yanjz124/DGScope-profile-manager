@@ -3,11 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="DGScopeProfileManager.Views.AreaSelectionWindow"
         Title="Select Area"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="Manual"
         Width="500" Height="450"
         MinHeight="450"
         Background="#2D2D30"
-        Foreground="#CCCCCC">
+        Foreground="#CCCCCC"
+        Loaded="Window_Loaded">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

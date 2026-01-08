@@ -23,6 +23,27 @@ public partial class AreaSelectionWindow : Window
         }
     }
 
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        // Position window to the right of owner
+        if (Owner != null)
+        {
+            Left = Owner.Left + Owner.Width + 10;
+            Top = Owner.Top;
+            
+            // Make sure window is on screen
+            var workingArea = SystemParameters.WorkArea;
+            if (Left + Width > workingArea.Right)
+            {
+                Left = Owner.Left - Width - 10;
+            }
+            if (Top + Height > workingArea.Bottom)
+            {
+                Top = workingArea.Bottom - Height;
+            }
+        }
+    }
+
     private void AreasList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         // Double-click to select and confirm

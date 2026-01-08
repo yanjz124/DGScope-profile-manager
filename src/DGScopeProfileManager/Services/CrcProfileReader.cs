@@ -144,17 +144,24 @@ public class CrcProfileReader
         {
             if (facilityElement.TryGetProperty("childFacilities", out var childFacilitiesElement))
             {
+                var logPath = Path.Combine(Path.GetTempPath(), "DGScope_Debug.log");
+                File.AppendAllText(logPath, $"\n[{profile.ArtccCode}] Processing childFacilities at {DateTime.Now}...\n");
+                Console.WriteLine($"[{profile.ArtccCode}] Processing childFacilities... (Log: {logPath})");
                 System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] Processing childFacilities...");
-                ProcessFacilitiesRecursively(childFacilitiesElement, profile, videoMapsLookup);
+                ProcessFacilitiesRecursively(childFacilitiesElement, profile, videoMapsLookup, logPath);
+                File.AppendAllText(logPath, $"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total\n");
+                Console.WriteLine($"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total");
                 System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total");
             }
             else
             {
+                Console.WriteLine($"[{profile.ArtccCode}] No childFacilities found in facility element");
                 System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] No childFacilities found in facility element");
             }
         }
         else
         {
+            Console.WriteLine($"[{profile.ArtccCode}] No facility element found in JSON");
             System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] No facility element found in JSON");
         }
         
@@ -164,12 +171,20 @@ public class CrcProfileReader
     /// <summary>
     /// Recursively process all facilities in the tree and add matching ones to the profile
     /// </summary>
-    private void ProcessFacilitiesRecursively(JsonElement facilitiesElement, CrcProfile profile, Dictionary<string, VideoMapInfo> videoMapsLookup)
+    private void ProcessFacilitiesRecursively(JsonElement facilitiesElement, CrcProfile profile, Dictionary<string, VideoMapInfo> videoMapsLookup, string logPath)
     {
-        System.Diagnostics.Debug.WriteLine($"ProcessFacilitiesRecursively: Processing {facilitiesElement.GetArrayLength()} facilities");
+        var facilityCount = facilitiesElement.GetArrayLength();
+        File.AppendAllText(logPath, $"ProcessFacilitiesRecursively: Processing {facilityCount} facilities\n");
+        System.Diagnostics.Debug.WriteLine($"ProcessFacilitiesRecursively: Processing {facilityCount} facilities");
+        
+        var processedCount = 0;
+        var addedCount = 0;
+        var skippedCount = 0;
+        var errorCount = 0;
         
         foreach (var child in facilitiesElement.EnumerateArray())
         {
+            processedCount++;
             try
             {
                 var tracon = new CrcTracon();
@@ -296,7 +311,8 @@ public class CrcProfileReader
                         }
                     }
                     
-                    // Extract available video maps for this facility
+                    // Extract available video maps for this facility, preserving order and cloning per TRACON
+                    var orderedVideoMaps = new List<VideoMapInfo>();
                     if (starsConfig.TryGetProperty("videoMapIds", out var videoMapIds))
                     {
                         foreach (var mapIdElement in videoMapIds.EnumerateArray())
@@ -304,7 +320,21 @@ public class CrcProfileReader
                             var mapId = mapIdElement.GetString() ?? string.Empty;
                             if (!string.IsNullOrEmpty(mapId) && videoMapsLookup.TryGetValue(mapId, out var mapInfo))
                             {
-                                tracon.AvailableVideoMaps.Add(mapInfo);
+                                // Clone to avoid cross-facility contamination (DCB buttons, map numbers)
+                                var cloned = new VideoMapInfo
+                                {
+                                    Id = mapInfo.Id,
+                                    Name = mapInfo.Name,
+                                    ShortName = mapInfo.ShortName,
+                                    SourceFileName = mapInfo.SourceFileName,
+                                    StarsBrightnessCategory = mapInfo.StarsBrightnessCategory,
+                                    StarsId = mapInfo.StarsId,
+                                    DcbButton = mapInfo.DcbButton,
+                                    Tags = new List<string>(mapInfo.Tags)
+                                };
+
+                                tracon.AvailableVideoMaps.Add(cloned);
+                                orderedVideoMaps.Add(cloned);
                             }
                         }
                     }
@@ -332,22 +362,45 @@ public class CrcProfileReader
 
                             if (group.TryGetProperty("mapIds", out var groupMapIds))
                             {
+                                var index = 0;
                                 foreach (var mapIdElement in groupMapIds.EnumerateArray())
                                 {
-                                    var groupMapId = mapIdElement.GetString();
-                                    if (string.IsNullOrWhiteSpace(groupMapId))
+                                    if (mapIdElement.ValueKind == JsonValueKind.Null)
                                     {
+                                        index++;
                                         continue;
                                     }
 
-                                    if (videoMapsLookup.TryGetValue(groupMapId, out var mapInfo))
+                                    VideoMapInfo? target = null;
+
+                                    // Numeric mapIds refer to the ordered list (likely 1-based); try 1-based then 0-based
+                                    if (mapIdElement.ValueKind == JsonValueKind.Number)
                                     {
-                                        // Preserve the first mapping to avoid clobbering explicit buttons
-                                        if (string.IsNullOrWhiteSpace(mapInfo.DcbButton))
+                                        var num = mapIdElement.GetInt32();
+                                        if (num >= 1 && num <= orderedVideoMaps.Count)
                                         {
-                                            mapInfo.DcbButton = dcbButton;
+                                            target = orderedVideoMaps[num - 1];
+                                        }
+                                        else if (num >= 0 && num < orderedVideoMaps.Count)
+                                        {
+                                            target = orderedVideoMaps[num];
                                         }
                                     }
+                                    else if (mapIdElement.ValueKind == JsonValueKind.String)
+                                    {
+                                        var idStr = mapIdElement.GetString();
+                                        target = orderedVideoMaps.FirstOrDefault(m => m.Id == idStr);
+                                    }
+
+                                    if (target != null)
+                                    {
+                                        if (string.IsNullOrWhiteSpace(target.DcbButton))
+                                        {
+                                            target.DcbButton = dcbButton;
+                                        }
+                                    }
+
+                                    index++;
                                 }
                             }
 
@@ -356,32 +409,43 @@ public class CrcProfileReader
                     }
                 }
                 
-                // Add if it's a controlled facility OR it has explicit STARS configuration
+                // Only add controlled facilities (TRACON/RAPCON/RATCF/CERAP), not child ATCTs
                 if (!string.IsNullOrEmpty(tracon.Id) && 
                     !string.IsNullOrEmpty(tracon.Name) && 
-                    (tracon.IsControlledFacility() || hasStarsConfig))
+                    tracon.IsControlledFacility())
                 {
+                    File.AppendAllText(logPath, $"  ✓ Adding {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}\n");
                     System.Diagnostics.Debug.WriteLine($"  ✓ Adding {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}");
                     profile.Tracons.Add(tracon);
+                    addedCount++;
                 }
                 else
                 {
+                    File.AppendAllText(logPath, $"  ✗ Skipping {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}\n");
                     System.Diagnostics.Debug.WriteLine($"  ✗ Skipping {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}");
+                    skippedCount++;
                 }
                 
                 // Recursively process any child facilities under this facility
                 if (child.TryGetProperty("childFacilities", out var nestedChildFacilities))
                 {
-                    ProcessFacilitiesRecursively(nestedChildFacilities, profile, videoMapsLookup);
+                    File.AppendAllText(logPath, $"  → Recursing into {tracon.Id} with {nestedChildFacilities.GetArrayLength()} children\n");
+                    System.Diagnostics.Debug.WriteLine($"  → Recursing into {tracon.Id} with {nestedChildFacilities.GetArrayLength()} children");
+                    ProcessFacilitiesRecursively(nestedChildFacilities, profile, videoMapsLookup, logPath);
                 }
             }
             catch (Exception ex)
             {
+                File.AppendAllText(logPath, $"  ✗ ERROR processing facility: {ex.Message}\n     Stack: {ex.StackTrace}\n");
                 System.Diagnostics.Debug.WriteLine($"  ✗ ERROR processing facility: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"     Stack: {ex.StackTrace}");
+                errorCount++;
                 // Skip malformed child facilities
             }
         }
+        
+        File.AppendAllText(logPath, $"ProcessFacilitiesRecursively complete: Processed={processedCount}, Added={addedCount}, Skipped={skippedCount}, Errors={errorCount}\n");
+        System.Diagnostics.Debug.WriteLine($"ProcessFacilitiesRecursively complete: Processed={processedCount}, Added={addedCount}, Skipped={skippedCount}, Errors={errorCount}");
     }
     
     /// <summary>

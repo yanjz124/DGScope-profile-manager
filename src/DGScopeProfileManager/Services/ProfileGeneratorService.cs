@@ -149,25 +149,49 @@ public class ProfileGeneratorService
 
         var listElement = new XElement("VideoMapFiles");
 
+        // Ensure MapNumber uniqueness; if duplicates, renumber sequentially starting at 1
+        var usedNumbers = new HashSet<int>();
+        var nextNumber = 1;
+
         foreach (var map in videoMapFiles)
         {
-            var mapElement = new XElement("VideoMapFile",
-                new XElement("FileName", map.FileName));
+            // MapNumber corresponds to StarsId when provided; otherwise sequential
+            int mapNumber;
+            if (!string.IsNullOrWhiteSpace(map.StarsId) && int.TryParse(map.StarsId, out var parsed))
+            {
+                mapNumber = parsed;
+            }
+            else
+            {
+                mapNumber = nextNumber;
+            }
 
-            if (!string.IsNullOrWhiteSpace(map.Name))
-                mapElement.Add(new XElement("Name", map.Name));
+            if (usedNumbers.Contains(mapNumber))
+            {
+                // Resolve conflicts by assigning the next available number
+                while (usedNumbers.Contains(mapNumber))
+                {
+                    mapNumber++;
+                }
+            }
+            usedNumbers.Add(mapNumber);
+            nextNumber = mapNumber + 1;
+
+            var mapElement = new XElement("VideoMapFile",
+                new XElement("Filepath", map.FileName),
+                new XElement("MapNumber", mapNumber));
 
             if (!string.IsNullOrWhiteSpace(map.ShortName))
                 mapElement.Add(new XElement("ShortName", map.ShortName));
 
-            if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
-                mapElement.Add(new XElement("StarsBrightnessCategory", map.StarsBrightnessCategory));
+            if (!string.IsNullOrWhiteSpace(map.Name))
+                mapElement.Add(new XElement("FullName", map.Name));
 
-            if (!string.IsNullOrWhiteSpace(map.StarsId))
-                mapElement.Add(new XElement("StarsId", map.StarsId));
+            if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
+                mapElement.Add(new XElement("BrightnessGroup", map.StarsBrightnessCategory));
 
             if (!string.IsNullOrWhiteSpace(map.DcbButton))
-                mapElement.Add(new XElement("DcbButton", map.DcbButton));
+                mapElement.Add(new XElement("DCBButton", map.DcbButton));
 
             listElement.Add(mapElement);
         }
