@@ -25,7 +25,9 @@
       "Bash(Select-String -Pattern \"Brightness\" -Context 0,17)",
       "Bash(dir \"%APPDATA%\\\\DGScopeProfileManager\")",
       "Bash(findstr:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)"
     ]
   }
 }

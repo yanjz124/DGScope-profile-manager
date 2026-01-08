@@ -38,10 +38,9 @@ Section "Install"
   SetOutPath "$INSTDIR\scope"
   File /r "scope\*.*"
   
-  ; Create ARTCC profile directories
+  ; Profiles directory will be created by the application as needed
   SetOutPath "$INSTDIR\profiles"
-CREATE_DIRECTORIES_HERE
-  
+
   ; Create Start Menu shortcuts
   CreateDirectory "$SMPROGRAMS\DGScope Profile Manager"
   CreateShortCut "$SMPROGRAMS\DGScope Profile Manager\Profile Manager.lnk" "$INSTDIR\ProfileManager\DGScopeProfileManager.exe"

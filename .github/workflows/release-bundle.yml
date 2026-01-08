@@ -96,17 +96,10 @@ jobs:
           Remove-Item scope-extract -Recurse -Force
         shell: pwsh
 
-      - name: Create Profiles Directory Structure
+      - name: Create Profiles Directory
         run: |
-          $artccs = @("ZAN", "ZAK", "ZDV", "ZDC", "ZID", "ZIN", "ZJX", "ZKC", "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL", "ZUA")
-          
           New-Item -ItemType Directory -Path "publish/profiles" -Force | Out-Null
-          
-          foreach ($artcc in $artccs) {
-            New-Item -ItemType Directory -Path "publish/profiles/$artcc" -Force | Out-Null
-          }
-          
-          Write-Host "Created profiles directory structure"
+          Write-Host "Created profiles directory"
         shell: pwsh
 
       - name: Create README
@@ -159,17 +152,12 @@ jobs:
           Copy-Item "publish/ProfileManager" -Destination "installer/ProfileManager" -Recurse -Force
           Copy-Item "publish/scope" -Destination "installer/scope" -Recurse -Force
           Copy-Item "publish/profiles" -Destination "installer/profiles" -Recurse -Force
-          
-          # Create directory structure
-          $artccs = @("ZAN", "ZAK", "ZDV", "ZDC", "ZID", "ZIN", "ZJX", "ZKC", "ZLA", "ZLC", "ZMA", "ZME", "ZMP", "ZNY", "ZOA", "ZOB", "ZSE", "ZTL", "ZUA")
-          $createDirs = ($artccs | ForEach-Object { "            CreateDirectory `"`$$INSTDIR\profiles\$_`"" }) -join "`n"
-          
+
           # Read template
           $nsiTemplate = Get-Content "installer/DGScopeProfileManager-Bundle.nsi" -Raw
-          
-          # Replace version and directory creation
+
+          # Replace version
           $nsiScript = $nsiTemplate -replace "RELEASE_VERSION", $releaseVersion
-          $nsiScript = $nsiScript -replace "CREATE_DIRECTORIES_HERE", $createDirs
           
           $nsiScript | Out-File -FilePath "installer/build-bundle.nsi" -Encoding ASCII
           

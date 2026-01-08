@@ -36,7 +36,7 @@ public partial class SettingsWindow : Window
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "Select DGScope Root Folder"
+            Title = "Select DGScope Profiles Folder"
         };
 
         if (dialog.ShowDialog() == true)
