@@ -90,7 +90,7 @@
                                                         </Grid.RowDefinitions>
 
                                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Profile Name:" Margin="5"/>
-                                                        <TextBlock Grid.Row="0" Grid.Column="1" Name="ProfileNameText" FontWeight="Bold" Margin="5"/>
+                                                        <TextBox Grid.Row="0" Grid.Column="1" Name="ProfileNameBox" Margin="5"/>
 
                                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="File Path:" Margin="5"/>
                                                         <TextBlock Grid.Row="1" Grid.Column="1" Name="ProfileFilePathText" 
@@ -99,8 +99,11 @@
                                                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Video Map:" Margin="5"/>
                                                         <TextBox Grid.Row="2" Grid.Column="1" Name="VideoMapPathBox" 
                                                                  IsReadOnly="True" Margin="5"/>
-                                                        <Button Grid.Row="2" Grid.Column="2" Content="Browse..." 
-                                                                Click="BrowseVideoMap_Click" Width="80" Margin="5"/>
+                                                        <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Margin="5">
+                                                            <Button Content="Browse..." 
+                                                                    Click="BrowseVideoMap_Click" Width="80" Margin="0,0,5,0"/>
+                                                            <Button Content="Select..." Click="SelectVideoMapFromCrc_Click" Width="80"/>
+                                                        </StackPanel>
                                                     </Grid>
                                                 </GroupBox>
 

@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -209,7 +212,7 @@ public partial class UnifiedSettingsWindow : Window
         ProfileInfoPanel.Visibility = Visibility.Visible;
         if (_profile != null)
         {
-            ProfileNameText.Text = _profile.Name;
+            ProfileNameBox.Text = _profile.Name;
             ProfileFilePathText.Text = _profile.FilePath;
             VideoMapPathBox.Text = _profile.VideoMapFilename ?? string.Empty;
         }
@@ -625,6 +628,39 @@ public partial class UnifiedSettingsWindow : Window
             if (_profile == null)
                 return;
 
+            // Validate and apply profile name changes
+            var newProfileName = ProfileNameBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newProfileName))
+            {
+                MessageBox.Show("Please enter a profile name.", "Invalid Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (newProfileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                MessageBox.Show("Profile name contains invalid characters.", "Invalid Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Rename file if needed
+            var currentDir = Path.GetDirectoryName(_profile.FilePath) ?? string.Empty;
+            var newFilePath = Path.Combine(currentDir, $"{newProfileName}.xml");
+
+            if (!string.Equals(_profile.FilePath, newFilePath, StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(newFilePath))
+                {
+                    MessageBox.Show($"A profile file named '{newProfileName}.xml' already exists in this folder.", "File Already Exists", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                File.Move(_profile.FilePath, newFilePath, true);
+                _profile.FilePath = newFilePath;
+                ProfileFilePathText.Text = newFilePath;
+            }
+
+            _profile.Name = newProfileName;
+
             // Update profile's CurrentPrefSet
             _profile.CurrentPrefSet = _settings;
 
@@ -632,6 +668,8 @@ public partial class UnifiedSettingsWindow : Window
             if (!string.IsNullOrWhiteSpace(VideoMapPathBox.Text))
             {
                 _profile.VideoMapFilename = VideoMapPathBox.Text;
+                _profile.VideoMapPaths = new List<string> { VideoMapPathBox.Text };
+                _profile.AllSettings["VideoMapFilename"] = VideoMapPathBox.Text;
             }
 
             // Update NEXRAD selection if in profile mode
@@ -655,6 +693,188 @@ public partial class UnifiedSettingsWindow : Window
             MessageBox.Show($"Error saving profile: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void SelectVideoMapFromCrc_Click(object sender, RoutedEventArgs e)
+    {
+        if (_profile == null)
+        {
+            MessageBox.Show("Video map selection is only available when editing a profile.", "Not Available", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_appSettings.CrcVideoMapFolderPath) || !Directory.Exists(_appSettings.CrcVideoMapFolderPath))
+        {
+            MessageBox.Show("CRC video map folder is not configured or cannot be found.", "Missing CRC Folder", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var artcc = TryGetArtccCodeFromProfile();
+        if (string.IsNullOrWhiteSpace(artcc))
+        {
+            MessageBox.Show("Could not determine the ARTCC for this profile. Please select a map manually.", "Unknown ARTCC", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var crcProfilePath = Path.Combine(_appSettings.CrcArtccFolderPath, $"{artcc}.json");
+        if (!File.Exists(crcProfilePath))
+        {
+            MessageBox.Show($"CRC profile JSON not found for ARTCC '{artcc}'.", "CRC Profile Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        CrcProfile crcProfile;
+        try
+        {
+            var crcReader = new CrcProfileReader(_appSettings.CrcArtccFolderPath);
+            crcProfile = crcReader.LoadProfile(crcProfilePath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to load CRC profile: {ex.Message}", "CRC Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var facilityId = TryGetFacilityIdFromProfile();
+        var availableMaps = GetAvailableVideoMaps(crcProfile, facilityId);
+        if (availableMaps.Count == 0)
+        {
+            MessageBox.Show("No video maps were found for this profile's facility.", "No Video Maps", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var selector = new VideoMapSelectionWindow(availableMaps, facilityId ?? artcc);
+        if (selector.ShowDialog() == true && selector.SelectedVideoMaps.Any())
+        {
+            if (!string.IsNullOrWhiteSpace(selector.ProfileName))
+            {
+                ProfileNameBox.Text = selector.ProfileName;
+            }
+
+            var mergedPath = CopyOrMergeSelectedMaps(selector.SelectedVideoMaps, artcc, facilityId ?? artcc);
+            if (!string.IsNullOrWhiteSpace(mergedPath))
+            {
+                VideoMapPathBox.Text = mergedPath;
+            }
+        }
+    }
+
+    private List<VideoMapInfo> GetAvailableVideoMaps(CrcProfile crcProfile, string? facilityId)
+    {
+        if (!string.IsNullOrWhiteSpace(facilityId))
+        {
+            var tracon = crcProfile.Tracons.FirstOrDefault(t => t.Id.Equals(facilityId, StringComparison.OrdinalIgnoreCase));
+            if (tracon?.AvailableVideoMaps.Count > 0)
+            {
+                return tracon.AvailableVideoMaps;
+            }
+        }
+
+        return crcProfile.VideoMaps;
+    }
+
+    private string? CopyOrMergeSelectedMaps(List<VideoMapInfo> maps, string artcc, string? facilityId)
+    {
+        if (_profile == null)
+            return null;
+
+        var profileDir = Path.GetDirectoryName(_profile.FilePath) ?? string.Empty;
+        var videoMapsDir = Path.Combine(profileDir, "VideoMaps");
+        Directory.CreateDirectory(videoMapsDir);
+
+        var prefix = facilityId ?? artcc;
+        var sourceFiles = new List<string>();
+
+        foreach (var map in maps)
+        {
+            string? sourcePath = null;
+
+            if (!string.IsNullOrEmpty(map.Id))
+            {
+                sourcePath = Path.Combine(_appSettings.CrcVideoMapFolderPath, artcc, $"{map.Id}.geojson");
+            }
+
+            if (sourcePath == null || !File.Exists(sourcePath))
+            {
+                var fallback = Path.Combine(_appSettings.CrcVideoMapFolderPath, map.SourceFileName);
+                if (File.Exists(fallback))
+                {
+                    sourcePath = fallback;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(sourcePath) && File.Exists(sourcePath))
+            {
+                sourceFiles.Add(sourcePath);
+            }
+        }
+
+        if (sourceFiles.Count == 0)
+        {
+            MessageBox.Show("No matching video map files were found in the CRC folder.", "Video Map Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return null;
+        }
+
+        if (sourceFiles.Count == 1)
+        {
+            var destFileName = $"{prefix}_{Path.GetFileName(sourceFiles[0])}";
+            var destPath = Path.Combine(videoMapsDir, destFileName);
+            File.Copy(sourceFiles[0], destPath, true);
+            return destPath;
+        }
+
+        var mergedFilePath = Path.Combine(videoMapsDir, $"{prefix}_merged.geojson");
+        if (GeoJsonMergerService.MergeGeoJsonFiles(sourceFiles, mergedFilePath))
+        {
+            return mergedFilePath;
+        }
+
+        MessageBox.Show("Failed to merge the selected video maps.", "Merge Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        return null;
+    }
+
+    private string? TryGetArtccCodeFromProfile()
+    {
+        if (_profile == null)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(_appSettings.DgScopeFolderPath))
+            return null;
+
+        try
+        {
+            var relative = Path.GetRelativePath(_appSettings.DgScopeFolderPath, _profile.FilePath);
+            var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (parts.Length >= 2 && parts[0].Equals("profiles", StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[1];
+            }
+
+            if (parts.Length >= 1)
+            {
+                return parts[0];
+            }
+        }
+        catch
+        {
+            // Ignore path issues and fall through
+        }
+
+        return null;
+    }
+
+    private string? TryGetFacilityIdFromProfile()
+    {
+        if (_profile == null)
+            return null;
+
+        var fileName = Path.GetFileNameWithoutExtension(_profile.FilePath);
+        if (string.IsNullOrWhiteSpace(fileName))
+            return null;
+
+        var prefix = fileName.Split('_').FirstOrDefault();
+        return string.IsNullOrWhiteSpace(prefix) ? null : prefix;
     }
 
     private void SaveAsDefault_Click(object sender, RoutedEventArgs e)
