@@ -182,13 +182,12 @@ public partial class MainWindow : Window
                     foreach (var profile in facility.Profiles)
                     {
                         service.FixFilePaths(profile, makeAbsolute: true);
-                        service.SaveProfile(profile);
                         fixedCount++;
                     }
                 }
-                
+
                 UpdateStatus($"Fixed paths in {fixedCount} profiles");
-                MessageBox.Show($"Successfully fixed paths in {fixedCount} profiles", "Success", 
+                MessageBox.Show($"Successfully fixed paths in {fixedCount} profiles", "Success",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }

@@ -126,7 +126,17 @@ public class DgScopeProfileService
         profile.VSync = root.Element("VSync")?.Value;
         if (int.TryParse(root.Element("TargetFrameRate")?.Value ?? "", out int targetFrameRate))
             profile.TargetFrameRate = targetFrameRate;
-        
+
+        // Parse HomeLocation coordinates
+        var homeLocation = root.Element("HomeLocation");
+        if (homeLocation != null)
+        {
+            if (double.TryParse(homeLocation.Element("Latitude")?.Value ?? "", out double homeLat))
+                profile.HomeLocationLatitude = homeLat;
+            if (double.TryParse(homeLocation.Element("Longitude")?.Value ?? "", out double homeLon))
+                profile.HomeLocationLongitude = homeLon;
+        }
+
         return profile;
     }
     
@@ -194,17 +204,21 @@ public class DgScopeProfileService
     /// </summary>
     public void FixFilePaths(DgScopeProfile profile, bool makeAbsolute = true)
     {
-        var updatedPaths = new List<string>();
-        
-        foreach (var videoMapPath in profile.VideoMapPaths)
+        // Load the XML to update VideoMapFilename
+        var doc = XDocument.Load(profile.FilePath);
+        var root = doc.Root;
+
+        if (root == null)
         {
-            if (string.IsNullOrEmpty(videoMapPath))
-            {
-                continue;
-            }
-            
+            throw new InvalidOperationException($"Invalid XML file: {profile.FilePath}");
+        }
+
+        var videoMapElement = root.Element("VideoMapFilename");
+        if (videoMapElement != null && !string.IsNullOrEmpty(videoMapElement.Value))
+        {
+            var videoMapPath = videoMapElement.Value;
             string fixedPath;
-            
+
             if (makeAbsolute)
             {
                 // Convert to absolute path if relative
@@ -224,11 +238,18 @@ public class DgScopeProfileService
                 var profileDir = Path.GetDirectoryName(profile.FilePath) ?? string.Empty;
                 fixedPath = Path.GetRelativePath(profileDir, videoMapPath);
             }
-            
-            updatedPaths.Add(fixedPath);
+
+            // Update the XML element
+            videoMapElement.Value = fixedPath;
+
+            // Update in-memory profile
+            profile.VideoMapFilename = fixedPath;
+            profile.VideoMapPaths = new List<string> { fixedPath };
+            profile.AllSettings["VideoMapFilename"] = fixedPath;
+
+            // Save the XML
+            doc.Save(profile.FilePath);
         }
-        
-        profile.VideoMapPaths = updatedPaths;
     }
     
     /// <summary>
@@ -263,6 +284,7 @@ public class DgScopeProfileService
     /// Applies a full PrefSetSettings object to the given profile XML and saves it.
     /// Writes root font settings and the CurrentPrefSet subtree.
     /// Also updates VideoMapFilename if present on the profile.
+    /// NOTE: This preserves HomeLocation and ScreenCenterPoint from the profile to avoid overwriting coordinates.
     /// </summary>
     public void ApplyPrefSetSettings(DgScopeProfile profile, PrefSetSettings settings)
     {
@@ -293,15 +315,17 @@ public class DgScopeProfileService
 
         string b(bool v) => v ? "true" : "false";
 
-        // ScreenCenterPoint
+        // ScreenCenterPoint - preserve existing values from the profile, don't overwrite
         var screenCenter = currentPrefSet.Element("ScreenCenterPoint");
         if (screenCenter == null)
         {
+            // Only create if it doesn't exist, using settings values
             screenCenter = new XElement("ScreenCenterPoint");
             currentPrefSet.Add(screenCenter);
+            SetOrCreateElement(screenCenter, "Latitude", settings.ScreenCenterPointLatitude.ToString("F7"));
+            SetOrCreateElement(screenCenter, "Longitude", settings.ScreenCenterPointLongitude.ToString("F7"));
         }
-        SetOrCreateElement(screenCenter, "Latitude", settings.ScreenCenterPointLatitude.ToString("F7"));
-        SetOrCreateElement(screenCenter, "Longitude", settings.ScreenCenterPointLongitude.ToString("F7"));
+        // If it exists, leave it alone to preserve the profile's coordinates
 
         // PreviewAreaLocation
         var previewLoc = currentPrefSet.Element("PreviewAreaLocation");

@@ -185,6 +185,9 @@ public partial class UnifiedSettingsWindow : Window
         SaveProfileButton.Visibility = Visibility.Collapsed;
         SaveAsDefaultButton.Visibility = Visibility.Collapsed;
         SaveAsDefaultApplyAllButton.Visibility = Visibility.Collapsed;
+
+        // Hide reset button (only for profile mode)
+        ResetToHomeLocationButton.Visibility = Visibility.Collapsed;
     }
 
     private void ConfigureForProfileMode()
@@ -205,6 +208,9 @@ public partial class UnifiedSettingsWindow : Window
         // Hide default mode buttons
         SaveDefaultButton.Visibility = Visibility.Collapsed;
         ApplyToAllButton.Visibility = Visibility.Collapsed;
+
+        // Show reset button (only for profile mode)
+        ResetToHomeLocationButton.Visibility = Visibility.Visible;
 
         // Show profile mode buttons
         SaveProfileButton.Visibility = Visibility.Visible;
@@ -565,5 +571,31 @@ public partial class UnifiedSettingsWindow : Window
             MessageBox.Show($"Error saving and applying settings: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void ResetToHomeLocation_Click(object sender, RoutedEventArgs e)
+    {
+        // Only available in profile mode
+        if (_profile == null)
+        {
+            MessageBox.Show("Reset to home location is only available when editing a profile.",
+                "Not Available", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Check if profile has home location coordinates
+        if (!_profile.HomeLocationLatitude.HasValue || !_profile.HomeLocationLongitude.HasValue)
+        {
+            MessageBox.Show("This profile does not have a home location defined.",
+                "No Home Location", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Reset screen center to home location
+        ScreenCenterLatBox.Text = _profile.HomeLocationLatitude.Value.ToString("F7");
+        ScreenCenterLonBox.Text = _profile.HomeLocationLongitude.Value.ToString("F7");
+
+        MessageBox.Show($"Screen center reset to airport/radar center:\nLat: {_profile.HomeLocationLatitude.Value:F7}\nLon: {_profile.HomeLocationLongitude.Value:F7}",
+            "Reset Complete", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }

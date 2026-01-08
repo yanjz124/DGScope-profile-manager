@@ -44,7 +44,11 @@ public class DgScopeProfile
     // All settings as key-value pairs for preservation
     public Dictionary<string, string> AllSettings { get; set; } = new();
     public List<string> VideoMapPaths { get; set; } = new();
-    
+
+    // Home Location coordinates (radar/airport center)
+    public double? HomeLocationLatitude { get; set; }
+    public double? HomeLocationLongitude { get; set; }
+
     public override string ToString() => Name;
 
     /// <summary>
