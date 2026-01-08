@@ -303,15 +303,15 @@ public class CrcProfileReader
 
                                     if (group.TryGetProperty("mapIds", out var groupMapIds))
                                     {
-                                        foreach (var mapId in groupMapIds.EnumerateArray())
+                                        foreach (var mapIdElement in groupMapIds.EnumerateArray())
                                         {
-                                            var id = mapId.GetString();
-                                            if (string.IsNullOrWhiteSpace(id))
+                                            var groupMapId = mapIdElement.GetString();
+                                            if (string.IsNullOrWhiteSpace(groupMapId))
                                             {
                                                 continue;
                                             }
 
-                                            if (videoMapsLookup.TryGetValue(id, out var mapInfo))
+                                            if (videoMapsLookup.TryGetValue(groupMapId, out var mapInfo))
                                             {
                                                 // Preserve the first mapping to avoid clobbering explicit buttons
                                                 if (string.IsNullOrWhiteSpace(mapInfo.DcbButton))
