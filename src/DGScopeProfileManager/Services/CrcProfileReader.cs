@@ -149,6 +149,7 @@ public class CrcProfileReader
                     try
                     {
                         var tracon = new CrcTracon();
+                        var hasStarsConfig = false;
                         
                         if (child.TryGetProperty("id", out var id))
                             tracon.Id = id.GetString() ?? string.Empty;
@@ -162,6 +163,7 @@ public class CrcProfileReader
                         // Extract ssaAirports from starsConfiguration
                         if (child.TryGetProperty("starsConfiguration", out var starsConfig))
                         {
+                            hasStarsConfig = true;
                             // Extract facility location and ssaAirports from starsConfiguration.areas
                             // The visibilityCenter can be:
                             // - A string: "@{lat=39.452745; lon=-74.591952}"
@@ -327,10 +329,10 @@ public class CrcProfileReader
                             }
                         }
                         
-                        // Only add if it's a controlled facility (TRACON, RAPCON, CERAP, RATCF)
+                        // Add if it's a controlled facility OR it has explicit STARS configuration
                         if (!string.IsNullOrEmpty(tracon.Id) && 
                             !string.IsNullOrEmpty(tracon.Name) && 
-                            tracon.IsControlledFacility())
+                            (tracon.IsControlledFacility() || hasStarsConfig))
                         {
                             profile.Tracons.Add(tracon);
                         }
