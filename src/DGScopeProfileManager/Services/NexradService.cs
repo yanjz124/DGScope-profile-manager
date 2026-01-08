@@ -26,40 +26,78 @@ public class NexradService
         }
 
         var lines = File.ReadAllLines(filePath);
+        System.Diagnostics.Debug.WriteLine($"📄 Read {lines.Length} lines from NEXRAD file");
+
+        if (lines.Length > 0)
+        {
+            System.Diagnostics.Debug.WriteLine($"Header line 1: {lines[0]}");
+            if (lines.Length > 1)
+                System.Diagnostics.Debug.WriteLine($"Header line 2: {lines[1]}");
+        }
+
+        int lineNum = 0;
+        int tooShort = 0;
+        int badIcao = 0;
+        int parseError = 0;
+        int successCount = 0;
 
         // Skip header lines (first 2 lines)
         foreach (var line in lines.Skip(2))
         {
+            lineNum++;
             if (string.IsNullOrWhiteSpace(line))
                 continue;
 
             try
             {
-                // Fixed-width format parsing
-                // ICAO is at columns 9-12 (0-indexed: 9-12)
-                // NAME is at columns 19-48
-                // STNTYPE is at columns 101-150
-                // LAT is at columns 68-77
-                // LON is at columns 78-88
-                // ELEV is at columns 89-94
+                // Fixed-width format parsing based on header line:
+                // NCDCID   ICAO WBAN  NAME                           COUNTRY              ST COUNTY                         LAT       LON        ELEV   UTC   STNTYPE
+                // -------- ---- ----- ------------------------------ -------------------- -- ------------------------------ --------- ---------- ------ ----- --------------------------------------------------
+                // ICAO: positions 9-12 (4 chars)
+                // NAME: positions 20-49 (30 chars)
+                // LAT: positions 106-114 (9 chars)
+                // LON: positions 116-125 (10 chars)
+                // ELEV: positions 127-132 (6 chars)
+                // STNTYPE: positions 140-189 (50 chars)
 
-                if (line.Length < 100)
+                if (line.Length < 133)
+                {
+                    tooShort++;
+                    if (tooShort <= 3)
+                        System.Diagnostics.Debug.WriteLine($"  Line {lineNum} too short ({line.Length} chars): {line.Substring(0, Math.Min(50, line.Length))}");
                     continue;
+                }
 
                 var icao = line.Substring(9, 4).Trim();
-                var name = line.Substring(19, 30).Trim();
-                var latStr = line.Substring(68, 10).Trim();
-                var lonStr = line.Substring(78, 11).Trim();
-                var elevStr = line.Substring(89, 6).Trim();
-                var stnType = line.Length >= 150 ? line.Substring(101, 50).Trim() : string.Empty;
+                var name = line.Substring(20, 30).Trim();
+                var latStr = line.Substring(106, 9).Trim();
+                var lonStr = line.Substring(116, 10).Trim();
+                var elevStr = line.Substring(127, 6).Trim();
+                var stnType = line.Length >= 190 ? line.Substring(140, 50).Trim() : string.Empty;
 
-                if (string.IsNullOrEmpty(icao) || !icao.StartsWith("K") && !icao.StartsWith("T"))
+                // Debug first few lines
+                if (lineNum <= 5)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  Line {lineNum}: ICAO='{icao}' Name='{name}' Lat='{latStr}' Lon='{lonStr}' Type='{stnType}'");
+                }
+
+                if (string.IsNullOrEmpty(icao) || (!icao.StartsWith("K") && !icao.StartsWith("T")))
+                {
+                    badIcao++;
+                    if (badIcao <= 3)
+                        System.Diagnostics.Debug.WriteLine($"  Line {lineNum} bad ICAO '{icao}' (must start with K or T)");
                     continue;
+                }
 
                 if (!double.TryParse(latStr, out var lat) ||
                     !double.TryParse(lonStr, out var lon) ||
                     !int.TryParse(elevStr, out var elev))
+                {
+                    parseError++;
+                    if (parseError <= 3)
+                        System.Diagnostics.Debug.WriteLine($"  Line {lineNum} parse error: ICAO={icao} lat='{latStr}' lon='{lonStr}' elev='{elevStr}'");
                     continue;
+                }
 
                 _stations.Add(new NexradStation
                 {
@@ -70,14 +108,26 @@ public class NexradService
                     Longitude = lon,
                     Elevation = elev
                 });
+
+                successCount++;
+                if (successCount <= 3)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  ✓ Added: {icao} - {name} ({lat}, {lon})");
+                }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error parsing NEXRAD station line: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Error parsing line {lineNum}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"   Line content: {line.Substring(0, Math.Min(100, line.Length))}");
             }
         }
 
-        System.Diagnostics.Debug.WriteLine($"Loaded {_stations.Count} NEXRAD stations");
+        System.Diagnostics.Debug.WriteLine($"📊 NEXRAD Parsing Summary:");
+        System.Diagnostics.Debug.WriteLine($"   Total lines processed: {lineNum}");
+        System.Diagnostics.Debug.WriteLine($"   Successfully loaded: {_stations.Count}");
+        System.Diagnostics.Debug.WriteLine($"   Too short: {tooShort}");
+        System.Diagnostics.Debug.WriteLine($"   Bad ICAO: {badIcao}");
+        System.Diagnostics.Debug.WriteLine($"   Parse errors: {parseError}");
     }
 
     /// <summary>
