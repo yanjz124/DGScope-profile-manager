@@ -144,8 +144,18 @@ public class CrcProfileReader
         {
             if (facilityElement.TryGetProperty("childFacilities", out var childFacilitiesElement))
             {
+                System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] Processing childFacilities...");
                 ProcessFacilitiesRecursively(childFacilitiesElement, profile, videoMapsLookup);
+                System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total");
             }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] No childFacilities found in facility element");
+            }
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] No facility element found in JSON");
         }
         
         return profile;
@@ -156,6 +166,8 @@ public class CrcProfileReader
     /// </summary>
     private void ProcessFacilitiesRecursively(JsonElement facilitiesElement, CrcProfile profile, Dictionary<string, VideoMapInfo> videoMapsLookup)
     {
+        System.Diagnostics.Debug.WriteLine($"ProcessFacilitiesRecursively: Processing {facilitiesElement.GetArrayLength()} facilities");
+        
         foreach (var child in facilitiesElement.EnumerateArray())
         {
             try
@@ -349,7 +361,12 @@ public class CrcProfileReader
                     !string.IsNullOrEmpty(tracon.Name) && 
                     (tracon.IsControlledFacility() || hasStarsConfig))
                 {
+                    System.Diagnostics.Debug.WriteLine($"  ✓ Adding {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}");
                     profile.Tracons.Add(tracon);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"  ✗ Skipping {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}");
                 }
                 
                 // Recursively process any child facilities under this facility
@@ -358,8 +375,10 @@ public class CrcProfileReader
                     ProcessFacilitiesRecursively(nestedChildFacilities, profile, videoMapsLookup);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"  ✗ ERROR processing facility: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"     Stack: {ex.StackTrace}");
                 // Skip malformed child facilities
             }
         }
