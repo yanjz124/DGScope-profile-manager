@@ -240,7 +240,39 @@ public partial class UnifiedSettingsWindow : Window
         {
             // Load NEXRAD stations
             var nexradService = new NexradService();
-            var nexradPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "nexrad-stations.txt");
+
+            // Try multiple possible paths for nexrad-stations.txt
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var possiblePaths = new[]
+            {
+                System.IO.Path.Combine(baseDir, "nexrad-stations.txt"),
+                System.IO.Path.Combine(baseDir, "..", "nexrad-stations.txt"),
+                System.IO.Path.Combine(baseDir, "..", "..", "nexrad-stations.txt"),
+                "nexrad-stations.txt" // Current directory
+            };
+
+            string? nexradPath = null;
+            foreach (var path in possiblePaths)
+            {
+                var fullPath = System.IO.Path.GetFullPath(path);
+                System.Diagnostics.Debug.WriteLine($"Checking NEXRAD path: {fullPath}");
+                if (System.IO.File.Exists(fullPath))
+                {
+                    nexradPath = fullPath;
+                    System.Diagnostics.Debug.WriteLine($"✓ Found NEXRAD stations file at: {fullPath}");
+                    break;
+                }
+            }
+
+            if (nexradPath == null)
+            {
+                System.Diagnostics.Debug.WriteLine($"✗ NEXRAD stations file not found in any location!");
+                System.Diagnostics.Debug.WriteLine($"  Base directory: {baseDir}");
+                NexradComboBox.Items.Add("NEXRAD stations file not found");
+                NexradComboBox.IsEnabled = false;
+                return;
+            }
+
             nexradService.LoadStations(nexradPath);
 
             // Get profile center location
@@ -254,8 +286,19 @@ public partial class UnifiedSettingsWindow : Window
                 centerLon = _settings.ScreenCenterPointLongitude;
             }
 
+            System.Diagnostics.Debug.WriteLine($"Loading NEXRAD stations for lat={centerLat}, lon={centerLon}");
+
             // Get all stations with distances
             var stationsWithDistance = nexradService.GetAllStationsWithDistance(centerLat, centerLon);
+
+            System.Diagnostics.Debug.WriteLine($"Found {stationsWithDistance.Count} NEXRAD stations");
+
+            if (!stationsWithDistance.Any())
+            {
+                NexradComboBox.Items.Add("No NEXRAD stations available");
+                NexradComboBox.IsEnabled = false;
+                return;
+            }
 
             // Create display items
             var nexradItems = stationsWithDistance.Select(item => new NexradDisplayItem
@@ -267,18 +310,35 @@ public partial class UnifiedSettingsWindow : Window
 
             NexradComboBox.ItemsSource = nexradItems;
             NexradComboBox.DisplayMemberPath = "DisplayText";
+            NexradComboBox.IsEnabled = true;
 
-            // Select current NEXRAD if it exists in the profile
-            // This would require reading the NEXRAD from the profile
-            // For now, select the closest one
+            // Try to select current NEXRAD from profile if it exists
+            var currentNexrad = _profile.AllSettings.GetValueOrDefault("NexradSensorID", null);
+            if (!string.IsNullOrEmpty(currentNexrad))
+            {
+                var matchingItem = nexradItems.FirstOrDefault(item =>
+                    item.Station.Icao.Equals(currentNexrad, StringComparison.OrdinalIgnoreCase));
+                if (matchingItem != null)
+                {
+                    NexradComboBox.SelectedItem = matchingItem;
+                    System.Diagnostics.Debug.WriteLine($"Selected existing NEXRAD: {currentNexrad}");
+                    return;
+                }
+            }
+
+            // Select the closest one
             if (nexradItems.Any())
             {
                 NexradComboBox.SelectedIndex = 0;
+                System.Diagnostics.Debug.WriteLine($"Selected closest NEXRAD: {nexradItems[0].Station.Icao}");
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error loading NEXRAD stations: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            NexradComboBox.Items.Add($"Error: {ex.Message}");
+            NexradComboBox.IsEnabled = false;
         }
     }
 
@@ -548,6 +608,13 @@ public partial class UnifiedSettingsWindow : Window
             if (!string.IsNullOrWhiteSpace(VideoMapPathBox.Text))
             {
                 _profile.VideoMapFilename = VideoMapPathBox.Text;
+            }
+
+            // Update NEXRAD selection if in profile mode
+            if (NexradComboBox.SelectedItem is NexradDisplayItem selectedNexrad)
+            {
+                _profile.AllSettings["NexradSensorID"] = selectedNexrad.Station.Icao;
+                System.Diagnostics.Debug.WriteLine($"Saving NEXRAD: {selectedNexrad.Station.Icao}");
             }
 
             // Save profile to XML (writes CurrentPrefSet subtree and root fonts; also updates VideoMapFilename)

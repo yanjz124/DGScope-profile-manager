@@ -414,6 +414,29 @@ public class DgScopeProfileService
         SetOrCreateElement(brightness, "Weather", settings.Brightness.Weather.ToString());
         SetOrCreateElement(brightness, "WeatherContrast", settings.Brightness.WeatherContrast.ToString());
 
+        // NEXRAD configuration - read from profile AllSettings if present
+        if (profile.AllSettings.TryGetValue("NexradSensorID", out var nexradSensorId) && !string.IsNullOrWhiteSpace(nexradSensorId))
+        {
+            var nexrad = root.Element("Nexrad");
+            if (nexrad == null)
+            {
+                nexrad = new XElement("Nexrad");
+                root.Add(nexrad);
+            }
+
+            // Update NEXRAD configuration
+            SetOrCreateElement(nexrad, "SensorID", nexradSensorId.ToUpper());
+            SetOrCreateElement(nexrad, "WxRadarMode", "NWSNexrad");
+            SetOrCreateElement(nexrad, "Enabled", "true");
+
+            // Construct NEXRAD URL
+            var nexradUrl = $"https://tgftp.nws.noaa.gov/SL.us008001/DF.of/DC.radar/DS.p94r0/SI.{nexradSensorId.ToLower()}/sn.last";
+            SetOrCreateElement(nexrad, "URL", nexradUrl);
+            SetOrCreateElement(nexrad, "DownloadInterval", "300");
+
+            System.Diagnostics.Debug.WriteLine($"✓ Applied NEXRAD {nexradSensorId} to profile {profile.Name}");
+        }
+
         // Save
         doc.Save(profile.FilePath);
 

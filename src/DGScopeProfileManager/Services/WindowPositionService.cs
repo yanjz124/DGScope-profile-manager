@@ -16,6 +16,14 @@ public static class WindowPositionService
         if (window == null || settings == null)
             return;
 
+        // Don't save if window was never shown or is in an invalid state
+        if (double.IsNaN(window.Left) || double.IsNaN(window.Top) ||
+            double.IsNaN(window.Width) || double.IsNaN(window.Height))
+        {
+            System.Diagnostics.Debug.WriteLine($"Skipping save for {windowKey} - invalid position");
+            return;
+        }
+
         var position = new WindowPosition
         {
             Left = window.Left,
@@ -26,6 +34,7 @@ public static class WindowPositionService
         };
 
         settings.WindowPositions[windowKey] = position;
+        System.Diagnostics.Debug.WriteLine($"✓ Saved position for {windowKey}: ({position.Left:F0}, {position.Top:F0}) {position.Width:F0}x{position.Height:F0} Maximized={position.IsMaximized}");
     }
 
     /// <summary>
@@ -34,28 +43,39 @@ public static class WindowPositionService
     public static void RestorePosition(Window window, AppSettings settings, string windowKey)
     {
         if (window == null || settings == null)
+        {
+            System.Diagnostics.Debug.WriteLine($"Cannot restore {windowKey} - window or settings null");
             return;
+        }
 
         if (!settings.WindowPositions.TryGetValue(windowKey, out var position))
+        {
+            System.Diagnostics.Debug.WriteLine($"No saved position for {windowKey}");
             return;
+        }
 
         // Ensure the window is within screen bounds
         var screenWidth = SystemParameters.VirtualScreenWidth;
         var screenHeight = SystemParameters.VirtualScreenHeight;
 
+        var adjustedLeft = position.Left;
+        var adjustedTop = position.Top;
+
         if (position.Left < 0 || position.Left + position.Width > screenWidth)
-            position.Left = (screenWidth - position.Width) / 2;
+            adjustedLeft = (screenWidth - position.Width) / 2;
 
         if (position.Top < 0 || position.Top + position.Height > screenHeight)
-            position.Top = (screenHeight - position.Height) / 2;
+            adjustedTop = (screenHeight - position.Height) / 2;
 
-        window.Left = position.Left;
-        window.Top = position.Top;
+        window.Left = adjustedLeft;
+        window.Top = adjustedTop;
         window.Width = position.Width;
         window.Height = position.Height;
 
         if (position.IsMaximized)
             window.WindowState = WindowState.Maximized;
+
+        System.Diagnostics.Debug.WriteLine($"✓ Restored position for {windowKey}: ({adjustedLeft:F0}, {adjustedTop:F0}) {position.Width:F0}x{position.Height:F0} Maximized={position.IsMaximized}");
     }
 
     /// <summary>
@@ -64,16 +84,24 @@ public static class WindowPositionService
     /// </summary>
     public static void InitializePositionTracking(Window window, AppSettings settings, string windowKey)
     {
+        System.Diagnostics.Debug.WriteLine($"Initializing position tracking for {windowKey}");
+
         // Restore position when the window loads
-        window.Loaded += (s, e) => RestorePosition(window, settings, windowKey);
+        window.Loaded += (s, e) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"{windowKey} Loaded event - restoring position");
+            RestorePosition(window, settings, windowKey);
+        };
 
         // Save position when the window closes
         window.Closed += (s, e) =>
         {
+            System.Diagnostics.Debug.WriteLine($"{windowKey} Closed event - saving position");
             SavePosition(window, settings, windowKey);
             // Save settings to disk
             var persistenceService = new SettingsPersistenceService();
             persistenceService.SaveSettings(settings);
+            System.Diagnostics.Debug.WriteLine($"{windowKey} Settings saved to disk");
         };
     }
 
@@ -83,11 +111,13 @@ public static class WindowPositionService
     /// </summary>
     public static void InitializePositionTracking(Window window, string windowKey)
     {
+        System.Diagnostics.Debug.WriteLine($"Initializing position tracking (auto-load) for {windowKey}");
         var persistenceService = new SettingsPersistenceService();
 
         // Restore position when the window loads
         window.Loaded += (s, e) =>
         {
+            System.Diagnostics.Debug.WriteLine($"{windowKey} Loaded event - loading and restoring position");
             var settings = persistenceService.LoadSettings();
             RestorePosition(window, settings, windowKey);
         };
@@ -95,9 +125,11 @@ public static class WindowPositionService
         // Save position when the window closes
         window.Closed += (s, e) =>
         {
+            System.Diagnostics.Debug.WriteLine($"{windowKey} Closed event - loading, saving position, and persisting");
             var settings = persistenceService.LoadSettings();
             SavePosition(window, settings, windowKey);
             persistenceService.SaveSettings(settings);
+            System.Diagnostics.Debug.WriteLine($"{windowKey} Settings saved to disk");
         };
     }
 }
