@@ -276,9 +276,6 @@ public partial class MainWindow : Window
             if (videoMapWindow.ShowDialog() != true)
                 return;
 
-            var selectedVideoMap = videoMapWindow.SelectedVideoMap;
-            var profileName = videoMapWindow.ProfileName;
-
             // Generate profile under profiles/ARTCC directory
             // All settings are now automatically configured from CRC data
             var outputDir = Path.Combine(_settings.DgScopeFolderPath, "profiles", selectedCrc.ArtccCode);
@@ -286,14 +283,15 @@ public partial class MainWindow : Window
 
             var generator = new ProfileGeneratorService();
 
-            var profile = generator.GenerateFromCrc(
+            var profile = generator.GenerateFromCrcWithMultipleMaps(
                 selectedCrc,
                 outputDir,
-                selectedTracon,
-                selectedVideoMap,
+                videoMapWindow.SelectedVideoMaps,
                 _settings.CrcVideoMapFolderPath,
+                selectedTracon,
                 selectedArea,
-                profileName);
+                videoMapWindow.ProfileName,
+                _settings.DefaultSettings);
             
             if (profile != null)
             {

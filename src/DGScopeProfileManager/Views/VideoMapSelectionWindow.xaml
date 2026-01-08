@@ -45,7 +45,7 @@
                            Margin="5 0 0 0"/>
             </Grid>
 
-            <TextBlock Text="Available Video Maps"
+            <TextBlock Text="Available Video Maps (select one or more to combine)"
                        FontSize="14"
                        Foreground="#FFFFFF"
                        Margin="0 0 0 10"/>
@@ -55,7 +55,7 @@
                      Background="#3E3E42"
                      Foreground="#CCCCCC"
                      BorderBrush="#555555"
-                     SelectionMode="Single"
+                     SelectionMode="Multiple"
                      Margin="0 0 0 15">
                 <ListBox.ItemTemplate>
                     <DataTemplate>

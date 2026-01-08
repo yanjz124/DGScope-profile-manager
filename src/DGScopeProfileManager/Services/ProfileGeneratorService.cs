@@ -40,7 +40,8 @@ public class ProfileGeneratorService
         VideoMapInfo? selectedVideoMap = null,
         string? crcVideoMapFolder = null,
         CrcArea? selectedArea = null,
-        string? customProfileName = null)
+        string? customProfileName = null,
+        ProfileDefaultSettings? defaultSettings = null)
     {
         // Create output directory if it doesn't exist
         Directory.CreateDirectory(outputDirectory);
@@ -225,6 +226,12 @@ public class ProfileGeneratorService
             }
         }
 
+        // 6. Apply default settings (if provided)
+        if (defaultSettings != null)
+        {
+            ApplyDefaultSettings(root, defaultSettings);
+        }
+
         // Save the generated profile
         try
         {
@@ -244,6 +251,222 @@ public class ProfileGeneratorService
         };
 
         return dgScopeProfile;
+    }
+
+    /// <summary>
+    /// Generates a DGScope profile from a CRC profile with multiple selected video maps (merged into one GeoJSON)
+    /// </summary>
+    public DgScopeProfile? GenerateFromCrcWithMultipleMaps(
+        CrcProfile crcProfile,
+        string outputDirectory,
+        List<VideoMapInfo> selectedVideoMaps,
+        string? crcVideoMapFolder = null,
+        CrcTracon? selectedTracon = null,
+        CrcArea? selectedArea = null,
+        string? customProfileName = null,
+        ProfileDefaultSettings? defaultSettings = null)
+    {
+        if (selectedVideoMaps == null || selectedVideoMaps.Count == 0)
+        {
+            return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, null, crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
+        }
+
+        // If only one map, use the regular method
+        if (selectedVideoMaps.Count == 1)
+        {
+            return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, selectedVideoMaps[0], crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
+        }
+
+        // Multiple maps: merge them
+        try
+        {
+            var profileCode = selectedTracon?.Id ?? crcProfile.ArtccCode;
+            var videoMapsDir = Path.Combine(outputDirectory, "VideoMaps");
+            Directory.CreateDirectory(videoMapsDir);
+
+            // Collect source file paths for merging
+            var sourceFiles = new List<string>();
+            foreach (var map in selectedVideoMaps)
+            {
+                string? sourceFilePath = null;
+
+                if (!string.IsNullOrEmpty(crcVideoMapFolder))
+                {
+                    // Try using the ID first
+                    if (!string.IsNullOrEmpty(map.Id))
+                    {
+                        sourceFilePath = Path.Combine(crcVideoMapFolder, crcProfile.ArtccCode, $"{map.Id}.geojson");
+                    }
+
+                    // Fallback to sourceFileName
+                    if (sourceFilePath == null || !File.Exists(sourceFilePath))
+                    {
+                        sourceFilePath = Path.Combine(crcVideoMapFolder, map.SourceFileName);
+                    }
+
+                    if (File.Exists(sourceFilePath))
+                    {
+                        sourceFiles.Add(sourceFilePath);
+                        System.Diagnostics.Debug.WriteLine($"✓ Found video map: {map.SourceFileName}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"✗ Video map not found: {map.SourceFileName}");
+                    }
+                }
+            }
+
+            if (sourceFiles.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"✗ No video map files found for merging");
+                return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, null, crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
+            }
+
+            // Merge the GeoJSON files
+            var mergedFileName = $"{profileCode}_merged.geojson";
+            var mergedFilePath = Path.Combine(videoMapsDir, mergedFileName);
+
+            if (GeoJsonMergerService.MergeGeoJsonFiles(sourceFiles, mergedFilePath))
+            {
+                System.Diagnostics.Debug.WriteLine($"✓ Merged {sourceFiles.Count} GeoJSON files");
+
+                // Create a temporary VideoMapInfo for the merged file
+                var mergedMap = new VideoMapInfo
+                {
+                    Id = "merged",
+                    SourceFileName = mergedFileName,
+                    Tags = new List<string> { "merged" }
+                };
+
+                // Temporarily update the merged file info to point to destination
+                // Then call the regular GenerateFromCrc with this modified map
+                return GenerateFromCrcWithMergedMap(crcProfile, outputDirectory, selectedTracon, mergedFilePath, selectedArea, customProfileName, defaultSettings);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"✗ Failed to merge GeoJSON files");
+                return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, null, crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"✗ Error in GenerateFromCrcWithMultipleMaps: {ex.Message}");
+            return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, null, crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
+        }
+    }
+
+    /// <summary>
+    /// Generate profile with a pre-merged GeoJSON file (already at the destination path)
+    /// </summary>
+    private DgScopeProfile? GenerateFromCrcWithMergedMap(
+        CrcProfile crcProfile,
+        string outputDirectory,
+        CrcTracon? selectedTracon = null,
+        string? mergedMapPath = null,
+        CrcArea? selectedArea = null,
+        string? customProfileName = null,
+        ProfileDefaultSettings? defaultSettings = null)
+    {
+        // Create output directory if it doesn't exist
+        Directory.CreateDirectory(outputDirectory);
+
+        var profileCode = selectedTracon?.Id ?? crcProfile.ArtccCode;
+        var profileName = selectedTracon?.Name ?? crcProfile.ArtccCode;
+
+        string fileName;
+        if (!string.IsNullOrWhiteSpace(customProfileName))
+        {
+            fileName = $"{profileCode}_{customProfileName}.xml";
+        }
+        else
+        {
+            fileName = $"{profileCode}.xml";
+        }
+
+        var outputPath = Path.Combine(outputDirectory, fileName);
+
+        // Load template
+        var doc = LoadDefaultTemplate();
+        var root = doc.Root;
+        if (root == null)
+        {
+            throw new InvalidOperationException("Failed to create profile XML");
+        }
+
+        // 1. Update video map filename (using merged map)
+        if (!string.IsNullOrEmpty(mergedMapPath))
+        {
+            SetOrCreateElement(root, "VideoMapFilename", mergedMapPath);
+        }
+
+        // 2. Update home location
+        double? latitude = selectedArea?.Latitude ?? selectedTracon?.Latitude ?? crcProfile.HomeLatitude;
+        double? longitude = selectedArea?.Longitude ?? selectedTracon?.Longitude ?? crcProfile.HomeLongitude;
+
+        if (latitude.HasValue && longitude.HasValue)
+        {
+            UpdateHomeLocation(root, latitude.Value, longitude.Value);
+            UpdateScreenCenterPoint(root, latitude.Value, longitude.Value);
+            UpdateRangeRingLocation(root, latitude.Value, longitude.Value);
+        }
+
+        // 3. Update altimeter stations
+        List<string>? ssaAirports = null;
+        if (selectedArea != null && selectedArea.SsaAirports.Count > 0)
+        {
+            ssaAirports = selectedArea.SsaAirports;
+        }
+        else if (selectedTracon != null && selectedTracon.SsaAirports.Count > 0)
+        {
+            ssaAirports = selectedTracon.SsaAirports;
+        }
+
+        if (ssaAirports != null && ssaAirports.Count > 0)
+        {
+            var lookupService = AirportLookupService.Instance;
+            var artccCode = crcProfile.ArtccCode;
+            var altimeterStations = ssaAirports.Select(airport => lookupService.ConvertToIcao(airport, artccCode)).ToList();
+            UpdateAltimeterStations(root, altimeterStations);
+        }
+
+        // 4. Update receiver configuration
+        if (selectedTracon != null && latitude.HasValue && longitude.HasValue)
+        {
+            UpdateReceiverConfig(root, selectedTracon.Id, latitude.Value, longitude.Value);
+        }
+
+        // 5. Update NEXRAD configuration
+        if (latitude.HasValue && longitude.HasValue)
+        {
+            var nexradStation = _nexradService.FindClosestStation(latitude.Value, longitude.Value);
+            if (nexradStation != null)
+            {
+                UpdateNexradConfig(root, nexradStation.Icao, 300);
+            }
+        }
+
+        // 6. Apply default settings
+        if (defaultSettings != null)
+        {
+            ApplyDefaultSettings(root, defaultSettings);
+        }
+
+        // Save the profile
+        try
+        {
+            doc.Save(outputPath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving profile to {outputPath}: {ex.Message}");
+            throw;
+        }
+
+        return new DgScopeProfile
+        {
+            Name = profileName,
+            FilePath = outputPath
+        };
     }
 
     /// <summary>
@@ -500,4 +723,51 @@ public class ProfileGeneratorService
         }
     }
 
-}
+    /// <summary>
+    /// Apply default settings from ProfileDefaultSettings to the generated profile XML
+    /// </summary>
+    private void ApplyDefaultSettings(XElement root, ProfileDefaultSettings defaults)
+    {
+        try
+        {
+            // Apply font settings
+            if (!string.IsNullOrWhiteSpace(defaults.FontName))
+            {
+                SetOrCreateElement(root, "FontName", defaults.FontName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(defaults.FontSize))
+            {
+                SetOrCreateElement(root, "FontSize", defaults.FontSize);
+            }
+
+            // Apply window size if specified
+            if (defaults.WindowSize != null)
+            {
+                var windowSizeElem = root.Element("WindowSize");
+                if (windowSizeElem != null)
+                {
+                    SetOrCreateElement(windowSizeElem, "Width", defaults.WindowSize.Width.ToString());
+                    SetOrCreateElement(windowSizeElem, "Height", defaults.WindowSize.Height.ToString());
+                }
+            }
+
+            // Apply window location if specified
+            if (defaults.WindowLocation != null)
+            {
+                var windowLocElem = root.Element("WindowLocation");
+                if (windowLocElem != null)
+                {
+                    SetOrCreateElement(windowLocElem, "X", defaults.WindowLocation.X.ToString());
+                    SetOrCreateElement(windowLocElem, "Y", defaults.WindowLocation.Y.ToString());
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine("✓ Applied default settings to generated profile");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"✗ Error applying default settings: {ex.Message}");
+        }
+    }
+

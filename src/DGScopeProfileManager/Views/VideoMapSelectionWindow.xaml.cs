@@ -9,7 +9,7 @@ namespace DGScopeProfileManager.Views;
 /// </summary>
 public partial class VideoMapSelectionWindow : Window
 {
-    public VideoMapInfo? SelectedVideoMap { get; private set; }
+    public List<VideoMapInfo> SelectedVideoMaps { get; private set; } = new();
     public string ProfileName { get; private set; } = string.Empty;
     private bool _isPlaceholder = true;
 
@@ -39,32 +39,37 @@ public partial class VideoMapSelectionWindow : Window
 
     private void OkButton_Click(object sender, RoutedEventArgs e)
     {
-        if (VideoMapsList.SelectedItem is VideoMapDisplay selected)
+        if (VideoMapsList.SelectedItems.Count == 0)
         {
-            // Validate profile name
-            var profileName = ProfileNameBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(profileName))
-            {
-                MessageBox.Show("Please enter a profile name.", "Invalid Name", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Check for invalid filename characters
-            var invalidChars = System.IO.Path.GetInvalidFileNameChars();
-            if (profileName.IndexOfAny(invalidChars) >= 0)
-            {
-                MessageBox.Show("Profile name contains invalid characters.", "Invalid Name", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            SelectedVideoMap = selected.VideoMap;
-            ProfileName = profileName;
-            DialogResult = true;
+            MessageBox.Show("Please select at least one video map.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
-        else
+
+        // Validate profile name
+        var profileName = ProfileNameBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(profileName))
         {
-            MessageBox.Show("Please select a video map.", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Please enter a profile name.", "Invalid Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
+
+        // Check for invalid filename characters
+        var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+        if (profileName.IndexOfAny(invalidChars) >= 0)
+        {
+            MessageBox.Show("Profile name contains invalid characters.", "Invalid Name", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Collect all selected video maps
+        SelectedVideoMaps.Clear();
+        foreach (VideoMapDisplay selected in VideoMapsList.SelectedItems)
+        {
+            SelectedVideoMaps.Add(selected.VideoMap);
+        }
+
+        ProfileName = profileName;
+        DialogResult = true;
     }
     
     private void CancelButton_Click(object sender, RoutedEventArgs e)
