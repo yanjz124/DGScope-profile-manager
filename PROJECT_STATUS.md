@@ -2,7 +2,12 @@
 
 **Project**: DGScope Profile Manager  
 **Status**: Alpha - Core functionality complete, testing phase  
-**Last Updated**: January 6, 2026
+**Last Updated**: January 8, 2026
+
+## 🔔 Latest Updates (Jan 8, 2026)
+- Added DGScope multi-video-map generation using `<VideoMapFiles>` with per-map metadata (name, shortName, StarsId, brightness category, DCB button) and legacy `VideoMapFilename` fallback for older builds.
+- CRC reader now captures `mapGroups` DCB button mappings plus `starsId`/`starsBrightnessCategory`; generator copies individual maps instead of merging, preserving file-level metadata.
+- Profile loader/saver/path fixer supports the new schema while mirroring single-map profiles into the list to stay backward compatible.
 
 ## 📊 Overall Progress
 

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Xml.Linq;
 using DGScopeProfileManager.Models;
 
@@ -104,6 +105,39 @@ public class DgScopeProfileService
         {
             profile.VideoMapPaths.Add(profile.VideoMapFilename);
         }
+
+        // Parse multi-map entries if present
+        var videoMapFilesElement = root.Element("VideoMapFiles");
+        if (videoMapFilesElement != null)
+        {
+            foreach (var mapElement in videoMapFilesElement.Elements("VideoMapFile"))
+            {
+                var fileName = mapElement.Element("FileName")?.Value ?? string.Empty;
+
+                var mapFile = new VideoMapFile
+                {
+                    FileName = fileName,
+                    Name = mapElement.Element("Name")?.Value,
+                    ShortName = mapElement.Element("ShortName")?.Value,
+                    StarsBrightnessCategory = mapElement.Element("StarsBrightnessCategory")?.Value,
+                    StarsId = mapElement.Element("StarsId")?.Value,
+                    DcbButton = mapElement.Element("DcbButton")?.Value
+                };
+
+                profile.VideoMapFiles.Add(mapFile);
+
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    profile.VideoMapPaths.Add(fileName);
+                }
+            }
+        }
+
+        // If only legacy VideoMapFilename exists, mirror it into VideoMapFiles
+        if (profile.VideoMapFiles.Count == 0 && !string.IsNullOrWhiteSpace(profile.VideoMapFilename))
+        {
+            profile.VideoMapFiles.Add(new VideoMapFile { FileName = profile.VideoMapFilename });
+        }
         
         if (int.TryParse(root.Element("FadeTime")?.Value ?? "", out int fadeTime))
             profile.FadeTime = fadeTime;
@@ -184,10 +218,54 @@ public class DgScopeProfileService
             var elem = root.Element("ScreenRotation");
             if (elem != null) elem.Value = profile.ScreenRotation.ToString() ?? "";
         }
-            
-        // Update video map path if changed
-        if (profile.VideoMapPaths.Count > 0)
+
+        // Update video maps (new multi-map schema + legacy fallback)
+        if (profile.VideoMapFiles.Count > 0)
         {
+            // Replace the VideoMapFiles element entirely
+            var existingList = root.Element("VideoMapFiles");
+            existingList?.Remove();
+
+            var listElement = new XElement("VideoMapFiles");
+
+            foreach (var map in profile.VideoMapFiles)
+            {
+                var mapElement = new XElement("VideoMapFile",
+                    new XElement("FileName", map.FileName));
+
+                if (!string.IsNullOrWhiteSpace(map.Name))
+                    mapElement.Add(new XElement("Name", map.Name));
+                if (!string.IsNullOrWhiteSpace(map.ShortName))
+                    mapElement.Add(new XElement("ShortName", map.ShortName));
+                if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
+                    mapElement.Add(new XElement("StarsBrightnessCategory", map.StarsBrightnessCategory));
+                if (!string.IsNullOrWhiteSpace(map.StarsId))
+                    mapElement.Add(new XElement("StarsId", map.StarsId));
+                if (!string.IsNullOrWhiteSpace(map.DcbButton))
+                    mapElement.Add(new XElement("DcbButton", map.DcbButton));
+
+                listElement.Add(mapElement);
+            }
+
+            root.Add(listElement);
+
+            // Keep VideoMapFilename aligned to first map for backward compatibility
+            var primaryMapPath = profile.VideoMapFiles.First().FileName;
+            var videoMapElement = root.Element("VideoMapFilename");
+            if (videoMapElement != null)
+            {
+                videoMapElement.Value = primaryMapPath;
+            }
+            else
+            {
+                root.Add(new XElement("VideoMapFilename", primaryMapPath));
+            }
+
+            profile.VideoMapPaths = profile.VideoMapFiles.Select(m => m.FileName).ToList();
+        }
+        else if (profile.VideoMapPaths.Count > 0)
+        {
+            // Legacy single-map update
             var videoMapElement = root.Element("VideoMapFilename");
             if (videoMapElement != null)
             {
@@ -213,39 +291,87 @@ public class DgScopeProfileService
             throw new InvalidOperationException($"Invalid XML file: {profile.FilePath}");
         }
 
-        var videoMapElement = root.Element("VideoMapFilename");
-        if (videoMapElement != null && !string.IsNullOrEmpty(videoMapElement.Value))
-        {
-            var videoMapPath = videoMapElement.Value;
-            string fixedPath;
+        var updatedVideoMaps = new List<VideoMapFile>();
+        var videoMapFilesElement = root.Element("VideoMapFiles");
 
+        // Helper local function for path normalization
+        string NormalizePath(string originalPath)
+        {
             if (makeAbsolute)
             {
-                // Convert to absolute path if relative
-                if (!Path.IsPathRooted(videoMapPath))
+                if (!Path.IsPathRooted(originalPath))
                 {
                     var profileDir = Path.GetDirectoryName(profile.FilePath) ?? string.Empty;
-                    fixedPath = Path.GetFullPath(Path.Combine(profileDir, videoMapPath));
+                    return Path.GetFullPath(Path.Combine(profileDir, originalPath));
                 }
-                else
-                {
-                    fixedPath = Path.GetFullPath(videoMapPath);
-                }
+
+                return Path.GetFullPath(originalPath);
             }
             else
             {
-                // Convert to relative path
                 var profileDir = Path.GetDirectoryName(profile.FilePath) ?? string.Empty;
-                fixedPath = Path.GetRelativePath(profileDir, videoMapPath);
+                return Path.GetRelativePath(profileDir, originalPath);
             }
+        }
 
-            // Update the XML element
+        if (videoMapFilesElement != null)
+        {
+            foreach (var mapElement in videoMapFilesElement.Elements("VideoMapFile"))
+            {
+                var fileNameElement = mapElement.Element("FileName");
+                if (fileNameElement == null || string.IsNullOrWhiteSpace(fileNameElement.Value))
+                {
+                    continue;
+                }
+
+                var fixedPath = NormalizePath(fileNameElement.Value);
+                fileNameElement.Value = fixedPath;
+
+                updatedVideoMaps.Add(new VideoMapFile
+                {
+                    FileName = fixedPath,
+                    Name = mapElement.Element("Name")?.Value,
+                    ShortName = mapElement.Element("ShortName")?.Value,
+                    StarsBrightnessCategory = mapElement.Element("StarsBrightnessCategory")?.Value,
+                    StarsId = mapElement.Element("StarsId")?.Value,
+                    DcbButton = mapElement.Element("DcbButton")?.Value
+                });
+            }
+        }
+
+        // Legacy single VideoMapFilename handling
+        var videoMapElement = root.Element("VideoMapFilename");
+        if (updatedVideoMaps.Count == 0 && videoMapElement != null && !string.IsNullOrEmpty(videoMapElement.Value))
+        {
+            var fixedPath = NormalizePath(videoMapElement.Value);
             videoMapElement.Value = fixedPath;
 
-            // Update in-memory profile
             profile.VideoMapFilename = fixedPath;
             profile.VideoMapPaths = new List<string> { fixedPath };
+            profile.VideoMapFiles = new List<VideoMapFile> { new VideoMapFile { FileName = fixedPath } };
             profile.AllSettings["VideoMapFilename"] = fixedPath;
+
+            doc.Save(profile.FilePath);
+            return;
+        }
+
+        if (updatedVideoMaps.Count > 0)
+        {
+            // Update in-memory profile collections
+            profile.VideoMapFiles = updatedVideoMaps;
+            profile.VideoMapPaths = updatedVideoMaps.Select(m => m.FileName).ToList();
+            profile.VideoMapFilename = updatedVideoMaps.First().FileName;
+            profile.AllSettings["VideoMapFilename"] = profile.VideoMapFilename;
+
+            // Ensure legacy element stays in sync
+            if (videoMapElement != null)
+            {
+                videoMapElement.Value = profile.VideoMapFilename;
+            }
+            else
+            {
+                root.Add(new XElement("VideoMapFilename", profile.VideoMapFilename));
+            }
 
             // Save the XML
             doc.Save(profile.FilePath);

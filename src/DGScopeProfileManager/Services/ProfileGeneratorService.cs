@@ -30,6 +30,158 @@ public class ProfileGeneratorService
         }
     }
 
+    private XDocument LoadTemplateDocument(string outputDirectory, string? facilityId)
+    {
+        var templateProfile = FindSimilarTemplate(outputDirectory, facilityId);
+
+        if (templateProfile != null)
+        {
+            // Load existing similar profile as template - preserve EVERYTHING
+            // First read as text to fix old DBC tags before XML parsing
+            var xmlText = File.ReadAllText(templateProfile);
+
+            // Fix old DBC tags to DCB for backward compatibility
+            xmlText = xmlText.Replace("<DBCFontName>", "<DCBFontName>");
+            xmlText = xmlText.Replace("</DBCFontName>", "</DCBFontName>");
+            xmlText = xmlText.Replace("<DBCFontSize>", "<DCBFontSize>");
+            xmlText = xmlText.Replace("</DBCFontSize>", "</DCBFontSize>");
+
+            // Now parse the fixed XML
+            return XDocument.Parse(xmlText);
+        }
+
+        return LoadDefaultTemplate();
+    }
+
+    private List<VideoMapFile> CopyVideoMapFiles(
+        IEnumerable<VideoMapInfo> videoMaps,
+        CrcProfile crcProfile,
+        CrcTracon? selectedTracon,
+        string outputDirectory,
+        string? crcVideoMapFolder)
+    {
+        var mapFiles = new List<VideoMapFile>();
+
+        if (videoMaps == null)
+        {
+            return mapFiles;
+        }
+
+        var videoMapsDir = Path.Combine(outputDirectory, "VideoMaps");
+        Directory.CreateDirectory(videoMapsDir);
+
+        var prefix = selectedTracon?.Id ?? crcProfile.ArtccCode;
+
+        foreach (var map in videoMaps)
+        {
+            var sourceFileName = Path.GetFileName(map.SourceFileName);
+            var destFileName = !string.IsNullOrWhiteSpace(prefix)
+                ? $"{prefix}_{sourceFileName}"
+                : (sourceFileName ?? "map.geojson");
+            var destFilePath = Path.Combine(videoMapsDir, destFileName);
+
+            // Try to copy the video map file if CRC folder is configured
+            if (!string.IsNullOrEmpty(crcVideoMapFolder))
+            {
+                string? sourceFilePath = null;
+
+                // CRC stores video maps in: CRC\VideoMaps\{ARTCC}\{id}.geojson
+                if (!string.IsNullOrEmpty(map.Id))
+                {
+                    sourceFilePath = Path.Combine(crcVideoMapFolder, crcProfile.ArtccCode, $"{map.Id}.geojson");
+                }
+
+                // Fallback: try the sourceFileName directly (in case structure is different)
+                if (sourceFilePath == null || !File.Exists(sourceFilePath))
+                {
+                    sourceFilePath = Path.Combine(crcVideoMapFolder, map.SourceFileName);
+                }
+
+                try
+                {
+                    if (File.Exists(sourceFilePath))
+                    {
+                        File.Copy(sourceFilePath, destFilePath, overwrite: true);
+                        System.Diagnostics.Debug.WriteLine($"✓ Copied video map: {sourceFilePath} -> {destFilePath}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"✗ Source video map not found");
+                        System.Diagnostics.Debug.WriteLine($"  Tried: {sourceFilePath}");
+                        System.Diagnostics.Debug.WriteLine($"  Video Map ID: {map.Id}");
+                        System.Diagnostics.Debug.WriteLine($"  Source File Name: {map.SourceFileName}");
+                        System.Diagnostics.Debug.WriteLine($"  ARTCC: {crcProfile.ArtccCode}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"✗ Error copying video map: {ex.Message}");
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("✗ CRC VideoMap folder not configured");
+            }
+
+            mapFiles.Add(new VideoMapFile
+            {
+                FileName = destFilePath,
+                Name = string.IsNullOrWhiteSpace(map.Name) ? null : map.Name,
+                ShortName = string.IsNullOrWhiteSpace(map.ShortName) ? null : map.ShortName,
+                StarsBrightnessCategory = map.StarsBrightnessCategory,
+                StarsId = map.StarsId,
+                DcbButton = map.DcbButton
+            });
+        }
+
+        return mapFiles;
+    }
+
+    private void ApplyVideoMapFiles(XElement root, List<VideoMapFile> videoMapFiles)
+    {
+        var existingVideoMaps = root.Element("VideoMapFiles");
+        existingVideoMaps?.Remove();
+
+        if (videoMapFiles == null || videoMapFiles.Count == 0)
+        {
+            return;
+        }
+
+        var listElement = new XElement("VideoMapFiles");
+
+        foreach (var map in videoMapFiles)
+        {
+            var mapElement = new XElement("VideoMapFile",
+                new XElement("FileName", map.FileName));
+
+            if (!string.IsNullOrWhiteSpace(map.Name))
+                mapElement.Add(new XElement("Name", map.Name));
+
+            if (!string.IsNullOrWhiteSpace(map.ShortName))
+                mapElement.Add(new XElement("ShortName", map.ShortName));
+
+            if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
+                mapElement.Add(new XElement("StarsBrightnessCategory", map.StarsBrightnessCategory));
+
+            if (!string.IsNullOrWhiteSpace(map.StarsId))
+                mapElement.Add(new XElement("StarsId", map.StarsId));
+
+            if (!string.IsNullOrWhiteSpace(map.DcbButton))
+                mapElement.Add(new XElement("DcbButton", map.DcbButton));
+
+            listElement.Add(mapElement);
+        }
+
+        root.Add(listElement);
+
+        // Backward compatibility for older DGScope builds expecting a single map
+        var firstPath = videoMapFiles.FirstOrDefault()?.FileName;
+        if (!string.IsNullOrWhiteSpace(firstPath))
+        {
+            SetOrCreateElement(root, "VideoMapFilename", firstPath);
+        }
+    }
+
     /// <summary>
     /// Generates a DGScope profile from a CRC profile with the selected video map
     /// </summary>
@@ -63,110 +215,21 @@ public class ProfileGeneratorService
 
         var outputPath = Path.Combine(outputDirectory, fileName);
 
-        // Load default template from embedded resource
-        XDocument doc;
-        var templateProfile = FindSimilarTemplate(outputDirectory, selectedTracon?.Id);
-
-        if (templateProfile != null)
-        {
-            // Load existing similar profile as template - preserve EVERYTHING
-            // First read as text to fix old DBC tags before XML parsing
-            var xmlText = File.ReadAllText(templateProfile);
-
-            // Fix old DBC tags to DCB for backward compatibility
-            xmlText = xmlText.Replace("<DBCFontName>", "<DCBFontName>");
-            xmlText = xmlText.Replace("</DBCFontName>", "</DCBFontName>");
-            xmlText = xmlText.Replace("<DBCFontSize>", "<DCBFontSize>");
-            xmlText = xmlText.Replace("</DBCFontSize>", "</DCBFontSize>");
-
-            // Now parse the fixed XML
-            doc = XDocument.Parse(xmlText);
-        }
-        else
-        {
-            // Load embedded default template
-            doc = LoadDefaultTemplate();
-        }
-
+        // Load template (existing profile if available, otherwise embedded default)
+        var doc = LoadTemplateDocument(outputDirectory, selectedTracon?.Id);
         var root = doc.Root;
         if (root == null)
         {
             throw new InvalidOperationException("Failed to create profile XML");
         }
 
-        // Copy and process video map if selected
-        string? videoMapPath = null;
-        if (selectedVideoMap != null && selectedTracon != null)
-        {
-            var videoMapsDir = Path.Combine(outputDirectory, "VideoMaps");
-            Directory.CreateDirectory(videoMapsDir);
+        // Copy and register selected video map (if any) into the new multi-map structure
+        var selectedMaps = selectedVideoMap != null
+            ? new List<VideoMapInfo> { selectedVideoMap }
+            : Enumerable.Empty<VideoMapInfo>();
 
-            var sourceFileName = Path.GetFileName(selectedVideoMap.SourceFileName);
-            var humanReadableName = $"{selectedTracon.Id}_{sourceFileName}";
-            var destFilePath = Path.Combine(videoMapsDir, humanReadableName);
-
-            // Set the destination path regardless of copy success
-            // This ensures VideoMapFilename gets updated even if source doesn't exist yet
-            videoMapPath = destFilePath;
-
-            // Try to copy the video map file if CRC folder is configured
-            if (!string.IsNullOrEmpty(crcVideoMapFolder))
-            {
-                // CRC stores video maps in: CRC\VideoMaps\{ARTCC}\{id}.geojson
-                // The id field contains the hash-based filename (e.g., "01GFC38DNVH9H0K45ZMNT0AMDY")
-                // The sourceFileName contains the human-readable name (e.g., "IAD Cab.geojson")
-
-                string? sourceFilePath = null;
-
-                // Try to find the file using the ID (hash-based filename)
-                if (!string.IsNullOrEmpty(selectedVideoMap.Id))
-                {
-                    // Path format: CRC\VideoMaps\{ARTCC}\{id}.geojson
-                    sourceFilePath = Path.Combine(crcVideoMapFolder, crcProfile.ArtccCode, $"{selectedVideoMap.Id}.geojson");
-                }
-
-                // Fallback: try the sourceFileName directly (in case structure is different)
-                if (sourceFilePath == null || !File.Exists(sourceFilePath))
-                {
-                    sourceFilePath = Path.Combine(crcVideoMapFolder, selectedVideoMap.SourceFileName);
-                }
-
-                try
-                {
-                    // Copy video map with new human-readable name
-                    if (File.Exists(sourceFilePath))
-                    {
-                        File.Copy(sourceFilePath, destFilePath, overwrite: true);
-                        System.Diagnostics.Debug.WriteLine($"✓ Copied video map: {sourceFilePath} -> {destFilePath}");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"✗ Source video map not found");
-                        System.Diagnostics.Debug.WriteLine($"  Tried: {sourceFilePath}");
-                        System.Diagnostics.Debug.WriteLine($"  Video Map ID: {selectedVideoMap.Id}");
-                        System.Diagnostics.Debug.WriteLine($"  Source File Name: {selectedVideoMap.SourceFileName}");
-                        System.Diagnostics.Debug.WriteLine($"  ARTCC: {crcProfile.ArtccCode}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"✗ Error copying video map: {ex.Message}");
-                    System.Diagnostics.Debug.WriteLine($"  Source: {sourceFilePath}");
-                }
-            }
-            else
-            {
-                System.Diagnostics.Debug.WriteLine($"✗ CRC VideoMap folder not configured");
-            }
-        }
-
-        // Update ONLY the specific fields that need to change
-
-        // 1. Update video map filename (always update if a video map was selected)
-        if (!string.IsNullOrEmpty(videoMapPath))
-        {
-            SetOrCreateElement(root, "VideoMapFilename", videoMapPath);
-        }
+        var videoMapFiles = CopyVideoMapFiles(selectedMaps, crcProfile, selectedTracon, outputDirectory, crcVideoMapFolder);
+        ApplyVideoMapFiles(root, videoMapFiles);
 
         // 2. Update home location
         // Priority: selectedArea > selectedTracon > crcProfile
@@ -247,7 +310,9 @@ public class ProfileGeneratorService
         var dgScopeProfile = new DgScopeProfile
         {
             Name = profileName,
-            FilePath = outputPath
+            FilePath = outputPath,
+            VideoMapFiles = videoMapFiles,
+            VideoMapPaths = videoMapFiles.Select(v => v.FileName).ToList()
         };
 
         return dgScopeProfile;
@@ -277,76 +342,127 @@ public class ProfileGeneratorService
             return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, selectedVideoMaps[0], crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
         }
 
-        // Multiple maps: merge them
+        // Multiple maps: copy individually and emit VideoMapFiles list instead of merging
         try
         {
+            // Create output directory if it doesn't exist
+            Directory.CreateDirectory(outputDirectory);
+
             var profileCode = selectedTracon?.Id ?? crcProfile.ArtccCode;
-            var videoMapsDir = Path.Combine(outputDirectory, "VideoMaps");
-            Directory.CreateDirectory(videoMapsDir);
+            var profileName = selectedTracon?.Name ?? crcProfile.ArtccCode;
 
-            // Collect source file paths for merging
-            var sourceFiles = new List<string>();
-            foreach (var map in selectedVideoMaps)
+            string fileName;
+            if (!string.IsNullOrWhiteSpace(customProfileName))
             {
-                string? sourceFilePath = null;
-
-                if (!string.IsNullOrEmpty(crcVideoMapFolder))
-                {
-                    // Try using the ID first
-                    if (!string.IsNullOrEmpty(map.Id))
-                    {
-                        sourceFilePath = Path.Combine(crcVideoMapFolder, crcProfile.ArtccCode, $"{map.Id}.geojson");
-                    }
-
-                    // Fallback to sourceFileName
-                    if (sourceFilePath == null || !File.Exists(sourceFilePath))
-                    {
-                        sourceFilePath = Path.Combine(crcVideoMapFolder, map.SourceFileName);
-                    }
-
-                    if (File.Exists(sourceFilePath))
-                    {
-                        sourceFiles.Add(sourceFilePath);
-                        System.Diagnostics.Debug.WriteLine($"✓ Found video map: {map.SourceFileName}");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine($"✗ Video map not found: {map.SourceFileName}");
-                    }
-                }
-            }
-
-            if (sourceFiles.Count == 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"✗ No video map files found for merging");
-                return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, null, crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
-            }
-
-            // Merge the GeoJSON files
-            var mergedFileName = $"{profileCode}_merged.geojson";
-            var mergedFilePath = Path.Combine(videoMapsDir, mergedFileName);
-
-            if (GeoJsonMergerService.MergeGeoJsonFiles(sourceFiles, mergedFilePath))
-            {
-                System.Diagnostics.Debug.WriteLine($"✓ Merged {sourceFiles.Count} GeoJSON files");
-
-                // Create a temporary VideoMapInfo for the merged file
-                var mergedMap = new VideoMapInfo
-                {
-                    Id = "merged",
-                    SourceFileName = mergedFileName,
-                    Tags = new List<string> { "merged" }
-                };
-
-                // Temporarily update the merged file info to point to destination
-                // Then call the regular GenerateFromCrc with this modified map
-                return GenerateFromCrcWithMergedMap(crcProfile, outputDirectory, selectedTracon, mergedFilePath, selectedArea, customProfileName, defaultSettings);
+                fileName = $"{profileCode}_{customProfileName}.xml";
             }
             else
             {
-                System.Diagnostics.Debug.WriteLine($"✗ Failed to merge GeoJSON files");
+                fileName = $"{profileCode}.xml";
+            }
+
+            var outputPath = Path.Combine(outputDirectory, fileName);
+
+            // Load template
+            var doc = LoadTemplateDocument(outputDirectory, selectedTracon?.Id);
+            var root = doc.Root;
+            if (root == null)
+            {
+                throw new InvalidOperationException("Failed to create profile XML");
+            }
+
+            var videoMapFiles = CopyVideoMapFiles(selectedVideoMaps, crcProfile, selectedTracon, outputDirectory, crcVideoMapFolder);
+
+            if (videoMapFiles.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("✗ No video map files copied; falling back to single-map generation");
                 return GenerateFromCrc(crcProfile, outputDirectory, selectedTracon, null, crcVideoMapFolder, selectedArea, customProfileName, defaultSettings);
             }
+
+            ApplyVideoMapFiles(root, videoMapFiles);
+
+            // 2. Update home location
+            double? latitude = selectedArea?.Latitude ?? selectedTracon?.Latitude ?? crcProfile.HomeLatitude;
+            double? longitude = selectedArea?.Longitude ?? selectedTracon?.Longitude ?? crcProfile.HomeLongitude;
+
+            if (latitude.HasValue && longitude.HasValue)
+            {
+                UpdateHomeLocation(root, latitude.Value, longitude.Value);
+                UpdateScreenCenterPoint(root, latitude.Value, longitude.Value);
+                UpdateRangeRingLocation(root, latitude.Value, longitude.Value);
+            }
+
+            // 3. Update altimeter stations
+            List<string>? ssaAirports = null;
+            if (selectedArea != null && selectedArea.SsaAirports.Count > 0)
+            {
+                ssaAirports = selectedArea.SsaAirports;
+                System.Diagnostics.Debug.WriteLine($"Using ssaAirports from selected area '{selectedArea.Name}': {string.Join(", ", ssaAirports)}");
+            }
+            else if (selectedTracon != null && selectedTracon.SsaAirports.Count > 0)
+            {
+                ssaAirports = selectedTracon.SsaAirports;
+                System.Diagnostics.Debug.WriteLine($"Using aggregate ssaAirports from all areas in {selectedTracon.Id}: {string.Join(", ", ssaAirports)}");
+            }
+
+            if (ssaAirports != null && ssaAirports.Count > 0)
+            {
+                var lookupService = AirportLookupService.Instance;
+                var artccCode = crcProfile.ArtccCode;
+
+                var altimeterStations = ssaAirports.Select(airport =>
+                {
+                    return lookupService.ConvertToIcao(airport, artccCode);
+                }).ToList();
+
+                UpdateAltimeterStations(root, altimeterStations);
+                System.Diagnostics.Debug.WriteLine($"✓ Added {altimeterStations.Count} altimeter stations: {string.Join(", ", altimeterStations)}");
+            }
+
+            // 4. Update receiver configuration
+            if (selectedTracon != null && latitude.HasValue && longitude.HasValue)
+            {
+                UpdateReceiverConfig(root, selectedTracon.Id, latitude.Value, longitude.Value);
+            }
+
+            // 5. Update NEXRAD configuration (automatic selection based on proximity)
+            if (latitude.HasValue && longitude.HasValue)
+            {
+                var nexradStation = _nexradService.FindClosestStation(latitude.Value, longitude.Value);
+                if (nexradStation != null)
+                {
+                    UpdateNexradConfig(root, nexradStation.Icao, 300);
+                    System.Diagnostics.Debug.WriteLine($"✓ Selected NEXRAD station: {nexradStation.Icao} ({nexradStation.Name}) - {nexradStation.DistanceToNauticalMiles(latitude.Value, longitude.Value):F1} NM away");
+                }
+            }
+
+            // 6. Apply default settings (if provided)
+            if (defaultSettings != null)
+            {
+                ApplyDefaultSettings(root, defaultSettings);
+            }
+
+            // Save the generated profile
+            try
+            {
+                doc.Save(outputPath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving profile to {outputPath}: {ex.Message}");
+                throw;
+            }
+
+            // Return the generated profile
+            var dgScopeProfile = new DgScopeProfile
+            {
+                Name = profileName,
+                FilePath = outputPath,
+                VideoMapFiles = videoMapFiles,
+                VideoMapPaths = videoMapFiles.Select(v => v.FileName).ToList()
+            };
+
+            return dgScopeProfile;
         }
         catch (Exception ex)
         {
@@ -396,7 +512,10 @@ public class ProfileGeneratorService
         // 1. Update video map filename (using merged map)
         if (!string.IsNullOrEmpty(mergedMapPath))
         {
-            SetOrCreateElement(root, "VideoMapFilename", mergedMapPath);
+            ApplyVideoMapFiles(root, new List<VideoMapFile>
+            {
+                new VideoMapFile { FileName = mergedMapPath }
+            });
         }
 
         // 2. Update home location

@@ -91,6 +91,14 @@ public class CrcProfileReader
 
                 if (mapItem.TryGetProperty("shortName", out var shortName))
                     mapInfo.ShortName = shortName.GetString() ?? string.Empty;
+
+                if (mapItem.TryGetProperty("starsBrightnessCategory", out var brightnessCategory))
+                    mapInfo.StarsBrightnessCategory = brightnessCategory.GetString();
+
+                if (mapItem.TryGetProperty("starsId", out var starsId))
+                    mapInfo.StarsId = starsId.ValueKind == System.Text.Json.JsonValueKind.Number
+                        ? starsId.GetRawText()
+                        : starsId.GetString();
                 
                 if (mapItem.TryGetProperty("id", out var id))
                 {
@@ -269,6 +277,52 @@ public class CrcProfileReader
                                     {
                                         tracon.AvailableVideoMaps.Add(mapInfo);
                                     }
+                                }
+                            }
+
+                            // Map CRC mapGroups to DCB buttons when present
+                            if (starsConfig.TryGetProperty("mapGroups", out var mapGroups))
+                            {
+                                var groupIndex = 1;
+                                foreach (var group in mapGroups.EnumerateArray())
+                                {
+                                    string? dcbButton = null;
+
+                                    if (group.TryGetProperty("button", out var buttonValue))
+                                    {
+                                        dcbButton = buttonValue.GetString();
+                                    }
+                                    else if (group.TryGetProperty("name", out var groupName))
+                                    {
+                                        dcbButton = groupName.GetString();
+                                    }
+                                    else
+                                    {
+                                        dcbButton = groupIndex.ToString();
+                                    }
+
+                                    if (group.TryGetProperty("mapIds", out var groupMapIds))
+                                    {
+                                        foreach (var mapId in groupMapIds.EnumerateArray())
+                                        {
+                                            var id = mapId.GetString();
+                                            if (string.IsNullOrWhiteSpace(id))
+                                            {
+                                                continue;
+                                            }
+
+                                            if (videoMapsLookup.TryGetValue(id, out var mapInfo))
+                                            {
+                                                // Preserve the first mapping to avoid clobbering explicit buttons
+                                                if (string.IsNullOrWhiteSpace(mapInfo.DcbButton))
+                                                {
+                                                    mapInfo.DcbButton = dcbButton;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    groupIndex++;
                                 }
                             }
                         }

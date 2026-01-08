@@ -28,8 +28,24 @@ public class VideoMapInfo
     public string SourceFileName { get; set; } = string.Empty;
     public string Id { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
+    public string? StarsBrightnessCategory { get; set; }
+    public string? StarsId { get; set; }
+    public string? DcbButton { get; set; }
     
     public override string ToString() => !string.IsNullOrWhiteSpace(Name) ? Name : SourceFileName;
+}
+
+/// <summary>
+/// Represents a DGScope video map file entry with optional metadata
+/// </summary>
+public class VideoMapFile
+{
+    public string FileName { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string? ShortName { get; set; }
+    public string? StarsBrightnessCategory { get; set; }
+    public string? StarsId { get; set; }
+    public string? DcbButton { get; set; }
 }
 
 /// <summary>
