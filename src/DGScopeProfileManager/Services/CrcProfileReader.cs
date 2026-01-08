@@ -139,216 +139,230 @@ public class CrcProfileReader
             }
         }
         
-        // Parse child facilities (TRACONs)
+        // Parse all facilities recursively (including nested TRACONs, ATCTs, etc.)
         if (root.TryGetProperty("facility", out var facilityElement))
         {
             if (facilityElement.TryGetProperty("childFacilities", out var childFacilitiesElement))
             {
-                foreach (var child in childFacilitiesElement.EnumerateArray())
-                {
-                    try
-                    {
-                        var tracon = new CrcTracon();
-                        var hasStarsConfig = false;
-                        
-                        if (child.TryGetProperty("id", out var id))
-                            tracon.Id = id.GetString() ?? string.Empty;
-                            
-                        if (child.TryGetProperty("name", out var name))
-                            tracon.Name = name.GetString() ?? string.Empty;
-                            
-                        if (child.TryGetProperty("type", out var type))
-                            tracon.Type = type.GetString() ?? string.Empty;
-                        
-                        // Check if ANY descendant node has starsConfiguration (including sectors/positions)
-                        hasStarsConfig = HasStarsConfigurationRecursive(child);
-                        
-                        // Extract ssaAirports from starsConfiguration
-                        if (child.TryGetProperty("starsConfiguration", out var starsConfig))
-                        {
-                            hasStarsConfig = true;
-                            // Extract facility location and ssaAirports from starsConfiguration.areas
-                            // The visibilityCenter can be:
-                            // - A string: "@{lat=39.452745; lon=-74.591952}"
-                            // - An object with lat/lon properties
-                            if (starsConfig.TryGetProperty("areas", out var areas))
-                            {
-                                var areasArray = areas.EnumerateArray().ToList();
-                                if (areasArray.Count > 0)
-                                {
-                                    var firstArea = areasArray[0];
-
-                                    // Extract location from first area
-                                    if (firstArea.TryGetProperty("visibilityCenter", out var visCenter))
-                                    {
-                                        // Try to parse as object first (most likely case with ConvertFrom-Json)
-                                        if (visCenter.ValueKind == System.Text.Json.JsonValueKind.Object)
-                                        {
-                                            if (visCenter.TryGetProperty("lat", out var latObj) &&
-                                                latObj.TryGetDouble(out var latVal))
-                                            {
-                                                tracon.Latitude = latVal;
-                                            }
-                                            if (visCenter.TryGetProperty("lon", out var lonObj) &&
-                                                lonObj.TryGetDouble(out var lonVal))
-                                            {
-                                                tracon.Longitude = lonVal;
-                                            }
-                                        }
-                                        // Fall back to string parsing if it's a string
-                                        else if (visCenter.ValueKind == System.Text.Json.JsonValueKind.String)
-                                        {
-                                            var vCenterStr = visCenter.GetString() ?? string.Empty;
-                                            ExtractLatLonFromString(vCenterStr, out var lat, out var lon);
-                                            tracon.Latitude = lat;
-                                            tracon.Longitude = lon;
-                                        }
-                                    }
-
-                                    // Parse all areas and collect ssaAirports
-                                    var ssaAirportsSet = new HashSet<string>();
-                                    foreach (var area in areasArray)
-                                    {
-                                        var crcArea = new CrcArea();
-
-                                        // Extract area ID and name
-                                        if (area.TryGetProperty("id", out var areaId))
-                                            crcArea.Id = areaId.GetString() ?? string.Empty;
-                                        if (area.TryGetProperty("name", out var areaName))
-                                            crcArea.Name = areaName.GetString() ?? string.Empty;
-
-                                        // Extract area location
-                                        if (area.TryGetProperty("visibilityCenter", out var areaVisCenter))
-                                        {
-                                            if (areaVisCenter.ValueKind == System.Text.Json.JsonValueKind.Object)
-                                            {
-                                                if (areaVisCenter.TryGetProperty("lat", out var areaLatObj) &&
-                                                    areaLatObj.TryGetDouble(out var areaLatVal))
-                                                {
-                                                    crcArea.Latitude = areaLatVal;
-                                                }
-                                                if (areaVisCenter.TryGetProperty("lon", out var areaLonObj) &&
-                                                    areaLonObj.TryGetDouble(out var areaLonVal))
-                                                {
-                                                    crcArea.Longitude = areaLonVal;
-                                                }
-                                            }
-                                            else if (areaVisCenter.ValueKind == System.Text.Json.JsonValueKind.String)
-                                            {
-                                                var vCenterStr = areaVisCenter.GetString() ?? string.Empty;
-                                                ExtractLatLonFromString(vCenterStr, out var areaLat, out var areaLon);
-                                                crcArea.Latitude = areaLat;
-                                                crcArea.Longitude = areaLon;
-                                            }
-                                        }
-
-                                        // Extract ssaAirports for this area
-                                        if (area.TryGetProperty("ssaAirports", out var ssaAirports))
-                                        {
-                                            foreach (var airport in ssaAirports.EnumerateArray())
-                                            {
-                                                if (airport.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                {
-                                                    var airportCode = airport.GetString();
-                                                    if (!string.IsNullOrEmpty(airportCode))
-                                                    {
-                                                        crcArea.SsaAirports.Add(airportCode);
-                                                        ssaAirportsSet.Add(airportCode);
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        // Add area to tracon
-                                        if (!string.IsNullOrEmpty(crcArea.Name))
-                                        {
-                                            tracon.Areas.Add(crcArea);
-                                        }
-                                    }
-
-                                    // Add collected airports to tracon (aggregate from all areas)
-                                    tracon.SsaAirports.AddRange(ssaAirportsSet.OrderBy(x => x));
-                                    System.Diagnostics.Debug.WriteLine($"Found {tracon.Areas.Count} areas and {ssaAirportsSet.Count} unique ssaAirports for {tracon.Id}");
-                                }
-                            }
-                            
-                            // Extract available video maps for this facility
-                            if (starsConfig.TryGetProperty("videoMapIds", out var videoMapIds))
-                            {
-                                foreach (var mapIdElement in videoMapIds.EnumerateArray())
-                                {
-                                    var mapId = mapIdElement.GetString() ?? string.Empty;
-                                    if (!string.IsNullOrEmpty(mapId) && videoMapsLookup.TryGetValue(mapId, out var mapInfo))
-                                    {
-                                        tracon.AvailableVideoMaps.Add(mapInfo);
-                                    }
-                                }
-                            }
-
-                            // Map CRC mapGroups to DCB buttons when present
-                            if (starsConfig.TryGetProperty("mapGroups", out var mapGroups))
-                            {
-                                var groupIndex = 1;
-                                foreach (var group in mapGroups.EnumerateArray())
-                                {
-                                    string? dcbButton = null;
-
-                                    if (group.TryGetProperty("button", out var buttonValue))
-                                    {
-                                        dcbButton = buttonValue.GetString();
-                                    }
-                                    else if (group.TryGetProperty("name", out var groupName))
-                                    {
-                                        dcbButton = groupName.GetString();
-                                    }
-                                    else
-                                    {
-                                        dcbButton = groupIndex.ToString();
-                                    }
-
-                                    if (group.TryGetProperty("mapIds", out var groupMapIds))
-                                    {
-                                        foreach (var mapIdElement in groupMapIds.EnumerateArray())
-                                        {
-                                            var groupMapId = mapIdElement.GetString();
-                                            if (string.IsNullOrWhiteSpace(groupMapId))
-                                            {
-                                                continue;
-                                            }
-
-                                            if (videoMapsLookup.TryGetValue(groupMapId, out var mapInfo))
-                                            {
-                                                // Preserve the first mapping to avoid clobbering explicit buttons
-                                                if (string.IsNullOrWhiteSpace(mapInfo.DcbButton))
-                                                {
-                                                    mapInfo.DcbButton = dcbButton;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    groupIndex++;
-                                }
-                            }
-                        }
-                        
-                        // Add if it's a controlled facility OR it has explicit STARS configuration
-                        if (!string.IsNullOrEmpty(tracon.Id) && 
-                            !string.IsNullOrEmpty(tracon.Name) && 
-                            (tracon.IsControlledFacility() || hasStarsConfig))
-                        {
-                            profile.Tracons.Add(tracon);
-                        }
-                    }
-                    catch
-                    {
-                        // Skip malformed child facilities
-                    }
-                }
+                ProcessFacilitiesRecursively(childFacilitiesElement, profile, videoMapsLookup);
             }
         }
         
         return profile;
+    }
+
+    /// <summary>
+    /// Recursively process all facilities in the tree and add matching ones to the profile
+    /// </summary>
+    private void ProcessFacilitiesRecursively(JsonElement facilitiesElement, CrcProfile profile, Dictionary<string, VideoMapInfo> videoMapsLookup)
+    {
+        foreach (var child in facilitiesElement.EnumerateArray())
+        {
+            try
+            {
+                var tracon = new CrcTracon();
+                var hasStarsConfig = false;
+                
+                if (child.TryGetProperty("id", out var id))
+                    tracon.Id = id.GetString() ?? string.Empty;
+                    
+                if (child.TryGetProperty("name", out var name))
+                    tracon.Name = name.GetString() ?? string.Empty;
+                    
+                if (child.TryGetProperty("type", out var type))
+                    tracon.Type = type.GetString() ?? string.Empty;
+                
+                // Check if ANY descendant node has starsConfiguration (including sectors/positions)
+                hasStarsConfig = HasStarsConfigurationRecursive(child);
+                
+                // Extract ssaAirports from starsConfiguration
+                if (child.TryGetProperty("starsConfiguration", out var starsConfig))
+                {
+                    hasStarsConfig = true;
+                    // Extract facility location and ssaAirports from starsConfiguration.areas
+                    // The visibilityCenter can be:
+                    // - A string: "@{lat=39.452745; lon=-74.591952}"
+                    // - An object with lat/lon properties
+                    if (starsConfig.TryGetProperty("areas", out var areas))
+                    {
+                        var areasArray = areas.EnumerateArray().ToList();
+                        if (areasArray.Count > 0)
+                        {
+                            var firstArea = areasArray[0];
+
+                            // Extract location from first area
+                            if (firstArea.TryGetProperty("visibilityCenter", out var visCenter))
+                            {
+                                // Try to parse as object first (most likely case with ConvertFrom-Json)
+                                if (visCenter.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                {
+                                    if (visCenter.TryGetProperty("lat", out var latObj) &&
+                                        latObj.TryGetDouble(out var latVal))
+                                    {
+                                        tracon.Latitude = latVal;
+                                    }
+                                    if (visCenter.TryGetProperty("lon", out var lonObj) &&
+                                        lonObj.TryGetDouble(out var lonVal))
+                                    {
+                                        tracon.Longitude = lonVal;
+                                    }
+                                }
+                                // Fall back to string parsing if it's a string
+                                else if (visCenter.ValueKind == System.Text.Json.JsonValueKind.String)
+                                {
+                                    var vCenterStr = visCenter.GetString() ?? string.Empty;
+                                    ExtractLatLonFromString(vCenterStr, out var lat, out var lon);
+                                    tracon.Latitude = lat;
+                                    tracon.Longitude = lon;
+                                }
+                            }
+
+                            // Parse all areas and collect ssaAirports
+                            var ssaAirportsSet = new HashSet<string>();
+                            foreach (var area in areasArray)
+                            {
+                                var crcArea = new CrcArea();
+
+                                // Extract area ID and name
+                                if (area.TryGetProperty("id", out var areaId))
+                                    crcArea.Id = areaId.GetString() ?? string.Empty;
+                                if (area.TryGetProperty("name", out var areaName))
+                                    crcArea.Name = areaName.GetString() ?? string.Empty;
+
+                                // Extract area location
+                                if (area.TryGetProperty("visibilityCenter", out var areaVisCenter))
+                                {
+                                    if (areaVisCenter.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                    {
+                                        if (areaVisCenter.TryGetProperty("lat", out var areaLatObj) &&
+                                            areaLatObj.TryGetDouble(out var areaLatVal))
+                                        {
+                                            crcArea.Latitude = areaLatVal;
+                                        }
+                                        if (areaVisCenter.TryGetProperty("lon", out var areaLonObj) &&
+                                            areaLonObj.TryGetDouble(out var areaLonVal))
+                                        {
+                                            crcArea.Longitude = areaLonVal;
+                                        }
+                                    }
+                                    else if (areaVisCenter.ValueKind == System.Text.Json.JsonValueKind.String)
+                                    {
+                                        var vCenterStr = areaVisCenter.GetString() ?? string.Empty;
+                                        ExtractLatLonFromString(vCenterStr, out var areaLat, out var areaLon);
+                                        crcArea.Latitude = areaLat;
+                                        crcArea.Longitude = areaLon;
+                                    }
+                                }
+
+                                // Extract ssaAirports for this area
+                                if (area.TryGetProperty("ssaAirports", out var ssaAirports))
+                                {
+                                    foreach (var airport in ssaAirports.EnumerateArray())
+                                    {
+                                        if (airport.ValueKind == System.Text.Json.JsonValueKind.String)
+                                        {
+                                            var airportCode = airport.GetString();
+                                            if (!string.IsNullOrEmpty(airportCode))
+                                            {
+                                                crcArea.SsaAirports.Add(airportCode);
+                                                ssaAirportsSet.Add(airportCode);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Add area to tracon
+                                if (!string.IsNullOrEmpty(crcArea.Name))
+                                {
+                                    tracon.Areas.Add(crcArea);
+                                }
+                            }
+
+                            // Add collected airports to tracon (aggregate from all areas)
+                            tracon.SsaAirports.AddRange(ssaAirportsSet.OrderBy(x => x));
+                            System.Diagnostics.Debug.WriteLine($"Found {tracon.Areas.Count} areas and {ssaAirportsSet.Count} unique ssaAirports for {tracon.Id}");
+                        }
+                    }
+                    
+                    // Extract available video maps for this facility
+                    if (starsConfig.TryGetProperty("videoMapIds", out var videoMapIds))
+                    {
+                        foreach (var mapIdElement in videoMapIds.EnumerateArray())
+                        {
+                            var mapId = mapIdElement.GetString() ?? string.Empty;
+                            if (!string.IsNullOrEmpty(mapId) && videoMapsLookup.TryGetValue(mapId, out var mapInfo))
+                            {
+                                tracon.AvailableVideoMaps.Add(mapInfo);
+                            }
+                        }
+                    }
+
+                    // Map CRC mapGroups to DCB buttons when present
+                    if (starsConfig.TryGetProperty("mapGroups", out var mapGroups))
+                    {
+                        var groupIndex = 1;
+                        foreach (var group in mapGroups.EnumerateArray())
+                        {
+                            string? dcbButton = null;
+
+                            if (group.TryGetProperty("button", out var buttonValue))
+                            {
+                                dcbButton = buttonValue.GetString();
+                            }
+                            else if (group.TryGetProperty("name", out var groupName))
+                            {
+                                dcbButton = groupName.GetString();
+                            }
+                            else
+                            {
+                                dcbButton = groupIndex.ToString();
+                            }
+
+                            if (group.TryGetProperty("mapIds", out var groupMapIds))
+                            {
+                                foreach (var mapIdElement in groupMapIds.EnumerateArray())
+                                {
+                                    var groupMapId = mapIdElement.GetString();
+                                    if (string.IsNullOrWhiteSpace(groupMapId))
+                                    {
+                                        continue;
+                                    }
+
+                                    if (videoMapsLookup.TryGetValue(groupMapId, out var mapInfo))
+                                    {
+                                        // Preserve the first mapping to avoid clobbering explicit buttons
+                                        if (string.IsNullOrWhiteSpace(mapInfo.DcbButton))
+                                        {
+                                            mapInfo.DcbButton = dcbButton;
+                                        }
+                                    }
+                                }
+                            }
+
+                            groupIndex++;
+                        }
+                    }
+                }
+                
+                // Add if it's a controlled facility OR it has explicit STARS configuration
+                if (!string.IsNullOrEmpty(tracon.Id) && 
+                    !string.IsNullOrEmpty(tracon.Name) && 
+                    (tracon.IsControlledFacility() || hasStarsConfig))
+                {
+                    profile.Tracons.Add(tracon);
+                }
+                
+                // Recursively process any child facilities under this facility
+                if (child.TryGetProperty("childFacilities", out var nestedChildFacilities))
+                {
+                    ProcessFacilitiesRecursively(nestedChildFacilities, profile, videoMapsLookup);
+                }
+            }
+            catch
+            {
+                // Skip malformed child facilities
+            }
+        }
     }
     
     /// <summary>
