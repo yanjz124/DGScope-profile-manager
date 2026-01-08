@@ -18,7 +18,9 @@ on:
 jobs:
   build-bundle:
     runs-on: windows-latest
-    
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,7 +42,7 @@ jobs:
 
       - name: Download DGScope Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # Get the release info from yanjz124/scope using authenticated requests to avoid rate limits
           $releaseTag = "${{ github.event.inputs.scope_release }}"
