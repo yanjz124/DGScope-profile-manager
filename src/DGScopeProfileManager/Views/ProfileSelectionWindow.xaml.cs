@@ -1,5 +1,6 @@
 using System.Windows;
 using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
 
 namespace DGScopeProfileManager.Views;
 
@@ -10,6 +11,7 @@ public partial class ProfileSelectionWindow : Window
     public ProfileSelectionWindow(List<Facility> facilities)
     {
         InitializeComponent();
+        WindowPositionService.InitializePositionTracking(this, "ProfileSelectionWindow");
         ProfilesTree.ItemsSource = facilities;
     }
 

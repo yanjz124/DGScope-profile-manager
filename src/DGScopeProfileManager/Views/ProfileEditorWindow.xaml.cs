@@ -8,14 +8,15 @@ public partial class ProfileEditorWindow : Window
 {
     private readonly DgScopeProfile _profile;
     private readonly Facility _facility;
-    
+
     public ProfileEditorWindow(DgScopeProfile profile, Facility facility)
     {
         InitializeComponent();
-        
+        WindowPositionService.InitializePositionTracking(this, "ProfileEditorWindow");
+
         _profile = profile;
         _facility = facility;
-        
+
         LoadProfileData();
     }
     

@@ -446,6 +446,20 @@
                                 </Grid>
                             </Grid>
                         </GroupBox>
+
+                        <!-- NEXRAD Station Selection (Only visible in Profile Mode) -->
+                        <GroupBox Name="NexradPanel" Header="NEXRAD Weather Radar" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="NEXRAD Station:" VerticalAlignment="Center"/>
+                                <ComboBox Grid.Column="1" Name="NexradComboBox"
+                                          Margin="5" MinWidth="300"/>
+                            </Grid>
+                        </GroupBox>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

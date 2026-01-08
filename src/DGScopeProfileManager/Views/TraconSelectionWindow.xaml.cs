@@ -1,4 +1,5 @@
 using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
 using System.Windows;
 using System.Windows.Input;
 
@@ -11,6 +12,7 @@ public partial class TraconSelectionWindow : Window
     public TraconSelectionWindow(CrcProfile profile)
     {
         InitializeComponent();
+        WindowPositionService.InitializePositionTracking(this, "TraconSelectionWindow");
         Title = $"Select TRACON to generate - {profile.ArtccCode}";
         TraconListBox.ItemsSource = profile.Tracons;
     }

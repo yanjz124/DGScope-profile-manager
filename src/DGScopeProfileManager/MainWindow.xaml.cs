@@ -28,6 +28,9 @@ public partial class MainWindow : Window
         _settings = _persistenceService.LoadSettings();
         _facilityScanner = new FacilityScanner();
 
+        // Initialize window position tracking
+        WindowPositionService.InitializePositionTracking(this, _settings, "MainWindow");
+
         // Auto-detect DGScope.exe if not configured
         if (string.IsNullOrWhiteSpace(_settings.DgScopeExePath))
         {

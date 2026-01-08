@@ -1,17 +1,21 @@
 using System.Windows;
 using Microsoft.Win32;
 using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
 
 namespace DGScopeProfileManager.Views;
 
 public partial class SettingsWindow : Window
 {
     public AppSettings Settings { get; private set; }
-    
+
     public SettingsWindow(AppSettings settings)
     {
         InitializeComponent();
         Settings = settings;
+
+        // Initialize window position tracking
+        WindowPositionService.InitializePositionTracking(this, settings, "SettingsWindow");
 
         // Load current settings
         CrcFolderPath.Text = settings.CrcFolderPath;

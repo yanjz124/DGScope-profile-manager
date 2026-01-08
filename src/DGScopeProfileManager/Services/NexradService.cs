@@ -122,4 +122,18 @@ public class NexradService
 
         return closest.Station;
     }
+
+    /// <summary>
+    /// Get all NEXRAD stations sorted by distance from the given coordinates
+    /// </summary>
+    public List<(NexradStation Station, double Distance)> GetAllStationsWithDistance(double latitude, double longitude)
+    {
+        if (_stations == null || _stations.Count == 0)
+            return new List<(NexradStation, double)>();
+
+        return _stations
+            .Select(s => (Station: s, Distance: s.DistanceToNauticalMiles(latitude, longitude)))
+            .OrderBy(s => s.Distance)
+            .ToList();
+    }
 }

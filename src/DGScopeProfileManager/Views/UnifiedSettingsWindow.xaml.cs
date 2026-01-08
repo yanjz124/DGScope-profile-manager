@@ -29,6 +29,9 @@ public partial class UnifiedSettingsWindow : Window
         _settings = defaultSettings;
         _profile = null;
 
+        // Initialize window position tracking
+        WindowPositionService.InitializePositionTracking(this, appSettings, "UnifiedSettingsWindow");
+
         PopulateFontDropdowns();
         ConfigureForDefaultMode();
         LoadSettings();
@@ -45,9 +48,13 @@ public partial class UnifiedSettingsWindow : Window
         _settings = profileSettings;
         _profile = profile;
 
+        // Initialize window position tracking
+        WindowPositionService.InitializePositionTracking(this, appSettings, "UnifiedSettingsWindow");
+
         PopulateFontDropdowns();
         ConfigureForProfileMode();
         LoadSettings();
+        LoadNexradStations();
     }
 
     /// <summary>
@@ -173,9 +180,9 @@ public partial class UnifiedSettingsWindow : Window
 
     private void ConfigureForDefaultMode()
     {
-        Title = "DGScope Default Settings Template";
+        Title = "DGScope Default Settings";
         InstructionsText.Text =
-            "Edit the default settings template below. These values will be used when generating new profiles or applying defaults to existing profiles.";
+            "Edit the default settings below. These values will be used when generating new profiles or applying defaults to existing profiles.";
 
         // Show default mode buttons
         SaveDefaultButton.Visibility = Visibility.Visible;
@@ -188,6 +195,9 @@ public partial class UnifiedSettingsWindow : Window
 
         // Hide reset button (only for profile mode)
         ResetToHomeLocationButton.Visibility = Visibility.Collapsed;
+
+        // Hide NEXRAD dropdown (only for profile mode)
+        NexradPanel.Visibility = Visibility.Collapsed;
     }
 
     private void ConfigureForProfileMode()
@@ -212,10 +222,72 @@ public partial class UnifiedSettingsWindow : Window
         // Show reset button (only for profile mode)
         ResetToHomeLocationButton.Visibility = Visibility.Visible;
 
+        // Show NEXRAD dropdown (only for profile mode)
+        NexradPanel.Visibility = Visibility.Visible;
+
         // Show profile mode buttons
         SaveProfileButton.Visibility = Visibility.Visible;
         SaveAsDefaultButton.Visibility = Visibility.Visible;
         SaveAsDefaultApplyAllButton.Visibility = Visibility.Visible;
+    }
+
+    private void LoadNexradStations()
+    {
+        if (_profile == null)
+            return;
+
+        try
+        {
+            // Load NEXRAD stations
+            var nexradService = new NexradService();
+            var nexradPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "nexrad-stations.txt");
+            nexradService.LoadStations(nexradPath);
+
+            // Get profile center location
+            var centerLat = _profile.HomeLocationLatitude ?? 0;
+            var centerLon = _profile.HomeLocationLongitude ?? 0;
+
+            // If home location is not set, use screen center point
+            if (centerLat == 0 && centerLon == 0)
+            {
+                centerLat = _settings.ScreenCenterPointLatitude;
+                centerLon = _settings.ScreenCenterPointLongitude;
+            }
+
+            // Get all stations with distances
+            var stationsWithDistance = nexradService.GetAllStationsWithDistance(centerLat, centerLon);
+
+            // Create display items
+            var nexradItems = stationsWithDistance.Select(item => new NexradDisplayItem
+            {
+                Station = item.Station,
+                Distance = item.Distance,
+                DisplayText = $"{item.Station.Icao} - {item.Station.Name} ({item.Distance:F1} NM)"
+            }).ToList();
+
+            NexradComboBox.ItemsSource = nexradItems;
+            NexradComboBox.DisplayMemberPath = "DisplayText";
+
+            // Select current NEXRAD if it exists in the profile
+            // This would require reading the NEXRAD from the profile
+            // For now, select the closest one
+            if (nexradItems.Any())
+            {
+                NexradComboBox.SelectedIndex = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading NEXRAD stations: {ex.Message}");
+        }
+    }
+
+    // Helper class for NEXRAD dropdown display
+    private class NexradDisplayItem
+    {
+        public NexradStation Station { get; set; } = null!;
+        public double Distance { get; set; }
+        public string DisplayText { get; set; } = string.Empty;
     }
 
     private void LoadSettings()

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Collections.Generic;
 
 namespace DGScopeProfileManager.Models;
 
@@ -17,6 +18,9 @@ public class AppSettings
 
     // Default settings template
     public ProfileDefaultSettings DefaultSettings { get; set; } = new ProfileDefaultSettings();
+
+    // Window positions
+    public Dictionary<string, WindowPosition> WindowPositions { get; set; } = new Dictionary<string, WindowPosition>();
 
     public AppSettings()
     {

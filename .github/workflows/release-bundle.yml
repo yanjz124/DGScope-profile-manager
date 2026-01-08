@@ -108,28 +108,38 @@ jobs:
           Write-Host "README.md created"
         shell: pwsh
 
-      - name: Create ZIP Distribution
+      - name: Create ZIP Distributions
         run: |
           $releaseVersion = "${{ github.event.inputs.release_version }}"
           if (-not $releaseVersion) {
             $releaseVersion = "1.0.0"
           }
-          
-          # Create a temporary folder with clean structure
-          New-Item -ItemType Directory -Path "release-temp" -Force | Out-Null
-          New-Item -ItemType Directory -Path "release-temp/DGScope-Profile-Manager" -Force | Out-Null
-          
-          Copy-Item publish/* -Destination "release-temp/DGScope-Profile-Manager" -Recurse -Force
-          
-          # Create ZIP
-          $zipName = "DGScope-Profile-Manager-v$releaseVersion.zip"
-          Compress-Archive -Path "release-temp/DGScope-Profile-Manager" -DestinationPath $zipName -Force
-          
-          Write-Host "Created $zipName"
-          Write-Host "zip_file=$zipName" >> $env:GITHUB_OUTPUT
-          
+
+          # 1. Create Bundle ZIP (ProfileManager + DGScope + profiles folder)
+          Write-Host "Creating Bundle ZIP..."
+          New-Item -ItemType Directory -Path "release-temp-bundle" -Force | Out-Null
+          New-Item -ItemType Directory -Path "release-temp-bundle/DGScope-Profile-Manager" -Force | Out-Null
+
+          Copy-Item publish/* -Destination "release-temp-bundle/DGScope-Profile-Manager" -Recurse -Force
+
+          $bundleZipName = "DGScope-Profile-Manager-v$releaseVersion-bundle.zip"
+          Compress-Archive -Path "release-temp-bundle/DGScope-Profile-Manager" -DestinationPath $bundleZipName -Force
+          Write-Host "Created $bundleZipName"
+
+          # 2. Create ProfileManager-Only ZIP (just ProfileManager folder)
+          Write-Host "Creating ProfileManager-Only ZIP..."
+          New-Item -ItemType Directory -Path "release-temp-pm" -Force | Out-Null
+          New-Item -ItemType Directory -Path "release-temp-pm/DGScope-Profile-Manager" -Force | Out-Null
+
+          Copy-Item publish/ProfileManager -Destination "release-temp-pm/DGScope-Profile-Manager/ProfileManager" -Recurse -Force
+
+          $pmZipName = "DGScope-Profile-Manager-v$releaseVersion.zip"
+          Compress-Archive -Path "release-temp-pm/DGScope-Profile-Manager" -DestinationPath $pmZipName -Force
+          Write-Host "Created $pmZipName"
+
           # Cleanup
-          Remove-Item release-temp -Recurse -Force
+          Remove-Item release-temp-bundle -Recurse -Force
+          Remove-Item release-temp-pm -Recurse -Force
         shell: pwsh
         id: create_zip
 
@@ -170,10 +180,10 @@ jobs:
             exit 1
           }
           
-          # Move installer to root
-          Move-Item "installer/DGScope-Profile-Manager-v$releaseVersion-Setup.exe" -Destination "DGScope-Profile-Manager-v$releaseVersion-Setup.exe" -Force
-          
-          Write-Host "NSIS installer created"
+          # Move installer to root with bundle suffix
+          Move-Item "installer/DGScope-Profile-Manager-v$releaseVersion-Setup.exe" -Destination "DGScope-Profile-Manager-v$releaseVersion-bundle-Setup.exe" -Force
+
+          Write-Host "NSIS bundle installer created"
         shell: pwsh
 
       - name: Upload Artifacts

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
 
 namespace DGScopeProfileManager.Views;
 
@@ -13,6 +14,7 @@ public partial class AreaSelectionWindow : Window
     public AreaSelectionWindow(List<CrcArea> areas)
     {
         InitializeComponent();
+        WindowPositionService.InitializePositionTracking(this, "AreaSelectionWindow");
         AreasList.ItemsSource = areas;
 
         if (areas.Count > 0)

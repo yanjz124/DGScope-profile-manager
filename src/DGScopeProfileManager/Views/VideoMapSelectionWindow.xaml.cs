@@ -1,4 +1,5 @@
 using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
 using System.Windows;
 
 namespace DGScopeProfileManager.Views;
@@ -15,6 +16,7 @@ public partial class VideoMapSelectionWindow : Window
     public VideoMapSelectionWindow(List<VideoMapInfo> availableVideoMaps, string facilityId)
     {
         InitializeComponent();
+        WindowPositionService.InitializePositionTracking(this, "VideoMapSelectionWindow");
 
         // Set prefix label - textbox already has "default" placeholder
         ProfilePrefixLabel.Text = $"{facilityId}_";
