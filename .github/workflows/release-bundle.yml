@@ -40,6 +40,12 @@ jobs:
             -o publish/ProfileManager
         shell: pwsh
 
+      - name: Copy NEXRAD Stations File
+        run: |
+          Copy-Item "nexrad-stations.txt" -Destination "publish/ProfileManager/nexrad-stations.txt" -Force
+          Write-Host "Copied nexrad-stations.txt to ProfileManager folder"
+        shell: pwsh
+
       - name: Download DGScope Release
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}

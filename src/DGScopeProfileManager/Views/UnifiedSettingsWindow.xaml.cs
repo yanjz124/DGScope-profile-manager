@@ -268,8 +268,23 @@ public partial class UnifiedSettingsWindow : Window
             {
                 System.Diagnostics.Debug.WriteLine($"✗ NEXRAD stations file not found in any location!");
                 System.Diagnostics.Debug.WriteLine($"  Base directory: {baseDir}");
-                NexradComboBox.Items.Add("NEXRAD stations file not found");
+
+                // Show error in dropdown using ItemsSource (not Items.Add)
+                NexradComboBox.ItemsSource = new[] { "⚠ nexrad-stations.txt not found" };
+                NexradComboBox.SelectedIndex = 0;
                 NexradComboBox.IsEnabled = false;
+
+                // Show a message box to alert the user
+                MessageBox.Show(
+                    $"NEXRAD stations file not found!\n\n" +
+                    $"Expected locations checked:\n" +
+                    $"1. {System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "nexrad-stations.txt"))}\n" +
+                    $"2. {System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "nexrad-stations.txt"))}\n" +
+                    $"3. {System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDir, "..", "..", "nexrad-stations.txt"))}\n\n" +
+                    $"Please ensure nexrad-stations.txt is in the same folder as the ProfileManager executable.",
+                    "NEXRAD File Not Found",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
             }
 
@@ -295,7 +310,8 @@ public partial class UnifiedSettingsWindow : Window
 
             if (!stationsWithDistance.Any())
             {
-                NexradComboBox.Items.Add("No NEXRAD stations available");
+                NexradComboBox.ItemsSource = new[] { "⚠ No NEXRAD stations loaded from file" };
+                NexradComboBox.SelectedIndex = 0;
                 NexradComboBox.IsEnabled = false;
                 return;
             }
@@ -337,8 +353,16 @@ public partial class UnifiedSettingsWindow : Window
         {
             System.Diagnostics.Debug.WriteLine($"Error loading NEXRAD stations: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-            NexradComboBox.Items.Add($"Error: {ex.Message}");
+
+            NexradComboBox.ItemsSource = new[] { $"⚠ Error: {ex.Message}" };
+            NexradComboBox.SelectedIndex = 0;
             NexradComboBox.IsEnabled = false;
+
+            MessageBox.Show(
+                $"Error loading NEXRAD stations:\n\n{ex.Message}\n\nCheck Debug output for details.",
+                "NEXRAD Loading Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
