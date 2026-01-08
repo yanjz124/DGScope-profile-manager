@@ -1,5 +1,7 @@
 using System.IO;
 using System.Collections.Generic;
+using System.Xml.Linq;
+using System.Reflection;
 
 namespace DGScopeProfileManager.Models;
 
@@ -32,6 +34,107 @@ public class AppSettings
 
         // Auto-detect DGScope executable
         DgScopeExePath = DetectDgScopeExecutable();
+
+        // Load default settings from embedded default.xml
+        LoadDefaultSettingsFromResource();
+    }
+
+    /// <summary>
+    /// Load default settings from the user-editable default.xml file
+    /// </summary>
+    private void LoadDefaultSettingsFromResource()
+    {
+        try
+        {
+            var appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "DGScopeProfileManager"
+            );
+            
+            Directory.CreateDirectory(appDataPath);
+            var defaultXmlPath = Path.Combine(appDataPath, "default.xml");
+
+            // If default.xml doesn't exist, extract from embedded template
+            if (!File.Exists(defaultXmlPath))
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var resourceName = "DGScopeProfileManager.Resources.DefaultTemplate.xml";
+                
+                using (var stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream != null)
+                    {
+                        using (var fileStream = File.Create(defaultXmlPath))
+                        {
+                            stream.CopyTo(fileStream);
+                        }
+                        System.Diagnostics.Debug.WriteLine($"Created default.xml at {defaultXmlPath}");
+                    }
+                }
+            }
+
+            // Now load the default.xml
+            if (File.Exists(defaultXmlPath))
+            {
+                var xdoc = XDocument.Load(defaultXmlPath);
+                var root = xdoc.Root;
+
+                if (root != null)
+                {
+                    var defaults = new ProfileDefaultSettings();
+
+                    // Load WindowSize
+                    var windowSizeElem = root.Element("WindowSize");
+                    if (windowSizeElem != null)
+                    {
+                        var width = windowSizeElem.Element("Width")?.Value;
+                        var height = windowSizeElem.Element("Height")?.Value;
+                        if (int.TryParse(width, out var w) && int.TryParse(height, out var h))
+                        {
+                            defaults.WindowSize = new WindowSize { Width = w, Height = h };
+                        }
+                    }
+
+                    // Load WindowLocation
+                    var windowLocElem = root.Element("WindowLocation");
+                    if (windowLocElem != null)
+                    {
+                        var x = windowLocElem.Element("X")?.Value;
+                        var y = windowLocElem.Element("Y")?.Value;
+                        if (int.TryParse(x, out var xVal) && int.TryParse(y, out var yVal))
+                        {
+                            defaults.WindowLocation = new WindowLocation { X = xVal, Y = yVal };
+                        }
+                    }
+
+                    // Load other default settings
+                    var homeLatElem = root.Element("HomeLatitude");
+                    if (homeLatElem != null && !string.IsNullOrWhiteSpace(homeLatElem.Value))
+                    {
+                        defaults.HomeLatitude = homeLatElem.Value;
+                    }
+
+                    var homeLonElem = root.Element("HomeLongitude");
+                    if (homeLonElem != null && !string.IsNullOrWhiteSpace(homeLonElem.Value))
+                    {
+                        defaults.HomeLongitude = homeLonElem.Value;
+                    }
+
+                    var altimeterElem = root.Element("AltimeterStations");
+                    if (altimeterElem != null && !string.IsNullOrWhiteSpace(altimeterElem.Value))
+                    {
+                        defaults.AltimeterStations = altimeterElem.Value;
+                    }
+
+                    DefaultSettings = defaults;
+                    System.Diagnostics.Debug.WriteLine($"Loaded default settings from {defaultXmlPath}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading default settings: {ex.Message}");
+        }
     }
 
     private static string DetectCrcFolder()

@@ -30,6 +30,10 @@ public class ProfileDefaultSettings
     // Other Settings
     public string? AltimeterStations { get; set; }
 
+    // Window Settings
+    public WindowSize? WindowSize { get; set; }
+    public WindowLocation? WindowLocation { get; set; }
+
     public ProfileDefaultSettings()
     {
         // Initialize with common defaults and sync legacy fields

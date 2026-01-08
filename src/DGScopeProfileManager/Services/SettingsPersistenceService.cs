@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text.Json;
+using System.Xml.Linq;
+using System.Reflection;
 using DGScopeProfileManager.Models;
 
 namespace DGScopeProfileManager.Services;
