@@ -160,6 +160,9 @@ public class CrcProfileReader
                         if (child.TryGetProperty("type", out var type))
                             tracon.Type = type.GetString() ?? string.Empty;
                         
+                        // Check if ANY descendant node has starsConfiguration (including sectors/positions)
+                        hasStarsConfig = HasStarsConfigurationRecursive(child);
+                        
                         // Extract ssaAirports from starsConfiguration
                         if (child.TryGetProperty("starsConfiguration", out var starsConfig))
                         {
@@ -391,5 +394,44 @@ public class CrcProfileReader
         {
             // If parsing fails, leave null
         }
+    }
+
+    /// <summary>
+    /// Recursively checks if a facility element or any descendant (sectors, child facilities) has starsConfiguration
+    /// This handles cases where STARS config is on the facility itself or nested in sectors/positions
+    /// </summary>
+    private bool HasStarsConfigurationRecursive(JsonElement element)
+    {
+        // Check if this element has starsConfiguration
+        if (element.TryGetProperty("starsConfiguration", out _))
+        {
+            return true;
+        }
+
+        // Check childFacilities recursively
+        if (element.TryGetProperty("childFacilities", out var childFacilities))
+        {
+            foreach (var child in childFacilities.EnumerateArray())
+            {
+                if (HasStarsConfigurationRecursive(child))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Check sectors/positions that may have starsConfiguration
+        if (element.TryGetProperty("positions", out var positions))
+        {
+            foreach (var position in positions.EnumerateArray())
+            {
+                if (position.TryGetProperty("starsConfiguration", out _))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
