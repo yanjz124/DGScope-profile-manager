@@ -23,11 +23,13 @@ public class CrcProfile
 /// </summary>
 public class VideoMapInfo
 {
+    public string Name { get; set; } = string.Empty;
+    public string ShortName { get; set; } = string.Empty;
     public string SourceFileName { get; set; } = string.Empty;
     public string Id { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
     
-    public override string ToString() => SourceFileName;
+    public override string ToString() => !string.IsNullOrWhiteSpace(Name) ? Name : SourceFileName;
 }
 
 /// <summary>

@@ -85,6 +85,12 @@ public class CrcProfileReader
                 
                 if (mapItem.TryGetProperty("sourceFileName", out var fileName))
                     mapInfo.SourceFileName = fileName.GetString() ?? string.Empty;
+
+                if (mapItem.TryGetProperty("name", out var name))
+                    mapInfo.Name = name.GetString() ?? string.Empty;
+
+                if (mapItem.TryGetProperty("shortName", out var shortName))
+                    mapInfo.ShortName = shortName.GetString() ?? string.Empty;
                 
                 if (mapItem.TryGetProperty("id", out var id))
                 {

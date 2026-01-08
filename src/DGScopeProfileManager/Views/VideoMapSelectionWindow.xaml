@@ -55,15 +55,15 @@
                      Background="#3E3E42"
                      Foreground="#CCCCCC"
                      BorderBrush="#555555"
-                     SelectionMode="Multiple"
+                     SelectionMode="Extended"
                      Margin="0 0 0 15">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Vertical">
-                            <TextBlock Text="{Binding SourceFileName}" 
+                            <TextBlock Text="{Binding DisplayName}" 
                                        FontWeight="Bold"
                                        Foreground="#FFFFFF"/>
-                            <TextBlock Text="{Binding TagsDisplay}" 
+                            <TextBlock Text="{Binding DisplayDetails}" 
                                        FontSize="11"
                                        Foreground="#999999"
                                        Margin="0 2 0 0"/>
