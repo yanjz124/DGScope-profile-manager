@@ -193,8 +193,9 @@ public class ProfileGeneratorService
         // A map can appear at multiple button positions (e.g., map #5 at positions 0, 5, 10)
         var mapNumberToButtonPositions = new Dictionary<int, List<int>>();
 
-        // Group by unique map (same file path and StarsId) to avoid duplicate entries
+        // Group by unique map and collect all DCB button numbers
         var uniqueMaps = new Dictionary<string, VideoMapFile>();
+        var mapToButtonNumbers = new Dictionary<string, List<string>>(); // Track all button numbers per map
         var usedNumbers = new HashSet<int>();
         var nextNumber = 1;
 
@@ -218,8 +219,15 @@ public class ProfileGeneratorService
             {
                 // First time seeing this map - add it
                 uniqueMaps[mapKey] = map;
+                mapToButtonNumbers[mapKey] = new List<string>();
                 usedNumbers.Add(mapNumber);
                 nextNumber = Math.Max(nextNumber, mapNumber + 1);
+            }
+
+            // Collect DCB button numbers for this map (for comma-separated DCBButton element)
+            if (!string.IsNullOrWhiteSpace(map.DcbButton))
+            {
+                mapToButtonNumbers[mapKey].Add(map.DcbButton);
             }
 
             // Track button position for DCBMapList generation
@@ -237,6 +245,7 @@ public class ProfileGeneratorService
         // Now emit unique VideoMapFile entries (one per unique map)
         foreach (var kvp in uniqueMaps)
         {
+            var mapKey = kvp.Key;
             var map = kvp.Value;
 
             // Recalculate map number
@@ -263,10 +272,13 @@ public class ProfileGeneratorService
             if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
                 mapElement.Add(new XElement("BrightnessGroup", map.StarsBrightnessCategory));
 
-            // Include DCBButton from first assignment (for display/compatibility)
-            // Full button mapping is in DCBMapList
-            if (!string.IsNullOrWhiteSpace(map.DcbButton))
-                mapElement.Add(new XElement("DCBButton", map.DcbButton));
+            // Include comma-separated DCB button numbers (e.g., "3,11" for buttons 3 and 11)
+            // This is the recommended format for maps at multiple button positions
+            if (mapToButtonNumbers.TryGetValue(mapKey, out var buttonNumbers) && buttonNumbers.Count > 0)
+            {
+                var dcbButtonValue = string.Join(",", buttonNumbers.OrderBy(b => int.Parse(b)));
+                mapElement.Add(new XElement("DCBButton", dcbButtonValue));
+            }
 
             listElement.Add(mapElement);
         }
