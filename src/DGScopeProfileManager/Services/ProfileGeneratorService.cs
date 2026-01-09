@@ -124,36 +124,50 @@ public class ProfileGeneratorService
                 System.Diagnostics.Debug.WriteLine("✗ CRC VideoMap folder not configured");
             }
 
-            // Only include DCB button info if this map belongs to the selected area
-            string? dcbButton = null;
-            int? dcbButtonPosition = null;
+            // Filter button assignments based on selected area
+            // A map can have multiple button assignments (appear at multiple positions)
+            var relevantAssignments = map.ButtonAssignments;
 
             if (selectedArea != null && !string.IsNullOrWhiteSpace(selectedArea.MapGroupId))
             {
-                // Only keep button assignment if map's MapGroupId matches selected area's MapGroupId
-                if (map.MapGroupId == selectedArea.MapGroupId)
+                // Only include assignments from the selected area
+                relevantAssignments = map.ButtonAssignments
+                    .Where(a => a.MapGroupId == selectedArea.MapGroupId)
+                    .ToList();
+            }
+
+            // Create a VideoMapFile entry for each button assignment
+            // If a map appears at multiple button positions, we add it multiple times
+            if (relevantAssignments.Count > 0)
+            {
+                foreach (var assignment in relevantAssignments)
                 {
-                    dcbButton = map.DcbButton;
-                    dcbButtonPosition = map.DcbButtonPosition;
+                    mapFiles.Add(new VideoMapFile
+                    {
+                        FileName = destFilePath,
+                        Name = string.IsNullOrWhiteSpace(map.Name) ? null : map.Name,
+                        ShortName = string.IsNullOrWhiteSpace(map.ShortName) ? null : map.ShortName,
+                        StarsBrightnessCategory = map.StarsBrightnessCategory,
+                        StarsId = map.StarsId,
+                        DcbButton = assignment.DcbButton,
+                        DcbButtonPosition = assignment.DcbButtonPosition
+                    });
                 }
             }
             else
             {
-                // No area selected, keep all button assignments
-                dcbButton = map.DcbButton;
-                dcbButtonPosition = map.DcbButtonPosition;
+                // No button assignments - include the map without DCB button info
+                mapFiles.Add(new VideoMapFile
+                {
+                    FileName = destFilePath,
+                    Name = string.IsNullOrWhiteSpace(map.Name) ? null : map.Name,
+                    ShortName = string.IsNullOrWhiteSpace(map.ShortName) ? null : map.ShortName,
+                    StarsBrightnessCategory = map.StarsBrightnessCategory,
+                    StarsId = map.StarsId,
+                    DcbButton = null,
+                    DcbButtonPosition = null
+                });
             }
-
-            mapFiles.Add(new VideoMapFile
-            {
-                FileName = destFilePath,
-                Name = string.IsNullOrWhiteSpace(map.Name) ? null : map.Name,
-                ShortName = string.IsNullOrWhiteSpace(map.ShortName) ? null : map.ShortName,
-                StarsBrightnessCategory = map.StarsBrightnessCategory,
-                StarsId = map.StarsId,
-                DcbButton = dcbButton,
-                DcbButtonPosition = dcbButtonPosition
-            });
         }
 
         return mapFiles;
@@ -175,11 +189,12 @@ public class ProfileGeneratorService
 
         var listElement = new XElement("VideoMapFiles");
 
-        // Build map number to button position mapping for DCBMapList generation
-        // CRITICAL: Only include maps that are ACTUALLY in this profile (selectedVideoMaps)
-        var mapNumberToButtonPosition = new Dictionary<int, int>();
+        // Build map number to button positions mapping for DCBMapList generation
+        // A map can appear at multiple button positions (e.g., map #5 at positions 0, 5, 10)
+        var mapNumberToButtonPositions = new Dictionary<int, List<int>>();
 
-        // Ensure MapNumber uniqueness; if duplicates, renumber sequentially starting at 1
+        // Group by unique map (same file path and StarsId) to avoid duplicate entries
+        var uniqueMaps = new Dictionary<string, VideoMapFile>();
         var usedNumbers = new HashSet<int>();
         var nextNumber = 1;
 
@@ -196,22 +211,43 @@ public class ProfileGeneratorService
                 mapNumber = nextNumber;
             }
 
-            if (usedNumbers.Contains(mapNumber))
+            // Generate unique key for this map
+            var mapKey = $"{map.FileName}_{mapNumber}";
+
+            if (!uniqueMaps.ContainsKey(mapKey))
             {
-                // Resolve conflicts by assigning the next available number
-                while (usedNumbers.Contains(mapNumber))
-                {
-                    mapNumber++;
-                }
+                // First time seeing this map - add it
+                uniqueMaps[mapKey] = map;
+                usedNumbers.Add(mapNumber);
+                nextNumber = Math.Max(nextNumber, mapNumber + 1);
             }
-            usedNumbers.Add(mapNumber);
-            nextNumber = mapNumber + 1;
 
             // Track button position for DCBMapList generation
-            // ONLY for maps that were actually selected and copied to the profile
+            // A map can have multiple positions
             if (map.DcbButtonPosition.HasValue)
             {
-                mapNumberToButtonPosition[mapNumber] = map.DcbButtonPosition.Value;
+                if (!mapNumberToButtonPositions.ContainsKey(mapNumber))
+                {
+                    mapNumberToButtonPositions[mapNumber] = new List<int>();
+                }
+                mapNumberToButtonPositions[mapNumber].Add(map.DcbButtonPosition.Value);
+            }
+        }
+
+        // Now emit unique VideoMapFile entries (one per unique map)
+        foreach (var kvp in uniqueMaps)
+        {
+            var map = kvp.Value;
+
+            // Recalculate map number
+            int mapNumber;
+            if (!string.IsNullOrWhiteSpace(map.StarsId) && int.TryParse(map.StarsId, out var parsed))
+            {
+                mapNumber = parsed;
+            }
+            else
+            {
+                mapNumber = 1; // Fallback
             }
 
             var mapElement = new XElement("VideoMapFile",
@@ -227,8 +263,8 @@ public class ProfileGeneratorService
             if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
                 mapElement.Add(new XElement("BrightnessGroup", map.StarsBrightnessCategory));
 
-            if (!string.IsNullOrWhiteSpace(map.DcbButton))
-                mapElement.Add(new XElement("DCBButton", map.DcbButton));
+            // Don't include DCBButton in VideoMapFile - use DCBMapList instead
+            // (A map can have multiple button assignments)
 
             listElement.Add(mapElement);
         }
@@ -236,26 +272,31 @@ public class ProfileGeneratorService
         root.Add(listElement);
 
         // Generate DCBMapList for TCP section
-        GenerateDCBMapList(root, mapNumberToButtonPosition);
+        GenerateDCBMapList(root, mapNumberToButtonPositions);
     }
 
     /// <summary>
     /// Generates the DCBMapList for the TCP section based on button position mappings
+    /// A map can appear at multiple button positions
     /// </summary>
-    private void GenerateDCBMapList(XElement root, Dictionary<int, int> mapNumberToButtonPosition)
+    private void GenerateDCBMapList(XElement root, Dictionary<int, List<int>> mapNumberToButtonPositions)
     {
         // Create the DCBMapList array (36 positions, all zeros by default)
         var dcbMapList = new int[36];
 
         // Populate the array: dcbMapList[buttonPosition] = mapNumber
-        foreach (var kvp in mapNumberToButtonPosition)
+        // A map can appear at multiple positions
+        foreach (var kvp in mapNumberToButtonPositions)
         {
             var mapNumber = kvp.Key;
-            var buttonPosition = kvp.Value;
+            var buttonPositions = kvp.Value;
 
-            if (buttonPosition >= 0 && buttonPosition < 36)
+            foreach (var buttonPosition in buttonPositions)
             {
-                dcbMapList[buttonPosition] = mapNumber;
+                if (buttonPosition >= 0 && buttonPosition < 36)
+                {
+                    dcbMapList[buttonPosition] = mapNumber;
+                }
             }
         }
 

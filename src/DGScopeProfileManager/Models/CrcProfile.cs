@@ -30,11 +30,27 @@ public class VideoMapInfo
     public List<string> Tags { get; set; } = new();
     public string? StarsBrightnessCategory { get; set; }
     public string? StarsId { get; set; }
-    public string? DcbButton { get; set; }
-    public int? DcbButtonPosition { get; set; } // Position in DCBMapList (0-35)
-    public string? MapGroupId { get; set; } // ID of the mapGroup/area that assigned this button
+
+    // DCB button assignments - a map can have multiple button positions
+    public List<DcbButtonAssignment> ButtonAssignments { get; set; } = new();
+
+    // For backward compatibility and UI display, show the first assignment
+    public string? DcbButton => ButtonAssignments.FirstOrDefault()?.DcbButton;
+    public int? DcbButtonPosition => ButtonAssignments.FirstOrDefault()?.DcbButtonPosition;
+    public string? MapGroupId => ButtonAssignments.FirstOrDefault()?.MapGroupId;
 
     public override string ToString() => !string.IsNullOrWhiteSpace(Name) ? Name : SourceFileName;
+}
+
+/// <summary>
+/// Represents a single DCB button assignment for a video map
+/// A map can have multiple assignments (appear at multiple button positions)
+/// </summary>
+public class DcbButtonAssignment
+{
+    public string DcbButton { get; set; } = string.Empty; // 1-based button number (position + 1)
+    public int DcbButtonPosition { get; set; } // 0-based position (0-35)
+    public string MapGroupId { get; set; } = string.Empty; // ID of the mapGroup/area that assigned this button
 }
 
 /// <summary>

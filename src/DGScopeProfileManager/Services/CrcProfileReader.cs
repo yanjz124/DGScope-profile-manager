@@ -347,8 +347,8 @@ public class CrcProfileReader
                                     SourceFileName = mapInfo.SourceFileName,
                                     StarsBrightnessCategory = mapInfo.StarsBrightnessCategory,
                                     StarsId = mapInfo.StarsId,
-                                    DcbButton = mapInfo.DcbButton,
-                                    Tags = new List<string>(mapInfo.Tags)
+                                    Tags = new List<string>(mapInfo.Tags),
+                                    ButtonAssignments = new List<DcbButtonAssignment>(mapInfo.ButtonAssignments)
                                 };
 
                                 tracon.AvailableVideoMaps.Add(cloned);
@@ -431,20 +431,16 @@ public class CrcProfileReader
 
                                     if (target != null)
                                     {
-                                        // DCBButton is the 1-based button number (position + 1)
-                                        if (string.IsNullOrWhiteSpace(target.DcbButton))
+                                        // A map can appear at multiple button positions - track all assignments
+                                        // Don't skip if already assigned; add each position as a separate assignment
+                                        if (!string.IsNullOrWhiteSpace(mapGroupId))
                                         {
-                                            target.DcbButton = (buttonPosition + 1).ToString();
-                                        }
-                                        // Track button position (0-35) for DCBMapList generation
-                                        if (!target.DcbButtonPosition.HasValue)
-                                        {
-                                            target.DcbButtonPosition = buttonPosition;
-                                        }
-                                        // Track which mapGroup/area assigned this button
-                                        if (string.IsNullOrWhiteSpace(target.MapGroupId))
-                                        {
-                                            target.MapGroupId = mapGroupId;
+                                            target.ButtonAssignments.Add(new DcbButtonAssignment
+                                            {
+                                                DcbButton = (buttonPosition + 1).ToString(), // 1-based button number
+                                                DcbButtonPosition = buttonPosition, // 0-based position (0-35)
+                                                MapGroupId = mapGroupId
+                                            });
                                         }
                                     }
 
