@@ -241,6 +241,10 @@ public partial class MainWindow : Window
             if (selectedTracon == null)
                 return;
 
+            // Capture auto-configuration flags
+            bool autoSelectVideoMaps = traconWindow.AutoSelectVideoMaps;
+            bool autoConfigureAtpa = traconWindow.AutoConfigureAtpa;
+
             // If TRACON has multiple areas, show area selection window
             CrcArea? selectedArea = null;
             if (selectedTracon.Areas.Count > 1)
@@ -264,17 +268,40 @@ public partial class MainWindow : Window
                 selectedArea = selectedTracon.Areas[0];
             }
 
-            // Show video map selection window
-            if (selectedTracon.AvailableVideoMaps.Count == 0)
-            {
-                MessageBox.Show($"No video maps available for {selectedTracon.Name}.",
-                    "No Video Maps", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+            // Video map selection - automatic or manual
+            List<VideoMapInfo> selectedVideoMaps;
+            string? profileName = null;
 
-            var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id);
-            if (videoMapWindow.ShowDialog() != true)
-                return;
+            if (autoSelectVideoMaps)
+            {
+                // Automatically select all video maps
+                if (selectedTracon.AvailableVideoMaps.Count == 0)
+                {
+                    MessageBox.Show($"No video maps available for {selectedTracon.Name}.",
+                        "No Video Maps", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                selectedVideoMaps = selectedTracon.AvailableVideoMaps;
+                profileName = "default"; // Use "default" as the profile name
+            }
+            else
+            {
+                // Show video map selection window
+                if (selectedTracon.AvailableVideoMaps.Count == 0)
+                {
+                    MessageBox.Show($"No video maps available for {selectedTracon.Name}.",
+                        "No Video Maps", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id);
+                if (videoMapWindow.ShowDialog() != true)
+                    return;
+
+                selectedVideoMaps = videoMapWindow.SelectedVideoMaps;
+                profileName = videoMapWindow.ProfileName;
+            }
 
             // Generate profile under profiles/ARTCC directory
             // All settings are now automatically configured from CRC data
@@ -286,12 +313,14 @@ public partial class MainWindow : Window
             var profile = generator.GenerateFromCrcWithMultipleMaps(
                 selectedCrc,
                 outputDir,
-                videoMapWindow.SelectedVideoMaps,
+                selectedVideoMaps,
                 _settings.CrcVideoMapFolderPath,
                 selectedTracon,
                 selectedArea,
-                videoMapWindow.ProfileName,
+                profileName,
                 _settings.DefaultSettings);
+
+            // TODO: If autoConfigureAtpa is true, configure ATPA volumes based on CRC runway data
             
             if (profile != null)
             {

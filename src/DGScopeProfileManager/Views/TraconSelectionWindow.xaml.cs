@@ -8,6 +8,8 @@ namespace DGScopeProfileManager.Views;
 public partial class TraconSelectionWindow : Window
 {
     public CrcTracon? SelectedTracon { get; private set; }
+    public bool AutoSelectVideoMaps { get; private set; }
+    public bool AutoConfigureAtpa { get; private set; }
 
     public TraconSelectionWindow(CrcProfile profile)
     {
@@ -31,7 +33,11 @@ public partial class TraconSelectionWindow : Window
             MessageBox.Show("Please select a TRACON", "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        
+
+        // Capture checkbox states
+        AutoSelectVideoMaps = AutoSelectVideoMapsCheckBox.IsChecked == true;
+        AutoConfigureAtpa = AutoConfigureAtpaCheckBox.IsChecked == true;
+
         DialogResult = true;
         Close();
     }
