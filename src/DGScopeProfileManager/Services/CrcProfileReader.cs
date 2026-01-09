@@ -373,17 +373,27 @@ public class CrcProfileReader
 
                                     VideoMapInfo? target = null;
 
-                                    // Numeric mapIds refer to the ordered list (likely 1-based); try 1-based then 0-based
+                                    // Numeric mapIds are MAP NUMBERS (starsId), not array indices
+                                    // We need to find the map with matching StarsId
                                     if (mapIdElement.ValueKind == JsonValueKind.Number)
                                     {
-                                        var num = mapIdElement.GetInt32();
-                                        if (num >= 1 && num <= orderedVideoMaps.Count)
+                                        var mapNumber = mapIdElement.GetInt32();
+                                        var mapNumberStr = mapNumber.ToString();
+
+                                        // Find map where StarsId matches this map number
+                                        target = orderedVideoMaps.FirstOrDefault(m => m.StarsId == mapNumberStr);
+
+                                        // Fallback: if no StarsId match, try array index (for 1-based or 0-based)
+                                        if (target == null)
                                         {
-                                            target = orderedVideoMaps[num - 1];
-                                        }
-                                        else if (num >= 0 && num < orderedVideoMaps.Count)
-                                        {
-                                            target = orderedVideoMaps[num];
+                                            if (mapNumber >= 1 && mapNumber <= orderedVideoMaps.Count)
+                                            {
+                                                target = orderedVideoMaps[mapNumber - 1]; // 1-based index
+                                            }
+                                            else if (mapNumber >= 0 && mapNumber < orderedVideoMaps.Count)
+                                            {
+                                                target = orderedVideoMaps[mapNumber]; // 0-based index
+                                            }
                                         }
                                     }
                                     else if (mapIdElement.ValueKind == JsonValueKind.String)
