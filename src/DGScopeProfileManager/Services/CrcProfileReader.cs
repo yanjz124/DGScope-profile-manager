@@ -404,9 +404,10 @@ public class CrcProfileReader
 
                                     if (target != null)
                                     {
+                                        // DCBButton is the 1-based button number (position + 1)
                                         if (string.IsNullOrWhiteSpace(target.DcbButton))
                                         {
-                                            target.DcbButton = dcbButton;
+                                            target.DcbButton = (buttonPosition + 1).ToString();
                                         }
                                         // Track button position (0-35) for DCBMapList generation
                                         if (!target.DcbButtonPosition.HasValue)

@@ -155,6 +155,7 @@ public class ProfileGeneratorService
         var listElement = new XElement("VideoMapFiles");
 
         // Build map number to button position mapping for DCBMapList generation
+        // CRITICAL: Only include maps that are ACTUALLY in this profile (selectedVideoMaps)
         var mapNumberToButtonPosition = new Dictionary<int, int>();
 
         // Ensure MapNumber uniqueness; if duplicates, renumber sequentially starting at 1
@@ -186,6 +187,7 @@ public class ProfileGeneratorService
             nextNumber = mapNumber + 1;
 
             // Track button position for DCBMapList generation
+            // ONLY for maps that were actually selected and copied to the profile
             if (map.DcbButtonPosition.HasValue)
             {
                 mapNumberToButtonPosition[mapNumber] = map.DcbButtonPosition.Value;

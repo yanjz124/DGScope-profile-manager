@@ -166,8 +166,20 @@ public partial class VideoMapSelectionWindow : Window
             get
             {
                 var parts = new List<string>();
+
+                // Show DCB button assignment if available
                 if (!string.IsNullOrWhiteSpace(VideoMap.DcbButton))
-                    parts.Add($"DCB Button: {VideoMap.DcbButton}");
+                {
+                    var dcbInfo = $"DCB: {VideoMap.DcbButton}";
+                    if (VideoMap.DcbButtonPosition.HasValue)
+                        dcbInfo += $" (Position {VideoMap.DcbButtonPosition.Value})";
+                    parts.Add(dcbInfo);
+                }
+                else if (VideoMap.DcbButtonPosition.HasValue)
+                {
+                    parts.Add($"DCB Position: {VideoMap.DcbButtonPosition.Value}");
+                }
+
                 if (!string.IsNullOrWhiteSpace(VideoMap.StarsBrightnessCategory))
                     parts.Add($"Brightness: {VideoMap.StarsBrightnessCategory}");
                 if (!string.IsNullOrWhiteSpace(VideoMap.SourceFileName))
