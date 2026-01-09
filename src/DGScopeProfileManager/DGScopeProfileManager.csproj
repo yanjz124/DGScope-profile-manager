@@ -7,10 +7,24 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>..\..\scopeIcon.ico</ApplicationIcon>
-    <Version>1.0.0-test23</Version>
-    <AssemblyVersion>1.0.0.23</AssemblyVersion>
-    <FileVersion>1.0.0.23</FileVersion>
+
+    <!-- Version automatically determined from git tags via MinVer -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerMinimumMajorMinor>1.0</MinVerMinimumMajorMinor>
+
+    <AssemblyName>DGScopeProfileManager</AssemblyName>
+    <Product>DGScope Profile Manager</Product>
+    <Company>Open Source</Company>
+    <Copyright>Copyright © 2025</Copyright>
+    <Description>Profile manager and generator for DGScope radar simulation software</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\DefaultTemplate.xml" />
