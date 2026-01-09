@@ -362,12 +362,12 @@ public class CrcProfileReader
 
                             if (group.TryGetProperty("mapIds", out var groupMapIds))
                             {
-                                var index = 0;
+                                var buttonPosition = 0;
                                 foreach (var mapIdElement in groupMapIds.EnumerateArray())
                                 {
                                     if (mapIdElement.ValueKind == JsonValueKind.Null)
                                     {
-                                        index++;
+                                        buttonPosition++;
                                         continue;
                                     }
 
@@ -398,9 +398,14 @@ public class CrcProfileReader
                                         {
                                             target.DcbButton = dcbButton;
                                         }
+                                        // Track button position (0-35) for DCBMapList generation
+                                        if (!target.DcbButtonPosition.HasValue)
+                                        {
+                                            target.DcbButtonPosition = buttonPosition;
+                                        }
                                     }
 
-                                    index++;
+                                    buttonPosition++;
                                 }
                             }
 

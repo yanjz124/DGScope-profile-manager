@@ -121,7 +121,10 @@ public class DgScopeProfileService
                     ShortName = mapElement.Element("ShortName")?.Value,
                     StarsBrightnessCategory = mapElement.Element("StarsBrightnessCategory")?.Value,
                     StarsId = mapElement.Element("StarsId")?.Value,
-                    DcbButton = mapElement.Element("DcbButton")?.Value
+                    DcbButton = mapElement.Element("DcbButton")?.Value,
+                    DcbButtonPosition = mapElement.Element("DcbButtonPosition") != null &&
+                                        int.TryParse(mapElement.Element("DcbButtonPosition")?.Value, out var btnPos)
+                                        ? btnPos : null
                 };
 
                 profile.VideoMapFiles.Add(mapFile);
@@ -243,6 +246,8 @@ public class DgScopeProfileService
                     mapElement.Add(new XElement("StarsId", map.StarsId));
                 if (!string.IsNullOrWhiteSpace(map.DcbButton))
                     mapElement.Add(new XElement("DcbButton", map.DcbButton));
+                if (map.DcbButtonPosition.HasValue)
+                    mapElement.Add(new XElement("DcbButtonPosition", map.DcbButtonPosition.Value));
 
                 listElement.Add(mapElement);
             }
@@ -334,7 +339,10 @@ public class DgScopeProfileService
                     ShortName = mapElement.Element("ShortName")?.Value,
                     StarsBrightnessCategory = mapElement.Element("StarsBrightnessCategory")?.Value,
                     StarsId = mapElement.Element("StarsId")?.Value,
-                    DcbButton = mapElement.Element("DcbButton")?.Value
+                    DcbButton = mapElement.Element("DcbButton")?.Value,
+                    DcbButtonPosition = mapElement.Element("DcbButtonPosition") != null &&
+                                        int.TryParse(mapElement.Element("DcbButtonPosition")?.Value, out var btnPos)
+                                        ? btnPos : null
                 });
             }
         }

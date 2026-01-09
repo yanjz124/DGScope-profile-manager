@@ -130,7 +130,8 @@ public class ProfileGeneratorService
                 ShortName = string.IsNullOrWhiteSpace(map.ShortName) ? null : map.ShortName,
                 StarsBrightnessCategory = map.StarsBrightnessCategory,
                 StarsId = map.StarsId,
-                DcbButton = map.DcbButton
+                DcbButton = map.DcbButton,
+                DcbButtonPosition = map.DcbButtonPosition
             });
         }
 
@@ -142,12 +143,19 @@ public class ProfileGeneratorService
         var existingVideoMaps = root.Element("VideoMapFiles");
         existingVideoMaps?.Remove();
 
+        // Remove legacy VideoMapFilename if it exists
+        var legacyVideoMap = root.Element("VideoMapFilename");
+        legacyVideoMap?.Remove();
+
         if (videoMapFiles == null || videoMapFiles.Count == 0)
         {
             return;
         }
 
         var listElement = new XElement("VideoMapFiles");
+
+        // Build map number to button position mapping for DCBMapList generation
+        var mapNumberToButtonPosition = new Dictionary<int, int>();
 
         // Ensure MapNumber uniqueness; if duplicates, renumber sequentially starting at 1
         var usedNumbers = new HashSet<int>();
@@ -177,6 +185,12 @@ public class ProfileGeneratorService
             usedNumbers.Add(mapNumber);
             nextNumber = mapNumber + 1;
 
+            // Track button position for DCBMapList generation
+            if (map.DcbButtonPosition.HasValue)
+            {
+                mapNumberToButtonPosition[mapNumber] = map.DcbButtonPosition.Value;
+            }
+
             var mapElement = new XElement("VideoMapFile",
                 new XElement("Filepath", map.FileName),
                 new XElement("MapNumber", mapNumber));
@@ -198,12 +212,50 @@ public class ProfileGeneratorService
 
         root.Add(listElement);
 
-        // Backward compatibility for older DGScope builds expecting a single map
-        var firstPath = videoMapFiles.FirstOrDefault()?.FileName;
-        if (!string.IsNullOrWhiteSpace(firstPath))
+        // Generate DCBMapList for TCP section
+        GenerateDCBMapList(root, mapNumberToButtonPosition);
+    }
+
+    /// <summary>
+    /// Generates the DCBMapList for the TCP section based on button position mappings
+    /// </summary>
+    private void GenerateDCBMapList(XElement root, Dictionary<int, int> mapNumberToButtonPosition)
+    {
+        // Create the DCBMapList array (36 positions, all zeros by default)
+        var dcbMapList = new int[36];
+
+        // Populate the array: dcbMapList[buttonPosition] = mapNumber
+        foreach (var kvp in mapNumberToButtonPosition)
         {
-            SetOrCreateElement(root, "VideoMapFilename", firstPath);
+            var mapNumber = kvp.Key;
+            var buttonPosition = kvp.Value;
+
+            if (buttonPosition >= 0 && buttonPosition < 36)
+            {
+                dcbMapList[buttonPosition] = mapNumber;
+            }
         }
+
+        // Find or create TCP element
+        var tcp = root.Element("TCP");
+        if (tcp == null)
+        {
+            tcp = new XElement("TCP");
+            root.Add(tcp);
+        }
+
+        // Remove existing DCBMapList if present
+        var existingDcbMapList = tcp.Element("DCBMapList");
+        existingDcbMapList?.Remove();
+
+        // Create new DCBMapList element
+        var dcbMapListElement = new XElement("DCBMapList");
+        foreach (var mapNumber in dcbMapList)
+        {
+            dcbMapListElement.Add(new XElement("int", mapNumber));
+        }
+
+        tcp.Add(dcbMapListElement);
     }
 
     /// <summary>

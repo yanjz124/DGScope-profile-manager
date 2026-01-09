@@ -31,7 +31,8 @@ public class VideoMapInfo
     public string? StarsBrightnessCategory { get; set; }
     public string? StarsId { get; set; }
     public string? DcbButton { get; set; }
-    
+    public int? DcbButtonPosition { get; set; } // Position in DCBMapList (0-35)
+
     public override string ToString() => !string.IsNullOrWhiteSpace(Name) ? Name : SourceFileName;
 }
 
@@ -46,6 +47,7 @@ public class VideoMapFile
     public string? StarsBrightnessCategory { get; set; }
     public string? StarsId { get; set; }
     public string? DcbButton { get; set; }
+    public int? DcbButtonPosition { get; set; } // Position in DCBMapList (0-35)
 }
 
 /// <summary>
