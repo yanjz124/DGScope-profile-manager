@@ -343,7 +343,6 @@ public class CrcProfileReader
                     if (starsConfig.TryGetProperty("mapGroups", out var mapGroups))
                     {
                         var groupIndex = 1;
-                        var buttonPosition = 0; // Track position across ALL groups, not per-group
 
                         foreach (var group in mapGroups.EnumerateArray())
                         {
@@ -364,6 +363,8 @@ public class CrcProfileReader
 
                             if (group.TryGetProperty("mapIds", out var groupMapIds))
                             {
+                                // Each group has its own 0-35 button position layout
+                                var buttonPosition = 0;
                                 foreach (var mapIdElement in groupMapIds.EnumerateArray())
                                 {
                                     if (mapIdElement.ValueKind == JsonValueKind.Null)
