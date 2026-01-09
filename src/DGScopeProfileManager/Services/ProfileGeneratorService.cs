@@ -263,8 +263,10 @@ public class ProfileGeneratorService
             if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
                 mapElement.Add(new XElement("BrightnessGroup", map.StarsBrightnessCategory));
 
-            // Don't include DCBButton in VideoMapFile - use DCBMapList instead
-            // (A map can have multiple button assignments)
+            // Include DCBButton from first assignment (for display/compatibility)
+            // Full button mapping is in DCBMapList
+            if (!string.IsNullOrWhiteSpace(map.DcbButton))
+                mapElement.Add(new XElement("DCBButton", map.DcbButton));
 
             listElement.Add(mapElement);
         }
