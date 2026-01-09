@@ -227,7 +227,6 @@ public class ProfileGeneratorService
         var dcbMapList = new int[36];
 
         // Populate the array: dcbMapList[buttonPosition] = mapNumber
-        // Handle conflicts: if multiple maps want the same position, assign to next available
         foreach (var kvp in mapNumberToButtonPosition)
         {
             var mapNumber = kvp.Key;
@@ -235,23 +234,7 @@ public class ProfileGeneratorService
 
             if (buttonPosition >= 0 && buttonPosition < 36)
             {
-                // Check if position is already occupied
-                if (dcbMapList[buttonPosition] == 0)
-                {
-                    dcbMapList[buttonPosition] = mapNumber;
-                }
-                else
-                {
-                    // Conflict! Find next available position
-                    for (int i = 0; i < 36; i++)
-                    {
-                        if (dcbMapList[i] == 0)
-                        {
-                            dcbMapList[i] = mapNumber;
-                            break;
-                        }
-                    }
-                }
+                dcbMapList[buttonPosition] = mapNumber;
             }
         }
 
