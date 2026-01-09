@@ -58,7 +58,8 @@ public class ProfileGeneratorService
         CrcProfile crcProfile,
         CrcTracon? selectedTracon,
         string outputDirectory,
-        string? crcVideoMapFolder)
+        string? crcVideoMapFolder,
+        CrcArea? selectedArea)
     {
         var mapFiles = new List<VideoMapFile>();
 
@@ -123,6 +124,26 @@ public class ProfileGeneratorService
                 System.Diagnostics.Debug.WriteLine("✗ CRC VideoMap folder not configured");
             }
 
+            // Only include DCB button info if this map belongs to the selected area
+            string? dcbButton = null;
+            int? dcbButtonPosition = null;
+
+            if (selectedArea != null && !string.IsNullOrWhiteSpace(selectedArea.MapGroupId))
+            {
+                // Only keep button assignment if map's MapGroupId matches selected area's MapGroupId
+                if (map.MapGroupId == selectedArea.MapGroupId)
+                {
+                    dcbButton = map.DcbButton;
+                    dcbButtonPosition = map.DcbButtonPosition;
+                }
+            }
+            else
+            {
+                // No area selected, keep all button assignments
+                dcbButton = map.DcbButton;
+                dcbButtonPosition = map.DcbButtonPosition;
+            }
+
             mapFiles.Add(new VideoMapFile
             {
                 FileName = destFilePath,
@@ -130,8 +151,8 @@ public class ProfileGeneratorService
                 ShortName = string.IsNullOrWhiteSpace(map.ShortName) ? null : map.ShortName,
                 StarsBrightnessCategory = map.StarsBrightnessCategory,
                 StarsId = map.StarsId,
-                DcbButton = map.DcbButton,
-                DcbButtonPosition = map.DcbButtonPosition
+                DcbButton = dcbButton,
+                DcbButtonPosition = dcbButtonPosition
             });
         }
 
@@ -306,7 +327,7 @@ public class ProfileGeneratorService
             ? new List<VideoMapInfo> { selectedVideoMap }
             : Enumerable.Empty<VideoMapInfo>();
 
-        var videoMapFiles = CopyVideoMapFiles(selectedMaps, crcProfile, selectedTracon, outputDirectory, crcVideoMapFolder);
+        var videoMapFiles = CopyVideoMapFiles(selectedMaps, crcProfile, selectedTracon, outputDirectory, crcVideoMapFolder, selectedArea);
         ApplyVideoMapFiles(root, videoMapFiles);
 
         // 2. Update home location
@@ -449,7 +470,7 @@ public class ProfileGeneratorService
                 throw new InvalidOperationException("Failed to create profile XML");
             }
 
-            var videoMapFiles = CopyVideoMapFiles(selectedVideoMaps, crcProfile, selectedTracon, outputDirectory, crcVideoMapFolder);
+            var videoMapFiles = CopyVideoMapFiles(selectedVideoMaps, crcProfile, selectedTracon, outputDirectory, crcVideoMapFolder, selectedArea);
 
             if (videoMapFiles.Count == 0)
             {

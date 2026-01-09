@@ -245,10 +245,28 @@ public class CrcProfileReader
                             }
 
                             // Parse all areas and collect ssaAirports
-                            var ssaAirportsSet = new HashSet<string>();
-                            foreach (var area in areasArray)
+                            // Get mapGroups array to link areas by index
+                            var mapGroupsArray = new List<JsonElement>();
+                            if (starsConfig.TryGetProperty("mapGroups", out var mapGroupsForLinking))
                             {
+                                mapGroupsArray = mapGroupsForLinking.EnumerateArray().ToList();
+                            }
+
+                            var ssaAirportsSet = new HashSet<string>();
+                            for (int areaIndex = 0; areaIndex < areasArray.Count; areaIndex++)
+                            {
+                                var area = areasArray[areaIndex];
                                 var crcArea = new CrcArea();
+
+                                // Link this area to its corresponding mapGroup by index
+                                if (areaIndex < mapGroupsArray.Count)
+                                {
+                                    var correspondingMapGroup = mapGroupsArray[areaIndex];
+                                    if (correspondingMapGroup.TryGetProperty("id", out var mgId))
+                                    {
+                                        crcArea.MapGroupId = mgId.GetString();
+                                    }
+                                }
 
                                 // Extract area ID and name
                                 if (area.TryGetProperty("id", out var areaId))
@@ -347,6 +365,13 @@ public class CrcProfileReader
                         foreach (var group in mapGroups.EnumerateArray())
                         {
                             string? dcbButton = null;
+                            string? mapGroupId = null;
+
+                            // Get the mapGroup ID to track which area assigned this button
+                            if (group.TryGetProperty("id", out var groupIdValue))
+                            {
+                                mapGroupId = groupIdValue.GetString();
+                            }
 
                             if (group.TryGetProperty("button", out var buttonValue))
                             {
@@ -415,6 +440,11 @@ public class CrcProfileReader
                                         if (!target.DcbButtonPosition.HasValue)
                                         {
                                             target.DcbButtonPosition = buttonPosition;
+                                        }
+                                        // Track which mapGroup/area assigned this button
+                                        if (string.IsNullOrWhiteSpace(target.MapGroupId))
+                                        {
+                                            target.MapGroupId = mapGroupId;
                                         }
                                     }
 

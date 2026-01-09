@@ -32,6 +32,7 @@ public class VideoMapInfo
     public string? StarsId { get; set; }
     public string? DcbButton { get; set; }
     public int? DcbButtonPosition { get; set; } // Position in DCBMapList (0-35)
+    public string? MapGroupId { get; set; } // ID of the mapGroup/area that assigned this button
 
     public override string ToString() => !string.IsNullOrWhiteSpace(Name) ? Name : SourceFileName;
 }
@@ -60,6 +61,7 @@ public class CrcArea
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public List<string> SsaAirports { get; set; } = new();
+    public string? MapGroupId { get; set; } // ID of the corresponding mapGroup for this area
 
     public string AirportsDisplay => SsaAirports.Count > 0
         ? $"Airports: {string.Join(", ", SsaAirports)}"
