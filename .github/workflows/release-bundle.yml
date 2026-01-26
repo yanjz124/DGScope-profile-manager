@@ -118,8 +118,15 @@ jobs:
         run: |
           $releaseVersion = "${{ github.event.inputs.release_version }}"
           if (-not $releaseVersion) {
-            $releaseVersion = "1.0.0"
+            # Extract version from git tag (e.g., "v1.2.2" -> "1.2.2")
+            $tagRef = "${{ github.ref }}"
+            if ($tagRef -match "refs/tags/v(.+)") {
+              $releaseVersion = $matches[1]
+            } else {
+              $releaseVersion = "1.0.0"
+            }
           }
+          Write-Host "Using release version: $releaseVersion"
 
           # 1. Create Bundle ZIP (ProfileManager + DGScope + profiles folder)
           Write-Host "Creating Bundle ZIP..."
@@ -160,8 +167,15 @@ jobs:
         run: |
           $releaseVersion = "${{ github.event.inputs.release_version }}"
           if (-not $releaseVersion) {
-            $releaseVersion = "1.0.0"
+            # Extract version from git tag (e.g., "v1.2.2" -> "1.2.2")
+            $tagRef = "${{ github.ref }}"
+            if ($tagRef -match "refs/tags/v(.+)") {
+              $releaseVersion = $matches[1]
+            } else {
+              $releaseVersion = "1.0.0"
+            }
           }
+          Write-Host "Using release version: $releaseVersion"
           
           # Copy published files to installer directory for NSIS to find them
           Write-Host "Preparing files for NSIS..."
