@@ -79,15 +79,28 @@ public class FacilityScanner
                     
                     var pathParts = relativePath.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
                     
-                    // Try to determine ARTCC and Facility from path
+                    // Try to determine ARTCC from path
+                    // Structure is typically: profiles/{ARTCC}/{profile}.xml
+                    // So we skip "profiles" folder and use the ARTCC code
                     string artccCode = "Unknown";
-                    string facilityName = "Profiles";
-                    
+
                     if (pathParts != null && pathParts.Length > 0)
                     {
-                        artccCode = pathParts[0]; // First folder is likely ARTCC
-                        facilityName = pathParts.Length > 1 ? pathParts[1] : pathParts[0];
+                        // Skip "profiles" folder if present
+                        int startIndex = 0;
+                        if (pathParts[0].Equals("profiles", StringComparison.OrdinalIgnoreCase))
+                        {
+                            startIndex = 1;
+                        }
+
+                        if (pathParts.Length > startIndex)
+                        {
+                            artccCode = pathParts[startIndex]; // ARTCC code (e.g., "ZDC")
+                        }
                     }
+
+                    // Use ARTCC code as the facility name for simplicity
+                    string facilityName = artccCode;
                     
                     // Create unique key for this facility
                     var facilityKey = $"{artccCode}/{facilityName}";

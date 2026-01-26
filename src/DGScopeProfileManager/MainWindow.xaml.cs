@@ -267,9 +267,25 @@ public partial class MainWindow : Window
                 selectedArea = selectedTracon.Areas[0];
             }
 
+            // PrefSet selection (optional) - check if PrefSets are available for this facility
+            CrcPrefSet? selectedPrefSet = null;
+            string? profileName = null;
+
+            var prefSetReader = new CrcPrefSetReader(_settings.CrcFolderPath);
+            var availablePrefSets = prefSetReader.GetPrefSets(selectedTracon.Id);
+
+            if (availablePrefSets.Count > 0)
+            {
+                var prefSetWindow = new PrefSetSelectionWindow(availablePrefSets, "default");
+                if (prefSetWindow.ShowDialog() != true)
+                    return;
+
+                selectedPrefSet = prefSetWindow.SelectedPrefSet;
+                profileName = prefSetWindow.ProfileName;
+            }
+
             // Video map selection - automatic or manual
             List<VideoMapInfo> selectedVideoMaps;
-            string? profileName = null;
 
             if (autoSelectVideoMaps)
             {
@@ -282,7 +298,8 @@ public partial class MainWindow : Window
                 }
 
                 selectedVideoMaps = selectedTracon.AvailableVideoMaps;
-                profileName = "default"; // Use "default" as the profile name
+                if (string.IsNullOrWhiteSpace(profileName))
+                    profileName = "default"; // Use "default" as the profile name
             }
             else
             {
@@ -299,7 +316,8 @@ public partial class MainWindow : Window
                     return;
 
                 selectedVideoMaps = videoMapWindow.SelectedVideoMaps;
-                profileName = videoMapWindow.ProfileName;
+                if (string.IsNullOrWhiteSpace(profileName))
+                    profileName = videoMapWindow.ProfileName;
             }
 
             // Generate profile under profiles/ARTCC directory
@@ -317,7 +335,8 @@ public partial class MainWindow : Window
                 selectedTracon,
                 selectedArea,
                 profileName,
-                _settings.DefaultSettings);
+                _settings.DefaultSettings,
+                selectedPrefSet);
 
             if (profile != null)
             {

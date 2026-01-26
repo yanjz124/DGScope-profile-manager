@@ -483,7 +483,8 @@ public class ProfileGeneratorService
         CrcTracon? selectedTracon = null,
         CrcArea? selectedArea = null,
         string? customProfileName = null,
-        ProfileDefaultSettings? defaultSettings = null)
+        ProfileDefaultSettings? defaultSettings = null,
+        CrcPrefSet? crcPrefSet = null)
     {
         if (selectedVideoMaps == null || selectedVideoMaps.Count == 0)
         {
@@ -594,6 +595,13 @@ public class ProfileGeneratorService
             if (defaultSettings != null)
             {
                 ApplyDefaultSettings(root, defaultSettings);
+            }
+
+            // 7. Apply CRC PrefSet settings (if provided) - overrides default settings
+            if (crcPrefSet != null)
+            {
+                ApplyCrcPrefSetSettings(root, crcPrefSet);
+                System.Diagnostics.Debug.WriteLine($"Applied CRC PrefSet: {crcPrefSet.Name}");
             }
 
             // Save the generated profile
@@ -1041,6 +1049,120 @@ public class ProfileGeneratorService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"✗ Error applying default settings: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Apply CRC PrefSet settings to the generated profile XML
+    /// This includes brightness, range, leader direction, altitude filters, etc.
+    /// </summary>
+    private void ApplyCrcPrefSetSettings(XElement root, CrcPrefSet prefSet)
+    {
+        try
+        {
+            // Get or create CurrentPrefSet element
+            var currentPrefSet = root.Element("CurrentPrefSet");
+            if (currentPrefSet == null)
+            {
+                currentPrefSet = new XElement("CurrentPrefSet");
+                root.Add(currentPrefSet);
+            }
+
+            // Apply Range
+            SetOrCreateElement(currentPrefSet, "Range", ((int)Math.Round(prefSet.Range)).ToString());
+
+            // Apply Display Center (ScreenCenterPoint)
+            if (prefSet.DisplayCenter != null)
+            {
+                var screenCenterPoint = currentPrefSet.Element("ScreenCenterPoint");
+                if (screenCenterPoint == null)
+                {
+                    screenCenterPoint = new XElement("ScreenCenterPoint");
+                    currentPrefSet.Add(screenCenterPoint);
+                }
+                SetOrCreateElement(screenCenterPoint, "Latitude", prefSet.DisplayCenter.Lat.ToString("F7"));
+                SetOrCreateElement(screenCenterPoint, "Longitude", prefSet.DisplayCenter.Lon.ToString("F7"));
+            }
+
+            // Apply ScopeCentered (inverse of DisplayOffCenter)
+            SetOrCreateElement(currentPrefSet, "ScopeCentered", (!prefSet.DisplayOffCenter).ToString().ToLower());
+
+            // Apply Range Ring settings
+            SetOrCreateElement(currentPrefSet, "RangeRingSpacing", prefSet.RangeRingSpacing.ToString());
+            SetOrCreateElement(currentPrefSet, "RangeRingsCentered", (!prefSet.RangeRingsOffCenter).ToString().ToLower());
+
+            if (prefSet.RangeRingCenter != null)
+            {
+                var rangeRingLocation = currentPrefSet.Element("RangeRingLocation");
+                if (rangeRingLocation == null)
+                {
+                    rangeRingLocation = new XElement("RangeRingLocation");
+                    currentPrefSet.Add(rangeRingLocation);
+                }
+                SetOrCreateElement(rangeRingLocation, "Latitude", prefSet.RangeRingCenter.Lat.ToString("F7"));
+                SetOrCreateElement(rangeRingLocation, "Longitude", prefSet.RangeRingCenter.Lon.ToString("F7"));
+            }
+
+            // Apply Leader Direction settings
+            SetOrCreateElement(currentPrefSet, "OwnedDataBlockPosition", prefSet.LeaderDirTracked);
+            SetOrCreateElement(currentPrefSet, "UnownedDataBlockPosition", prefSet.LeaderDirAssociated);
+            SetOrCreateElement(currentPrefSet, "UnassociatedDataBlockPosition", prefSet.LeaderDirUnassociated);
+            SetOrCreateElement(currentPrefSet, "LeaderLength", prefSet.LeaderLength.ToString());
+
+            // Apply History settings
+            SetOrCreateElement(currentPrefSet, "HistoryNum", prefSet.HistoryCount.ToString());
+
+            // Apply PTL settings
+            SetOrCreateElement(currentPrefSet, "PTLLength", ((int)Math.Round(prefSet.PtlLength)).ToString());
+            SetOrCreateElement(currentPrefSet, "PTLOwn", prefSet.PtlOwn.ToString().ToLower());
+            SetOrCreateElement(currentPrefSet, "PTLAll", prefSet.PtlAll.ToString().ToLower());
+
+            // Apply DCB Location
+            SetOrCreateElement(currentPrefSet, "DCBLocation", prefSet.DcbLocation);
+
+            // Apply Altitude Filters (CRC uses FL format like 243, DGScope uses feet*100 like 24300)
+            if (prefSet.AltitudeFilterAssociated != null)
+            {
+                SetOrCreateElement(currentPrefSet, "AltitudeFilterAssociatedMax", (prefSet.AltitudeFilterAssociated.High * 100).ToString());
+                SetOrCreateElement(currentPrefSet, "AltitudeFilterAssociatedMin", (prefSet.AltitudeFilterAssociated.Low * 100).ToString());
+            }
+
+            if (prefSet.AltitudeFilterUnassociated != null)
+            {
+                SetOrCreateElement(currentPrefSet, "AltitudeFilterUnAssociatedMax", (prefSet.AltitudeFilterUnassociated.High * 100).ToString());
+                SetOrCreateElement(currentPrefSet, "AltitudeFilterUnAssociatedMin", (prefSet.AltitudeFilterUnassociated.Low * 100).ToString());
+            }
+
+            // Apply Brightness settings
+            var brightness = currentPrefSet.Element("Brightness");
+            if (brightness == null)
+            {
+                brightness = new XElement("Brightness");
+                currentPrefSet.Add(brightness);
+            }
+
+            SetOrCreateElement(brightness, "DCB", prefSet.BrightnessDcb.ToString());
+            SetOrCreateElement(brightness, "MapA", prefSet.BrightnessMpa.ToString());
+            SetOrCreateElement(brightness, "MapB", prefSet.BrightnessMpb.ToString());
+            SetOrCreateElement(brightness, "FullDataBlocks", prefSet.BrightnessFdb.ToString());
+            SetOrCreateElement(brightness, "Lists", prefSet.BrightnessLst.ToString());
+            SetOrCreateElement(brightness, "PositionSymbols", prefSet.BrightnessPos.ToString());
+            SetOrCreateElement(brightness, "LimitedDataBlocks", prefSet.BrightnessLdb.ToString());
+            SetOrCreateElement(brightness, "OtherFDBs", prefSet.BrightnessOth.ToString());
+            SetOrCreateElement(brightness, "Tools", prefSet.BrightnessTls.ToString());
+            SetOrCreateElement(brightness, "RangeRings", prefSet.BrightnessRr.ToString());
+            SetOrCreateElement(brightness, "Compass", prefSet.BrightnessCmp.ToString());
+            SetOrCreateElement(brightness, "BeaconTargets", prefSet.BrightnessBcn.ToString());
+            SetOrCreateElement(brightness, "PrimaryTargets", prefSet.BrightnessPri.ToString());
+            SetOrCreateElement(brightness, "History", prefSet.BrightnessHst.ToString());
+            SetOrCreateElement(brightness, "Weather", prefSet.BrightnessWx.ToString());
+            SetOrCreateElement(brightness, "WeatherContrast", prefSet.BrightnessWxc.ToString());
+
+            System.Diagnostics.Debug.WriteLine($"✓ Applied CRC PrefSet settings: {prefSet.Name}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"✗ Error applying CRC PrefSet settings: {ex.Message}");
         }
     }
 

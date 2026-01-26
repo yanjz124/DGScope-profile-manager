@@ -9,6 +9,11 @@ public class Facility
     public string ArtccCode { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public List<DgScopeProfile> Profiles { get; set; } = new();
-    
-    public override string ToString() => $"{ArtccCode}/{Name}";
+
+    /// <summary>
+    /// Display name - just show the ARTCC code for cleaner UI
+    /// </summary>
+    public string DisplayName => ArtccCode;
+
+    public override string ToString() => ArtccCode;
 }

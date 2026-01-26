@@ -17,6 +17,7 @@ public class AppSettings
     // Computed properties for CRC subfolders
     public string CrcArtccFolderPath => Path.Combine(CrcFolderPath, "ARTCCs");
     public string CrcVideoMapFolderPath => Path.Combine(CrcFolderPath, "VideoMaps");
+    public string CrcPrefSetsFolderPath => Path.Combine(CrcFolderPath, "PrefSets", "STARS");
 
     // Default settings template
     public ProfileDefaultSettings DefaultSettings { get; set; } = new ProfileDefaultSettings();

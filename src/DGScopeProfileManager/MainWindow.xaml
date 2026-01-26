@@ -115,24 +115,29 @@
                         <!-- Batch Settings Panel removed per request -->
                         
                         <!-- TreeView for hierarchical display -->
-                        <TreeView Grid.Row="1" Name="FacilitiesTree" 
+                        <TreeView Grid.Row="1" Name="FacilitiesTree"
                                   SelectedItemChanged="FacilityTree_SelectionChanged">
+                            <TreeView.ItemContainerStyle>
+                                <!-- Expand all items by default -->
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="True"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
                             <TreeView.Resources>
-                                <!-- Facility Level Template -->
+                                <!-- Facility Level Template - simplified to just show ARTCC code -->
                                 <HierarchicalDataTemplate DataType="{x:Type models:Facility}" ItemsSource="{Binding Profiles}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📁" Margin="0,0,5,0"/>
-                                        <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold"/>
-                                        <TextBlock Text=" / "/>
-                                        <TextBlock Text="{Binding Name}"/>
+                                        <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
+                                        <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
+                                        <TextBlock Text="{Binding Profiles.Count}" Foreground="Gray" FontSize="11"/>
+                                        <TextBlock Text=" profiles)" Foreground="Gray" FontSize="11"/>
                                     </StackPanel>
                                 </HierarchicalDataTemplate>
-                                
+
                                 <!-- Profile Level Template -->
                                 <DataTemplate DataType="{x:Type models:DgScopeProfile}">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="📄" Margin="0,0,5,0"/>
-                                        <TextBlock Text="{Binding Name}"/>
+                                        <TextBlock Text="{Binding Name}" Margin="10,0,0,0"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </TreeView.Resources>
