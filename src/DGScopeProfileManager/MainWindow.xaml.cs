@@ -243,7 +243,6 @@ public partial class MainWindow : Window
 
             // Capture auto-configuration flags
             bool autoSelectVideoMaps = traconWindow.AutoSelectVideoMaps;
-            bool autoConfigureAtpa = traconWindow.AutoConfigureAtpa;
 
             // If TRACON has multiple areas, show area selection window
             CrcArea? selectedArea = null;
@@ -320,8 +319,6 @@ public partial class MainWindow : Window
                 profileName,
                 _settings.DefaultSettings);
 
-            // TODO: If autoConfigureAtpa is true, configure ATPA volumes based on CRC runway data
-            
             if (profile != null)
             {
                 UpdateStatus($"Generated profile: {profile.Name}");

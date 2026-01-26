@@ -169,6 +169,14 @@ jobs:
           Copy-Item "publish/scope" -Destination "installer/scope" -Recurse -Force
           Copy-Item "publish/profiles" -Destination "installer/profiles" -Recurse -Force
 
+          # Copy fonts if they exist
+          if (Test-Path "installer/fonts") {
+            Write-Host "Fonts directory found, will be included in installer"
+          } else {
+            New-Item -ItemType Directory -Path "installer/fonts" -Force | Out-Null
+            Write-Host "Created empty fonts directory"
+          }
+
           # Read template
           $nsiTemplate = Get-Content "installer/DGScopeProfileManager-Bundle.nsi" -Raw
 
