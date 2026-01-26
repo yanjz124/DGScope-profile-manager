@@ -484,7 +484,7 @@ public partial class MainWindow : Window
     private void About_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(
-            "DGScope Profile Manager\nVersion 1.0\n\nManage DGScope profiles and import from CRC data.",
+            "DGScope Profile Manager\nVersion 1.2.2\n\nManage DGScope profiles and import from CRC data.",
             "About",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
