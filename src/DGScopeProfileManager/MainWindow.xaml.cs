@@ -61,6 +61,43 @@ public partial class MainWindow : Window
         {
             Loaded += (s, e) => LoadFolders();
         }
+
+        // Check for updates on startup (after window is loaded)
+        Loaded += async (s, e) => await CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        // Skip if user disabled update checks
+        if (_settings.SkipUpdateCheck)
+        {
+            return;
+        }
+
+        try
+        {
+            var updateService = new UpdateService();
+            var updateInfo = await updateService.CheckForUpdatesAsync();
+
+            if (updateInfo != null)
+            {
+                var updateWindow = new UpdateNotificationWindow(updateInfo);
+                updateWindow.Owner = this;
+                updateWindow.ShowDialog();
+
+                // If user checked "Don't remind again", save the setting
+                if (updateWindow.DontRemindAgain)
+                {
+                    _settings.SkipUpdateCheck = true;
+                    _persistenceService.SaveSettings(_settings);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Silently ignore update check errors - don't bother the user
+            System.Diagnostics.Debug.WriteLine($"Update check failed: {ex.Message}");
+        }
     }
     
     private async void LoadFolders()
@@ -484,7 +521,7 @@ public partial class MainWindow : Window
     private void About_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(
-            "DGScope Profile Manager\nVersion 1.2.3\n\nManage DGScope profiles and import from CRC data.",
+            $"DGScope Profile Manager\nVersion {UpdateService.GetCurrentVersion()}\n\nManage DGScope profiles and import from CRC data.",
             "About",
             MessageBoxButton.OK,
             MessageBoxImage.Information);

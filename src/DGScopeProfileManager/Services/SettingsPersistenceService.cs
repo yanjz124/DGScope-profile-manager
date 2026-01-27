@@ -45,7 +45,8 @@ public class SettingsPersistenceService
                 var settings = new AppSettings
                 {
                     CrcFolderPath = data.CrcFolderPath,
-                    DgScopeFolderPath = data.DgScopeFolderPath
+                    DgScopeFolderPath = data.DgScopeFolderPath,
+                    SkipUpdateCheck = data.SkipUpdateCheck
                 };
 
                 // Load default settings if present
@@ -76,7 +77,8 @@ public class SettingsPersistenceService
             {
                 CrcFolderPath = settings.CrcFolderPath,
                 DgScopeFolderPath = settings.DgScopeFolderPath,
-                DefaultSettings = settings.DefaultSettings
+                DefaultSettings = settings.DefaultSettings,
+                SkipUpdateCheck = settings.SkipUpdateCheck
             };
             
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
@@ -93,5 +95,6 @@ public class SettingsPersistenceService
         public string CrcFolderPath { get; set; } = string.Empty;
         public string DgScopeFolderPath { get; set; } = string.Empty;
         public ProfileDefaultSettings? DefaultSettings { get; set; }
+        public bool SkipUpdateCheck { get; set; } = false;
     }
 }

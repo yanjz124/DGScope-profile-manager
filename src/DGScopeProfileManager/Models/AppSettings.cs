@@ -25,6 +25,9 @@ public class AppSettings
     // Window positions
     public Dictionary<string, WindowPosition> WindowPositions { get; set; } = new Dictionary<string, WindowPosition>();
 
+    // Update settings - if true, skip checking for updates on startup
+    public bool SkipUpdateCheck { get; set; } = false;
+
     public AppSettings()
     {
         // Auto-detect CRC root folder from Windows install location
