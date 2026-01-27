@@ -1158,6 +1158,28 @@ public class ProfileGeneratorService
             SetOrCreateElement(brightness, "Weather", prefSet.BrightnessWx.ToString());
             SetOrCreateElement(brightness, "WeatherContrast", prefSet.BrightnessWxc.ToString());
 
+            // Apply Selected Video Maps (DisplayedMaps)
+            if (prefSet.SelectedVideoMapIds != null && prefSet.SelectedVideoMapIds.Count > 0)
+            {
+                var displayedMaps = currentPrefSet.Element("DisplayedMaps");
+                if (displayedMaps == null)
+                {
+                    displayedMaps = new XElement("DisplayedMaps");
+                    currentPrefSet.Add(displayedMaps);
+                }
+                else
+                {
+                    displayedMaps.RemoveAll();
+                }
+
+                foreach (var mapId in prefSet.SelectedVideoMapIds)
+                {
+                    displayedMaps.Add(new XElement("int", mapId));
+                }
+
+                System.Diagnostics.Debug.WriteLine($"✓ Set DisplayedMaps: {string.Join(", ", prefSet.SelectedVideoMapIds)}");
+            }
+
             System.Diagnostics.Debug.WriteLine($"✓ Applied CRC PrefSet settings: {prefSet.Name}");
         }
         catch (Exception ex)
