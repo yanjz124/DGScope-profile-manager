@@ -60,3 +60,9 @@ ehthumbs.db
 
 # Folder config file
 Desktop.ini
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Windows NUL device artifact
+nul
