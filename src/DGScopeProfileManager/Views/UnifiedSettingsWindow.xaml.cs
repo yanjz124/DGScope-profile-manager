@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -21,6 +22,7 @@ public partial class UnifiedSettingsWindow : Window
     private readonly AppSettings _appSettings;
     private readonly PrefSetSettings _settings;
     private readonly DgScopeProfile? _profile;
+    private ObservableCollection<VideoMapFile> _videoMapFiles = new();
 
     /// <summary>
     /// Constructor for Default Settings Mode
@@ -158,26 +160,68 @@ public partial class UnifiedSettingsWindow : Window
     private void BrightnessWeatherDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessWeatherBox);
     private void BrightnessWeatherContrastUp_Click(object sender, RoutedEventArgs e) => IncrementTextBox(BrightnessWeatherContrastBox);
     private void BrightnessWeatherContrastDown_Click(object sender, RoutedEventArgs e) => DecrementTextBox(BrightnessWeatherContrastBox);
-    // Video Map File Browser
-    private void BrowseVideoMap_Click(object sender, RoutedEventArgs e)
+    // Video Maps editor button handlers
+    private void AddVideoMap_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
         {
             Title = "Select Video Map File",
             Filter = "GeoJSON Files (*.geojson)|*.geojson|All Files (*.*)|*.*",
-            CheckFileExists = true
+            CheckFileExists = true,
+            Multiselect = true
         };
 
         // Set initial directory to CRC VideoMaps folder if available
-        if (!string.IsNullOrWhiteSpace(_appSettings.CrcVideoMapFolderPath) && 
-            System.IO.Directory.Exists(_appSettings.CrcVideoMapFolderPath))
+        if (!string.IsNullOrWhiteSpace(_appSettings.CrcVideoMapFolderPath) &&
+            Directory.Exists(_appSettings.CrcVideoMapFolderPath))
         {
             dialog.InitialDirectory = _appSettings.CrcVideoMapFolderPath;
         }
 
         if (dialog.ShowDialog() == true)
         {
-            VideoMapPathBox.Text = dialog.FileName;
+            foreach (var file in dialog.FileNames)
+            {
+                var nextMapNumber = _videoMapFiles.Count > 0
+                    ? _videoMapFiles.Max(m => int.TryParse(m.StarsId, out var n) ? n : 0) + 1
+                    : 1;
+
+                _videoMapFiles.Add(new VideoMapFile
+                {
+                    FileName = file,
+                    Name = Path.GetFileNameWithoutExtension(file),
+                    StarsId = nextMapNumber.ToString(),
+                    StarsBrightnessCategory = "A"
+                });
+            }
+        }
+    }
+
+    private void RemoveVideoMap_Click(object sender, RoutedEventArgs e)
+    {
+        if (VideoMapsDataGrid.SelectedItem is VideoMapFile selected)
+        {
+            _videoMapFiles.Remove(selected);
+        }
+    }
+
+    private void MoveVideoMapUp_Click(object sender, RoutedEventArgs e)
+    {
+        var index = VideoMapsDataGrid.SelectedIndex;
+        if (index > 0)
+        {
+            _videoMapFiles.Move(index, index - 1);
+            VideoMapsDataGrid.SelectedIndex = index - 1;
+        }
+    }
+
+    private void MoveVideoMapDown_Click(object sender, RoutedEventArgs e)
+    {
+        var index = VideoMapsDataGrid.SelectedIndex;
+        if (index >= 0 && index < _videoMapFiles.Count - 1)
+        {
+            _videoMapFiles.Move(index, index + 1);
+            VideoMapsDataGrid.SelectedIndex = index + 1;
         }
     }
 
@@ -215,9 +259,16 @@ public partial class UnifiedSettingsWindow : Window
         {
             ProfileNameBox.Text = _profile.Name;
             ProfileFilePathText.Text = _profile.FilePath;
-            VideoMapPathBox.Text = _profile.VideoMapFilename ?? string.Empty;
+            FacilityIdBox.Text = _profile.FacilityId ?? string.Empty;
         }
 
+        // Show Video Maps editor and populate
+        VideoMapsPanel.Visibility = Visibility.Visible;
+        if (_profile != null)
+        {
+            _videoMapFiles = new ObservableCollection<VideoMapFile>(_profile.VideoMapFiles);
+            VideoMapsDataGrid.ItemsSource = _videoMapFiles;
+        }
 
         // Hide default mode buttons
         SaveDefaultButton.Visibility = Visibility.Collapsed;
@@ -690,12 +741,20 @@ public partial class UnifiedSettingsWindow : Window
             // Update profile's CurrentPrefSet
             _profile.CurrentPrefSet = _settings;
 
-            // Update video map path if changed
-            if (!string.IsNullOrWhiteSpace(VideoMapPathBox.Text))
+            // Update Facility ID if changed
+            var facilityId = FacilityIdBox.Text.Trim();
+            if (!string.IsNullOrWhiteSpace(facilityId))
             {
-                _profile.VideoMapFilename = VideoMapPathBox.Text;
-                _profile.VideoMapPaths = new List<string> { VideoMapPathBox.Text };
-                _profile.AllSettings["VideoMapFilename"] = VideoMapPathBox.Text;
+                _profile.FacilityId = facilityId;
+            }
+
+            // Update video maps from the editor grid
+            _profile.VideoMapFiles = _videoMapFiles.ToList();
+            if (_videoMapFiles.Count > 0)
+            {
+                _profile.VideoMapFilename = _videoMapFiles[0].FileName;
+                _profile.VideoMapPaths = _videoMapFiles.Select(m => m.FileName).ToList();
+                _profile.AllSettings["VideoMapFilename"] = _videoMapFiles[0].FileName;
             }
 
             // Update NEXRAD selection if in profile mode
@@ -719,188 +778,6 @@ public partial class UnifiedSettingsWindow : Window
             MessageBox.Show($"Error saving profile: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
-    }
-
-    private void SelectVideoMapFromCrc_Click(object sender, RoutedEventArgs e)
-    {
-        if (_profile == null)
-        {
-            MessageBox.Show("Video map selection is only available when editing a profile.", "Not Available", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_appSettings.CrcVideoMapFolderPath) || !Directory.Exists(_appSettings.CrcVideoMapFolderPath))
-        {
-            MessageBox.Show("CRC video map folder is not configured or cannot be found.", "Missing CRC Folder", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var artcc = TryGetArtccCodeFromProfile();
-        if (string.IsNullOrWhiteSpace(artcc))
-        {
-            MessageBox.Show("Could not determine the ARTCC for this profile. Please select a map manually.", "Unknown ARTCC", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var crcProfilePath = Path.Combine(_appSettings.CrcArtccFolderPath, $"{artcc}.json");
-        if (!File.Exists(crcProfilePath))
-        {
-            MessageBox.Show($"CRC profile JSON not found for ARTCC '{artcc}'.", "CRC Profile Missing", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        CrcProfile crcProfile;
-        try
-        {
-            var crcReader = new CrcProfileReader(_appSettings.CrcArtccFolderPath);
-            crcProfile = crcReader.LoadProfile(crcProfilePath);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to load CRC profile: {ex.Message}", "CRC Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        var facilityId = TryGetFacilityIdFromProfile();
-        var availableMaps = GetAvailableVideoMaps(crcProfile, facilityId);
-        if (availableMaps.Count == 0)
-        {
-            MessageBox.Show("No video maps were found for this profile's facility.", "No Video Maps", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-
-        var selector = new VideoMapSelectionWindow(availableMaps, facilityId ?? artcc);
-        if (selector.ShowDialog() == true && selector.SelectedVideoMaps.Any())
-        {
-            if (!string.IsNullOrWhiteSpace(selector.ProfileName))
-            {
-                ProfileNameBox.Text = selector.ProfileName;
-            }
-
-            var mergedPath = CopyOrMergeSelectedMaps(selector.SelectedVideoMaps, artcc, facilityId ?? artcc);
-            if (!string.IsNullOrWhiteSpace(mergedPath))
-            {
-                VideoMapPathBox.Text = mergedPath;
-            }
-        }
-    }
-
-    private List<VideoMapInfo> GetAvailableVideoMaps(CrcProfile crcProfile, string? facilityId)
-    {
-        if (!string.IsNullOrWhiteSpace(facilityId))
-        {
-            var tracon = crcProfile.Tracons.FirstOrDefault(t => t.Id.Equals(facilityId, StringComparison.OrdinalIgnoreCase));
-            if (tracon?.AvailableVideoMaps.Count > 0)
-            {
-                return tracon.AvailableVideoMaps;
-            }
-        }
-
-        return crcProfile.VideoMaps;
-    }
-
-    private string? CopyOrMergeSelectedMaps(List<VideoMapInfo> maps, string artcc, string? facilityId)
-    {
-        if (_profile == null)
-            return null;
-
-        var profileDir = Path.GetDirectoryName(_profile.FilePath) ?? string.Empty;
-        var videoMapsDir = Path.Combine(profileDir, "VideoMaps");
-        Directory.CreateDirectory(videoMapsDir);
-
-        var prefix = facilityId ?? artcc;
-        var sourceFiles = new List<string>();
-
-        foreach (var map in maps)
-        {
-            string? sourcePath = null;
-
-            if (!string.IsNullOrEmpty(map.Id))
-            {
-                sourcePath = Path.Combine(_appSettings.CrcVideoMapFolderPath, artcc, $"{map.Id}.geojson");
-            }
-
-            if (sourcePath == null || !File.Exists(sourcePath))
-            {
-                var fallback = Path.Combine(_appSettings.CrcVideoMapFolderPath, map.SourceFileName);
-                if (File.Exists(fallback))
-                {
-                    sourcePath = fallback;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(sourcePath) && File.Exists(sourcePath))
-            {
-                sourceFiles.Add(sourcePath);
-            }
-        }
-
-        if (sourceFiles.Count == 0)
-        {
-            MessageBox.Show("No matching video map files were found in the CRC folder.", "Video Map Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return null;
-        }
-
-        if (sourceFiles.Count == 1)
-        {
-            var destFileName = $"{prefix}_{Path.GetFileName(sourceFiles[0])}";
-            var destPath = Path.Combine(videoMapsDir, destFileName);
-            File.Copy(sourceFiles[0], destPath, true);
-            return destPath;
-        }
-
-        var mergedFilePath = Path.Combine(videoMapsDir, $"{prefix}_merged.geojson");
-        if (GeoJsonMergerService.MergeGeoJsonFiles(sourceFiles, mergedFilePath))
-        {
-            return mergedFilePath;
-        }
-
-        MessageBox.Show("Failed to merge the selected video maps.", "Merge Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-        return null;
-    }
-
-    private string? TryGetArtccCodeFromProfile()
-    {
-        if (_profile == null)
-            return null;
-
-        if (string.IsNullOrWhiteSpace(_appSettings.DgScopeFolderPath))
-            return null;
-
-        try
-        {
-            var relative = Path.GetRelativePath(_appSettings.DgScopeFolderPath, _profile.FilePath);
-            var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-            if (parts.Length >= 2 && parts[0].Equals("profiles", StringComparison.OrdinalIgnoreCase))
-            {
-                return parts[1];
-            }
-
-            if (parts.Length >= 1)
-            {
-                return parts[0];
-            }
-        }
-        catch
-        {
-            // Ignore path issues and fall through
-        }
-
-        return null;
-    }
-
-    private string? TryGetFacilityIdFromProfile()
-    {
-        if (_profile == null)
-            return null;
-
-        var fileName = Path.GetFileNameWithoutExtension(_profile.FilePath);
-        if (string.IsNullOrWhiteSpace(fileName))
-            return null;
-
-        var prefix = fileName.Split('_').FirstOrDefault();
-        return string.IsNullOrWhiteSpace(prefix) ? null : prefix;
     }
 
     private void SaveAsDefault_Click(object sender, RoutedEventArgs e)

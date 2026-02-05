@@ -46,6 +46,9 @@ public class DgScopeProfile
     public List<string> VideoMapPaths { get; set; } = new();
     public List<VideoMapFile> VideoMapFiles { get; set; } = new();
 
+    // Receiver facility ID (e.g., PCT, N90, ACY - used in dSTARS URL)
+    public string? FacilityId { get; set; }
+
     // Home Location coordinates (radar/airport center)
     public double? HomeLocationLatitude { get; set; }
     public double? HomeLocationLongitude { get; set; }

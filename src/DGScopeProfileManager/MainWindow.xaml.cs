@@ -178,7 +178,7 @@ public partial class MainWindow : Window
     
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
-        var settingsWindow = new SettingsWindow(_settings);
+        var settingsWindow = new SettingsWindow(_settings) { Owner = this };
         if (settingsWindow.ShowDialog() == true)
         {
             _settings = settingsWindow.Settings;
@@ -199,7 +199,7 @@ public partial class MainWindow : Window
     private void DefaultSettings_Click(object sender, RoutedEventArgs e)
     {
         var prefSetSettings = _settings.DefaultSettings.ToPrefSetSettings();
-        var unifiedWindow = new UnifiedSettingsWindow(_settings, prefSetSettings);
+        var unifiedWindow = new UnifiedSettingsWindow(_settings, prefSetSettings) { Owner = this };
         if (unifiedWindow.ShowDialog() == true)
         {
             _settings.DefaultSettings.UpdateFromPrefSetSettings(prefSetSettings);
@@ -274,7 +274,7 @@ public partial class MainWindow : Window
             }
             
             // Show TRACON selection window
-            var traconWindow = new TraconSelectionWindow(selectedCrc);
+            var traconWindow = new TraconSelectionWindow(selectedCrc) { Owner = this };
             if (traconWindow.ShowDialog() != true)
                 return;
 
@@ -290,7 +290,7 @@ public partial class MainWindow : Window
             CrcArea? selectedArea = null;
             if (selectedTracon.Areas.Count > 1)
             {
-                var areaWindow = new AreaSelectionWindow(selectedTracon.Areas);
+                var areaWindow = new AreaSelectionWindow(selectedTracon.Areas) { Owner = this };
                 if (areaWindow.ShowDialog() != true)
                     return;
 
@@ -323,7 +323,7 @@ public partial class MainWindow : Window
 
             if (availablePrefSets.Count > 0)
             {
-                var prefSetWindow = new PrefSetSelectionWindow(availablePrefSets, defaultProfileName);
+                var prefSetWindow = new PrefSetSelectionWindow(availablePrefSets, defaultProfileName) { Owner = this };
                 if (prefSetWindow.ShowDialog() != true)
                     return;
 
@@ -358,7 +358,7 @@ public partial class MainWindow : Window
                     return;
                 }
 
-                var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id, defaultProfileName);
+                var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id, defaultProfileName) { Owner = this };
                 if (videoMapWindow.ShowDialog() != true)
                     return;
 
@@ -415,7 +415,7 @@ public partial class MainWindow : Window
                 var profileSettings = profile.LoadPrefSetSettings();
                 
                 // Open unified settings window in profile mode
-                var editor = new UnifiedSettingsWindow(_settings, profile, profileSettings);
+                var editor = new UnifiedSettingsWindow(_settings, profile, profileSettings) { Owner = this };
                 if (editor.ShowDialog() == true)
                 {
                     // Settings were saved in the dialog

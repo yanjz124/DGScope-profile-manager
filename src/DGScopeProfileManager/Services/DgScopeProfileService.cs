@@ -107,23 +107,31 @@ public class DgScopeProfileService
         }
 
         // Parse multi-map entries if present
+        // Supports both old element names (FileName, Name, StarsBrightnessCategory, StarsId)
+        // and new element names (Filepath, FullName, BrightnessGroup, MapNumber)
         var videoMapFilesElement = root.Element("VideoMapFiles");
         if (videoMapFilesElement != null)
         {
             foreach (var mapElement in videoMapFilesElement.Elements("VideoMapFile"))
             {
-                var fileName = mapElement.Element("FileName")?.Value ?? string.Empty;
+                var fileName = mapElement.Element("Filepath")?.Value
+                            ?? mapElement.Element("FileName")?.Value
+                            ?? string.Empty;
 
                 var mapFile = new VideoMapFile
                 {
                     FileName = fileName,
-                    Name = mapElement.Element("Name")?.Value,
+                    Name = mapElement.Element("FullName")?.Value
+                        ?? mapElement.Element("Name")?.Value,
                     ShortName = mapElement.Element("ShortName")?.Value,
-                    StarsBrightnessCategory = mapElement.Element("StarsBrightnessCategory")?.Value,
-                    StarsId = mapElement.Element("StarsId")?.Value,
-                    DcbButton = mapElement.Element("DcbButton")?.Value,
-                    DcbButtonPosition = mapElement.Element("DcbButtonPosition") != null &&
-                                        int.TryParse(mapElement.Element("DcbButtonPosition")?.Value, out var btnPos)
+                    StarsBrightnessCategory = mapElement.Element("BrightnessGroup")?.Value
+                                           ?? mapElement.Element("StarsBrightnessCategory")?.Value,
+                    StarsId = mapElement.Element("MapNumber")?.Value
+                           ?? mapElement.Element("StarsId")?.Value,
+                    DcbButton = mapElement.Element("DCBButton")?.Value
+                             ?? mapElement.Element("DcbButton")?.Value,
+                    DcbButtonPosition = (mapElement.Element("DcbButtonPosition") != null &&
+                                        int.TryParse(mapElement.Element("DcbButtonPosition")?.Value, out var btnPos))
                                         ? btnPos : null
                 };
 
@@ -172,6 +180,13 @@ public class DgScopeProfileService
                 profile.HomeLocationLatitude = homeLat;
             if (double.TryParse(homeLocation.Element("Longitude")?.Value ?? "", out double homeLon))
                 profile.HomeLocationLongitude = homeLon;
+        }
+
+        // Parse Facility ID from Receivers/Receiver/ScopeServerClient/Name
+        var receiver = root.Element("Receivers")?.Element("Receiver")?.Element("ScopeServerClient");
+        if (receiver != null)
+        {
+            profile.FacilityId = receiver.Element("Name")?.Value;
         }
 
         return profile;
@@ -223,6 +238,7 @@ public class DgScopeProfileService
         }
 
         // Update video maps (new multi-map schema + legacy fallback)
+        // Uses generator-compatible element names: Filepath, MapNumber, FullName, BrightnessGroup, DCBButton
         if (profile.VideoMapFiles.Count > 0)
         {
             // Replace the VideoMapFiles element entirely
@@ -231,23 +247,27 @@ public class DgScopeProfileService
 
             var listElement = new XElement("VideoMapFiles");
 
+            int autoMapNumber = 1;
             foreach (var map in profile.VideoMapFiles)
             {
-                var mapElement = new XElement("VideoMapFile",
-                    new XElement("FileName", map.FileName));
+                // Determine map number from StarsId or auto-increment
+                int mapNumber = autoMapNumber;
+                if (!string.IsNullOrWhiteSpace(map.StarsId) && int.TryParse(map.StarsId, out var parsed))
+                    mapNumber = parsed;
+                autoMapNumber = Math.Max(autoMapNumber, mapNumber + 1);
 
-                if (!string.IsNullOrWhiteSpace(map.Name))
-                    mapElement.Add(new XElement("Name", map.Name));
+                var mapElement = new XElement("VideoMapFile",
+                    new XElement("Filepath", map.FileName),
+                    new XElement("MapNumber", mapNumber));
+
                 if (!string.IsNullOrWhiteSpace(map.ShortName))
                     mapElement.Add(new XElement("ShortName", map.ShortName));
+                if (!string.IsNullOrWhiteSpace(map.Name))
+                    mapElement.Add(new XElement("FullName", map.Name));
                 if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
-                    mapElement.Add(new XElement("StarsBrightnessCategory", map.StarsBrightnessCategory));
-                if (!string.IsNullOrWhiteSpace(map.StarsId))
-                    mapElement.Add(new XElement("StarsId", map.StarsId));
+                    mapElement.Add(new XElement("BrightnessGroup", map.StarsBrightnessCategory));
                 if (!string.IsNullOrWhiteSpace(map.DcbButton))
-                    mapElement.Add(new XElement("DcbButton", map.DcbButton));
-                if (map.DcbButtonPosition.HasValue)
-                    mapElement.Add(new XElement("DcbButtonPosition", map.DcbButtonPosition.Value));
+                    mapElement.Add(new XElement("DCBButton", map.DcbButton));
 
                 listElement.Add(mapElement);
             }
@@ -323,7 +343,8 @@ public class DgScopeProfileService
         {
             foreach (var mapElement in videoMapFilesElement.Elements("VideoMapFile"))
             {
-                var fileNameElement = mapElement.Element("FileName");
+                // Support both naming conventions: Filepath (new) and FileName (old)
+                var fileNameElement = mapElement.Element("Filepath") ?? mapElement.Element("FileName");
                 if (fileNameElement == null || string.IsNullOrWhiteSpace(fileNameElement.Value))
                 {
                     continue;
@@ -335,13 +356,13 @@ public class DgScopeProfileService
                 updatedVideoMaps.Add(new VideoMapFile
                 {
                     FileName = fixedPath,
-                    Name = mapElement.Element("Name")?.Value,
+                    Name = mapElement.Element("FullName")?.Value ?? mapElement.Element("Name")?.Value,
                     ShortName = mapElement.Element("ShortName")?.Value,
-                    StarsBrightnessCategory = mapElement.Element("StarsBrightnessCategory")?.Value,
-                    StarsId = mapElement.Element("StarsId")?.Value,
-                    DcbButton = mapElement.Element("DcbButton")?.Value,
-                    DcbButtonPosition = mapElement.Element("DcbButtonPosition") != null &&
-                                        int.TryParse(mapElement.Element("DcbButtonPosition")?.Value, out var btnPos)
+                    StarsBrightnessCategory = mapElement.Element("BrightnessGroup")?.Value ?? mapElement.Element("StarsBrightnessCategory")?.Value,
+                    StarsId = mapElement.Element("MapNumber")?.Value ?? mapElement.Element("StarsId")?.Value,
+                    DcbButton = mapElement.Element("DCBButton")?.Value ?? mapElement.Element("DcbButton")?.Value,
+                    DcbButtonPosition = (mapElement.Element("DcbButtonPosition") != null &&
+                                        int.TryParse(mapElement.Element("DcbButtonPosition")?.Value, out var btnPos))
                                         ? btnPos : null
                 });
             }
@@ -569,6 +590,60 @@ public class DgScopeProfileService
             SetOrCreateElement(nexrad, "DownloadInterval", "300");
 
             System.Diagnostics.Debug.WriteLine($"✓ Applied NEXRAD {nexradSensorId} to profile {profile.Name}");
+        }
+
+        // Update Facility ID in receiver config if changed
+        if (!string.IsNullOrWhiteSpace(profile.FacilityId))
+        {
+            var receivers = root.Element("Receivers");
+            if (receivers != null)
+            {
+                var scopeServerClient = receivers.Element("Receiver")?.Element("ScopeServerClient");
+                if (scopeServerClient != null)
+                {
+                    SetOrCreateElement(scopeServerClient, "Name", profile.FacilityId);
+                    // Update the dSTARS URL to match the facility ID
+                    var dstarsUrl = $"https://dstars.graiani.com/dstars/{profile.FacilityId}/updates";
+                    SetOrCreateElement(scopeServerClient, "Url", dstarsUrl);
+                }
+            }
+        }
+
+        // Update VideoMapFiles if present on the profile
+        if (profile.VideoMapFiles.Count > 0)
+        {
+            var existingVideoMapFiles = root.Element("VideoMapFiles");
+            existingVideoMapFiles?.Remove();
+
+            var listElement = new XElement("VideoMapFiles");
+            int autoMapNumber = 1;
+            foreach (var map in profile.VideoMapFiles)
+            {
+                int mapNumber = autoMapNumber;
+                if (!string.IsNullOrWhiteSpace(map.StarsId) && int.TryParse(map.StarsId, out var parsed))
+                    mapNumber = parsed;
+                autoMapNumber = Math.Max(autoMapNumber, mapNumber + 1);
+
+                var mapElement = new XElement("VideoMapFile",
+                    new XElement("Filepath", map.FileName),
+                    new XElement("MapNumber", mapNumber));
+
+                if (!string.IsNullOrWhiteSpace(map.ShortName))
+                    mapElement.Add(new XElement("ShortName", map.ShortName));
+                if (!string.IsNullOrWhiteSpace(map.Name))
+                    mapElement.Add(new XElement("FullName", map.Name));
+                if (!string.IsNullOrWhiteSpace(map.StarsBrightnessCategory))
+                    mapElement.Add(new XElement("BrightnessGroup", map.StarsBrightnessCategory));
+                if (!string.IsNullOrWhiteSpace(map.DcbButton))
+                    mapElement.Add(new XElement("DCBButton", map.DcbButton));
+
+                listElement.Add(mapElement);
+            }
+            root.Add(listElement);
+
+            // Keep legacy VideoMapFilename in sync
+            var primaryMapPath = profile.VideoMapFiles.First().FileName;
+            SetOrCreateElement(root, "VideoMapFilename", primaryMapPath);
         }
 
         // Save
