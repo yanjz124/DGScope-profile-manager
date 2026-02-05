@@ -132,6 +132,9 @@ public class UpdateService
                 }
             }
 
+            // Close DGScope if running (may interfere with installer)
+            CloseRunningDgScope();
+
             // Launch installer
             var startInfo = new ProcessStartInfo
             {
@@ -150,6 +153,49 @@ public class UpdateService
         {
             Debug.WriteLine($"Error downloading/installing update: {ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Close any running DGScope instances that could interfere with the installer
+    /// </summary>
+    private static void CloseRunningDgScope()
+    {
+        try
+        {
+            var dgScopeProcesses = Process.GetProcesses()
+                .Where(p =>
+                {
+                    try
+                    {
+                        return p.ProcessName.Contains("DGScope", StringComparison.OrdinalIgnoreCase)
+                            && !p.ProcessName.Contains("ProfileManager", StringComparison.OrdinalIgnoreCase);
+                    }
+                    catch { return false; }
+                })
+                .ToList();
+
+            foreach (var proc in dgScopeProcesses)
+            {
+                try
+                {
+                    Debug.WriteLine($"Closing DGScope process: {proc.ProcessName} (PID {proc.Id})");
+                    proc.CloseMainWindow();
+                    if (!proc.WaitForExit(3000))
+                    {
+                        proc.Kill();
+                        proc.WaitForExit(2000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to close process {proc.ProcessName}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error closing DGScope processes: {ex.Message}");
         }
     }
 

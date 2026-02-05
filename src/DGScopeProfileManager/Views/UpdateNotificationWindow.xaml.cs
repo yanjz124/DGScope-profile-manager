@@ -41,7 +41,10 @@ public partial class UpdateNotificationWindow : Window
         var progress = new Progress<int>(percent =>
         {
             DownloadProgress.Value = percent;
-            ProgressText.Text = $"Downloading update... {percent}%";
+            if (percent >= 100)
+                ProgressText.Text = "Installing update...";
+            else
+                ProgressText.Text = $"Downloading update... {percent}%";
         });
 
         var success = await _updateService.DownloadAndInstallAsync(_updateInfo, progress);
