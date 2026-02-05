@@ -319,6 +319,8 @@ public class DgScopeProfileService
         var updatedVideoMaps = new List<VideoMapFile>();
         var videoMapFilesElement = root.Element("VideoMapFiles");
 
+        var profileDir = Path.GetDirectoryName(profile.FilePath) ?? string.Empty;
+
         // Helper local function for path normalization
         string NormalizePath(string originalPath)
         {
@@ -326,15 +328,38 @@ public class DgScopeProfileService
             {
                 if (!Path.IsPathRooted(originalPath))
                 {
-                    var profileDir = Path.GetDirectoryName(profile.FilePath) ?? string.Empty;
                     return Path.GetFullPath(Path.Combine(profileDir, originalPath));
                 }
 
-                return Path.GetFullPath(originalPath);
+                // Path is absolute - check if it still exists at that location
+                var fullPath = Path.GetFullPath(originalPath);
+                if (File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+
+                // File doesn't exist at absolute path - try to find it relative to profile directory
+                var fileName = Path.GetFileName(originalPath);
+
+                // Try VideoMaps subfolder (common convention)
+                var videoMapsPath = Path.Combine(profileDir, "VideoMaps", fileName);
+                if (File.Exists(videoMapsPath))
+                {
+                    return Path.GetFullPath(videoMapsPath);
+                }
+
+                // Try same directory as profile
+                var sameDirPath = Path.Combine(profileDir, fileName);
+                if (File.Exists(sameDirPath))
+                {
+                    return Path.GetFullPath(sameDirPath);
+                }
+
+                // File not found anywhere - keep the normalized original path
+                return fullPath;
             }
             else
             {
-                var profileDir = Path.GetDirectoryName(profile.FilePath) ?? string.Empty;
                 return Path.GetRelativePath(profileDir, originalPath);
             }
         }
