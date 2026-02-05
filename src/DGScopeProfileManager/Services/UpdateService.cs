@@ -12,7 +12,7 @@ namespace DGScopeProfileManager.Services;
 public class UpdateService
 {
     private const string GitHubApiUrl = "https://api.github.com/repos/yanjz124/DGScope-profile-manager/releases/latest";
-    private const string CurrentVersion = "1.2.4";
+    private const string CurrentVersion = "1.2.5";
 
     private static readonly HttpClient _httpClient = new()
     {

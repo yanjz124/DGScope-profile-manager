@@ -108,6 +108,16 @@ jobs:
           Write-Host "Created profiles directory"
         shell: pwsh
 
+      - name: Copy Fonts
+        run: |
+          if (Test-Path "installer/fonts") {
+            Copy-Item "installer/fonts" -Destination "publish/fonts" -Recurse -Force
+            Write-Host "Copied fonts to publish/fonts"
+          } else {
+            Write-Host "No fonts directory found, skipping"
+          }
+        shell: pwsh
+
       - name: Create README
         run: |
           Copy-Item "BUNDLE_README.md" -Destination "publish/README.md" -Force
@@ -139,12 +149,16 @@ jobs:
           Compress-Archive -Path "release-temp-bundle/DGScope-Profile-Manager" -DestinationPath $bundleZipName -Force
           Write-Host "Created $bundleZipName"
 
-          # 2. Create ProfileManager-Only ZIP (just ProfileManager folder)
+          # 2. Create ProfileManager-Only ZIP (just ProfileManager folder + fonts)
           Write-Host "Creating ProfileManager-Only ZIP..."
           New-Item -ItemType Directory -Path "release-temp-pm" -Force | Out-Null
           New-Item -ItemType Directory -Path "release-temp-pm/DGScope-Profile-Manager" -Force | Out-Null
 
           Copy-Item publish/ProfileManager -Destination "release-temp-pm/DGScope-Profile-Manager/ProfileManager" -Recurse -Force
+          if (Test-Path "publish/fonts") {
+            Copy-Item publish/fonts -Destination "release-temp-pm/DGScope-Profile-Manager/fonts" -Recurse -Force
+            Write-Host "Included fonts in ProfileManager-Only ZIP"
+          }
 
           $pmZipName = "DGScope-Profile-Manager-v$releaseVersion.zip"
           Compress-Archive -Path "release-temp-pm/DGScope-Profile-Manager" -DestinationPath $pmZipName -Force
