@@ -225,6 +225,34 @@ public partial class UnifiedSettingsWindow : Window
         }
     }
 
+    private void OpenProfilesFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_profile != null)
+        {
+            var dir = Path.GetDirectoryName(_profile.FilePath);
+            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+            {
+                System.Diagnostics.Process.Start("explorer.exe", dir);
+                return;
+            }
+        }
+
+        // Fallback to profiles root folder
+        var profilesDir = Path.Combine(_appSettings.DgScopeFolderPath, "profiles");
+        if (Directory.Exists(profilesDir))
+            System.Diagnostics.Process.Start("explorer.exe", profilesDir);
+        else if (Directory.Exists(_appSettings.DgScopeFolderPath))
+            System.Diagnostics.Process.Start("explorer.exe", _appSettings.DgScopeFolderPath);
+    }
+
+    private static int ParseFirstDcbButton(string? dcbButton)
+    {
+        if (string.IsNullOrWhiteSpace(dcbButton))
+            return int.MaxValue;
+        // Handle comma-separated buttons like "3,11" - sort by first one
+        var first = dcbButton.Split(',')[0].Trim();
+        return int.TryParse(first, out var num) ? num : int.MaxValue;
+    }
 
     private void ConfigureForDefaultMode()
     {
@@ -262,11 +290,16 @@ public partial class UnifiedSettingsWindow : Window
             FacilityIdBox.Text = _profile.FacilityId ?? string.Empty;
         }
 
-        // Show Video Maps editor and populate
+        // Show Video Maps editor and populate, sorted by DCB button (assigned first, then by map#)
         VideoMapsPanel.Visibility = Visibility.Visible;
         if (_profile != null)
         {
-            _videoMapFiles = new ObservableCollection<VideoMapFile>(_profile.VideoMapFiles);
+            var sorted = _profile.VideoMapFiles
+                .OrderByDescending(m => !string.IsNullOrWhiteSpace(m.DcbButton)) // DCB-assigned first
+                .ThenBy(m => ParseFirstDcbButton(m.DcbButton)) // by button number
+                .ThenBy(m => int.TryParse(m.StarsId, out var n) ? n : int.MaxValue) // then by map#
+                .ToList();
+            _videoMapFiles = new ObservableCollection<VideoMapFile>(sorted);
             VideoMapsDataGrid.ItemsSource = _videoMapFiles;
         }
 

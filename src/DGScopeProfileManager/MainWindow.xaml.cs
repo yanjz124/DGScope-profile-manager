@@ -196,6 +196,17 @@ public partial class MainWindow : Window
         LoadFolders();
     }
 
+    private void OpenProfilesFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var profilesDir = System.IO.Path.Combine(_settings.DgScopeFolderPath, "profiles");
+        if (System.IO.Directory.Exists(profilesDir))
+            System.Diagnostics.Process.Start("explorer.exe", profilesDir);
+        else if (System.IO.Directory.Exists(_settings.DgScopeFolderPath))
+            System.Diagnostics.Process.Start("explorer.exe", _settings.DgScopeFolderPath);
+        else
+            MessageBox.Show("Profiles folder not found. Check your DGScope folder path in Settings.", "Folder Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
     private void DefaultSettings_Click(object sender, RoutedEventArgs e)
     {
         var prefSetSettings = _settings.DefaultSettings.ToPrefSetSettings();
