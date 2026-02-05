@@ -116,7 +116,8 @@
                         
                         <!-- TreeView for hierarchical display -->
                         <TreeView Grid.Row="1" Name="FacilitiesTree"
-                                  SelectedItemChanged="FacilityTree_SelectionChanged">
+                                  SelectedItemChanged="FacilityTree_SelectionChanged"
+                                  MouseDoubleClick="FacilitiesTree_MouseDoubleClick">
                             <TreeView.ItemContainerStyle>
                                 <!-- Expand all items by default -->
                                 <Style TargetType="TreeViewItem">

@@ -19,6 +19,7 @@ public partial class UpdateNotificationWindow : Window
     public UpdateNotificationWindow(UpdateInfo updateInfo)
     {
         InitializeComponent();
+        WindowPositionService.InitializePositionTracking(this, "UpdateNotificationWindow");
 
         _updateInfo = updateInfo;
         _updateService = new UpdateService();

@@ -94,14 +94,6 @@ Section "!Profile Manager (Required)" SecProfileManager
   File "..\src\DGScopeProfileManager\bin\Release\net10.0-windows\DGScopeProfileManager.exe"
   File "..\src\DGScopeProfileManager\bin\Release\net10.0-windows\*.dll"
   
-  ; Create Start Menu shortcut
-  CreateDirectory "$SMPROGRAMS\DGScope Profile Manager"
-  CreateShortCut "$SMPROGRAMS\DGScope Profile Manager\DGScope Profile Manager.lnk" "${INSTALL_DIR}\DGScopeProfileManager.exe" "" "${INSTALL_DIR}\DGScopeProfileManager.exe" 0
-  CreateShortCut "$SMPROGRAMS\DGScope Profile Manager\Uninstall.lnk" "${INSTALL_DIR}\${UNINSTALLER_NAME}"
-  
-  ; Create Desktop shortcut
-  CreateShortCut "$DESKTOP\DGScope Profile Manager.lnk" "${INSTALL_DIR}\DGScopeProfileManager.exe"
-  
   ; Write registry for uninstall
   WriteRegStr HKLM "${REG_PATH}" "DisplayName" "${APP_NAME} ${APP_VERSION}"
   WriteRegStr HKLM "${REG_PATH}" "UninstallString" "${INSTALL_DIR}\${UNINSTALLER_NAME}"
@@ -119,6 +111,29 @@ Section "!Profile Manager (Required)" SecProfileManager
 SectionEnd
 
 SectionGroupEnd
+
+; Optional section: Start Menu Shortcuts (default on)
+Section "Start Menu Shortcuts" SecStartMenu
+  CreateDirectory "$SMPROGRAMS\DGScope Profile Manager"
+  CreateShortCut "$SMPROGRAMS\DGScope Profile Manager\DGScope Profile Manager.lnk" "${INSTALL_DIR}\DGScopeProfileManager.exe" "" "${INSTALL_DIR}\DGScopeProfileManager.exe" 0
+  CreateShortCut "$SMPROGRAMS\DGScope Profile Manager\Uninstall.lnk" "${INSTALL_DIR}\${UNINSTALLER_NAME}"
+SectionEnd
+
+; Optional section: Desktop Shortcut (default off)
+Section /o "Desktop Shortcut" SecDesktop
+  CreateShortCut "$DESKTOP\DGScope Profile Manager.lnk" "${INSTALL_DIR}\DGScopeProfileManager.exe"
+SectionEnd
+
+; Optional section: Install FixedDemiBold Font (default on)
+Section "Install FixedDemiBold Font" SecFont
+  SetOutPath "${INSTALL_DIR}"
+  File /nonfatal "fonts\FixedDemiBold.otf"
+  IfFileExists "${INSTALL_DIR}\FixedDemiBold.otf" 0 SkipFontInstall
+    CreateDirectory "$LOCALAPPDATA\Microsoft\Windows\Fonts"
+    CopyFiles /SILENT "${INSTALL_DIR}\FixedDemiBold.otf" "$LOCALAPPDATA\Microsoft\Windows\Fonts\FixedDemiBold.otf"
+    WriteRegStr HKCU "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts" "FixedDemiBold (OpenType)" "$LOCALAPPDATA\Microsoft\Windows\Fonts\FixedDemiBold.otf"
+  SkipFontInstall:
+SectionEnd
 
 ; Optional section: Install DGScope
 SectionGroup "DGScope (Optional)" SecGroupDGScope
@@ -363,6 +378,9 @@ SectionGroupEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecGroupProfileManager} "DGScope Profile Manager - Manage and edit DGScope radar scope profiles."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecProfileManager} "Core Profile Manager application (required)."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} "Create Start Menu shortcuts for DGScope Profile Manager and Uninstall."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Create a Desktop shortcut for DGScope Profile Manager."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecFont} "Install the FixedDemiBold font used by DGScope for realistic radar display text."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecGroupDGScope} "DGScope - Digital radar scope application."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDGScope} "Download and install DGScope. First tries to download pre-built release, falls back to building from source if needed (requires Visual Studio 2022)."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
@@ -425,6 +443,11 @@ Section "Uninstall"
     ; Remove Desktop shortcut
     Delete "$DESKTOP\DGScope Profile Manager.lnk"
     
+    ; Remove font if installed
+    Delete "$LOCALAPPDATA\Microsoft\Windows\Fonts\FixedDemiBold.otf"
+    DeleteRegValue HKCU "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts" "FixedDemiBold (OpenType)"
+    Delete "${INSTALL_DIR}\FixedDemiBold.otf"
+
     DetailPrint "Profile Manager removed."
   ${EndIf}
   

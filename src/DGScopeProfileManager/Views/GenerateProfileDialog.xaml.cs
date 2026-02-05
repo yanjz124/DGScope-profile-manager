@@ -2,6 +2,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using DGScopeProfileManager.Models;
+using DGScopeProfileManager.Services;
 
 namespace DGScopeProfileManager.Views;
 
@@ -16,7 +17,8 @@ public partial class GenerateProfileDialog : Window
     public GenerateProfileDialog(CrcProfile crcProfile, string dgScopeRootPath)
     {
         InitializeComponent();
-        
+        WindowPositionService.InitializePositionTracking(this, "GenerateProfileDialog");
+
         _crcProfile = crcProfile;
         _rootPath = dgScopeRootPath;
         

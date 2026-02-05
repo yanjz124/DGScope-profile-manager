@@ -12,14 +12,17 @@ public partial class VideoMapSelectionWindow : Window
     public List<VideoMapInfo> SelectedVideoMaps { get; private set; } = new();
     public string ProfileName { get; private set; } = string.Empty;
     private bool _isPlaceholder = true;
+    private string _defaultProfileName = "default";
 
-    public VideoMapSelectionWindow(List<VideoMapInfo> availableVideoMaps, string facilityId)
+    public VideoMapSelectionWindow(List<VideoMapInfo> availableVideoMaps, string facilityId, string defaultProfileName = "default")
     {
         InitializeComponent();
         WindowPositionService.InitializePositionTracking(this, "VideoMapSelectionWindow");
 
-        // Set prefix label - textbox already has "default" placeholder
+        // Set prefix label and default profile name
+        _defaultProfileName = defaultProfileName;
         ProfilePrefixLabel.Text = $"{facilityId}_";
+        ProfileNameBox.Text = defaultProfileName;
         _isPlaceholder = true;
 
         // Add display text property to each video map
@@ -119,7 +122,7 @@ public partial class VideoMapSelectionWindow : Window
         // Restore placeholder if box is empty
         if (string.IsNullOrWhiteSpace(ProfileNameBox.Text))
         {
-            ProfileNameBox.Text = "default";
+            ProfileNameBox.Text = _defaultProfileName;
             ProfileNameBox.Foreground = new System.Windows.Media.SolidColorBrush(
                 (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#999999"));
             _isPlaceholder = true;
@@ -129,7 +132,7 @@ public partial class VideoMapSelectionWindow : Window
     private void ProfileNameBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
         // Once user types anything, it's no longer a placeholder
-        if (_isPlaceholder && ProfileNameBox.Text != "default")
+        if (_isPlaceholder && ProfileNameBox.Text != _defaultProfileName)
         {
             _isPlaceholder = false;
             ProfileNameBox.Foreground = new System.Windows.Media.SolidColorBrush(

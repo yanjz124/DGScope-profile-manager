@@ -308,12 +308,17 @@ public partial class MainWindow : Window
             CrcPrefSet? selectedPrefSet = null;
             string? profileName = null;
 
+            // Default profile name: use area name if area selected, otherwise "default"
+            var defaultProfileName = selectedArea != null && !string.IsNullOrWhiteSpace(selectedArea.Name)
+                ? selectedArea.Name
+                : "default";
+
             var prefSetReader = new CrcPrefSetReader(_settings.CrcFolderPath);
             var availablePrefSets = prefSetReader.GetPrefSets(selectedTracon.Id);
 
             if (availablePrefSets.Count > 0)
             {
-                var prefSetWindow = new PrefSetSelectionWindow(availablePrefSets, "default");
+                var prefSetWindow = new PrefSetSelectionWindow(availablePrefSets, defaultProfileName);
                 if (prefSetWindow.ShowDialog() != true)
                     return;
 
@@ -336,7 +341,7 @@ public partial class MainWindow : Window
 
                 selectedVideoMaps = selectedTracon.AvailableVideoMaps;
                 if (string.IsNullOrWhiteSpace(profileName))
-                    profileName = "default"; // Use "default" as the profile name
+                    profileName = defaultProfileName;
             }
             else
             {
@@ -348,7 +353,7 @@ public partial class MainWindow : Window
                     return;
                 }
 
-                var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id);
+                var videoMapWindow = new VideoMapSelectionWindow(selectedTracon.AvailableVideoMaps, selectedTracon.Id, defaultProfileName);
                 if (videoMapWindow.ShowDialog() != true)
                     return;
 
@@ -456,7 +461,16 @@ public partial class MainWindow : Window
         DeleteProfileButton.IsEnabled = selectedProfile != null;
         LaunchDGScopeButton.IsEnabled = selectedProfile != null;
     }
-    
+
+    private void FacilitiesTree_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Double-click on a profile launches DGScope
+        if (FacilitiesTree.SelectedItem is DgScopeProfile)
+        {
+            LaunchDGScope_Click(sender, e);
+        }
+    }
+
     private void LaunchDGScope_Click(object sender, RoutedEventArgs e)
     {
         var selectedProfile = FacilitiesTree.SelectedItem as DgScopeProfile;
