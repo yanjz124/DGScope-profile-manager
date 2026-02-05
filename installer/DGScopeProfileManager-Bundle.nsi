@@ -15,6 +15,10 @@ InstallDirRegKey HKCU "Software\DGScope Profile Manager" "InstallDir"
 RequestExecutionLevel user
 
 ; MUI Settings
+!define MUI_FINISHPAGE_RUN "$INSTDIR\ProfileManager\DGScopeProfileManager.exe"
+!define MUI_FINISHPAGE_RUN_TEXT "Launch DGScope Profile Manager"
+!define MUI_FINISHPAGE_RUN_CHECKED
+
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY

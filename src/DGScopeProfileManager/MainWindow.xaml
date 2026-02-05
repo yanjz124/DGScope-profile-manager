@@ -23,7 +23,7 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
-    
+
     <DockPanel>
         <!-- Menu Bar -->
         <Menu DockPanel.Dock="Top">
@@ -33,59 +33,41 @@
                 <MenuItem Header="E_xit" Click="Exit_Click"/>
             </MenuItem>
             <MenuItem Header="_Tools">
-                <MenuItem Header="_Fix All Video Map Paths" Click="FixAllPaths_Click"/>
+                <MenuItem Header="_Generate Profile" Click="GenerateProfile_Click"/>
                 <MenuItem Header="_Refresh All" Click="RefreshAll_Click"/>
+                <Separator/>
                 <MenuItem Header="_DGScope Default Settings" Click="DefaultSettings_Click"/>
+                <MenuItem Header="_Fix All Video Map Paths" Click="FixAllPaths_Click"/>
             </MenuItem>
             <MenuItem Header="_Help">
+                <MenuItem Header="_Check for Updates" Click="CheckForUpdates_Click"/>
+                <Separator/>
                 <MenuItem Header="_About" Click="About_Click"/>
             </MenuItem>
         </Menu>
-        
+
         <!-- Status Bar -->
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
                 <TextBlock Name="StatusText" Text="Ready"/>
             </StatusBarItem>
         </StatusBar>
-        
+
         <!-- Main Content -->
         <Grid Margin="10">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            
-            <!-- Top Action Bar -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                <Button Content="Settings" Click="Settings_Click"/>
-                <Button Content="DGScope Default Settings" Click="DefaultSettings_Click"/>
-                <Button Content="Fix All Paths" Click="FixAllPaths_Click"/>
-                <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" Margin="10,0"/>
-                <TextBlock Text="Quick Actions:" FontWeight="Bold"/>
-            </StackPanel>
-            
             <!-- Main Split View -->
-            <Grid Grid.Row="1">
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.5*"/>
+                    <ColumnDefinition Width="*" MinWidth="180" MaxWidth="300"/>
                     <ColumnDefinition Width="5"/>
-                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="2.5*"/>
                 </Grid.ColumnDefinitions>
-                
+
                 <!-- Left Panel: CRC Profiles -->
                 <GroupBox Grid.Column="0" Header="CRC ARTCC Profiles">
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <TextBlock Text="Select an ARTCC to generate profiles:" FontSize="11" Margin="0,0,0,5"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="Generate Profile" Click="GenerateProfile_Click" Name="GenerateButton" Margin="0,0,5,0"/>
-                                <Button Grid.Column="1" Content="Refresh All" Click="RefreshAll_Click" Margin="5,0,0,0"/>
-                            </Grid>
+                            <Button Content="Generate Profile" Click="GenerateProfile_Click" Name="GenerateButton"/>
                         </StackPanel>
 
                         <ListBox Name="CrcProfilesList"
@@ -100,22 +82,19 @@
                         </ListBox>
                     </DockPanel>
                 </GroupBox>
-                
+
                 <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="LightGray"/>
-                
+
                 <!-- Right Panel: DGScope Facilities & Profiles -->
                 <GroupBox Grid.Column="2" Header="DGScope Profiles">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        
-                        <!-- Batch Settings Panel removed per request -->
-                        
+
                         <!-- TreeView for hierarchical display -->
-                        <TreeView Grid.Row="1" Name="FacilitiesTree"
+                        <TreeView Grid.Row="0" Name="FacilitiesTree"
                                   SelectedItemChanged="FacilityTree_SelectionChanged"
                                   MouseDoubleClick="FacilitiesTree_MouseDoubleClick">
                             <TreeView.ItemContainerStyle>
@@ -143,9 +122,9 @@
                                 </DataTemplate>
                             </TreeView.Resources>
                         </TreeView>
-                        
+
                         <!-- Profile Actions -->
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
                             <Button Name="LaunchDGScopeButton" Content="Launch DGScope" Click="LaunchDGScope_Click" Background="#4CAF50" Foreground="White"/>
                             <Button Name="EditProfileButton" Content="Edit Profile" Click="EditProfile_Click"/>
                             <Button Name="DeleteProfileButton" Content="Delete Profile" Click="DeleteProfile_Click"/>

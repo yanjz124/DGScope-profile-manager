@@ -8,6 +8,12 @@ public class PrefSetSettings
 {
     // ===== RadarWindow Level Settings =====
 
+    // Window Position (DGScope application window on screen)
+    public int WindowLocationX { get; set; } = 0;
+    public int WindowLocationY { get; set; } = 0;
+    public int WindowSizeWidth { get; set; } = 1920;
+    public int WindowSizeHeight { get; set; } = 1080;
+
     // Font Settings
     public string FontName { get; set; } = "FixedDemiBold";
     public int FontSize { get; set; } = 10;

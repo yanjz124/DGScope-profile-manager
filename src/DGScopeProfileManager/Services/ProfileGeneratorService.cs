@@ -484,7 +484,8 @@ public class ProfileGeneratorService
         CrcArea? selectedArea = null,
         string? customProfileName = null,
         ProfileDefaultSettings? defaultSettings = null,
-        CrcPrefSet? crcPrefSet = null)
+        CrcPrefSet? crcPrefSet = null,
+        string? facilityIdOverride = null)
     {
         if (selectedVideoMaps == null || selectedVideoMaps.Count == 0)
         {
@@ -575,9 +576,10 @@ public class ProfileGeneratorService
             }
 
             // 4. Update receiver configuration
-            if (selectedTracon != null && latitude.HasValue && longitude.HasValue)
+            var receiverFacilityId = facilityIdOverride ?? selectedTracon?.Id;
+            if (!string.IsNullOrWhiteSpace(receiverFacilityId) && latitude.HasValue && longitude.HasValue)
             {
-                UpdateReceiverConfig(root, selectedTracon.Id, latitude.Value, longitude.Value);
+                UpdateReceiverConfig(root, receiverFacilityId, latitude.Value, longitude.Value);
             }
 
             // 5. Update NEXRAD configuration (automatic selection based on proximity)
@@ -1022,25 +1024,21 @@ public class ProfileGeneratorService
                 SetOrCreateElement(root, "FontSize", defaults.FontSize);
             }
 
-            // Apply window size if specified
-            if (defaults.WindowSize != null)
+            // Apply window position from PrefSetSettings
+            if (defaults.PrefSet != null)
             {
                 var windowSizeElem = root.Element("WindowSize");
                 if (windowSizeElem != null)
                 {
-                    SetOrCreateElement(windowSizeElem, "Width", defaults.WindowSize.Width.ToString());
-                    SetOrCreateElement(windowSizeElem, "Height", defaults.WindowSize.Height.ToString());
+                    SetOrCreateElement(windowSizeElem, "Width", defaults.PrefSet.WindowSizeWidth.ToString());
+                    SetOrCreateElement(windowSizeElem, "Height", defaults.PrefSet.WindowSizeHeight.ToString());
                 }
-            }
 
-            // Apply window location if specified
-            if (defaults.WindowLocation != null)
-            {
                 var windowLocElem = root.Element("WindowLocation");
                 if (windowLocElem != null)
                 {
-                    SetOrCreateElement(windowLocElem, "X", defaults.WindowLocation.X.ToString());
-                    SetOrCreateElement(windowLocElem, "Y", defaults.WindowLocation.Y.ToString());
+                    SetOrCreateElement(windowLocElem, "X", defaults.PrefSet.WindowLocationX.ToString());
+                    SetOrCreateElement(windowLocElem, "Y", defaults.PrefSet.WindowLocationY.ToString());
                 }
             }
 

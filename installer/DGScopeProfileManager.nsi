@@ -17,6 +17,10 @@
 !define NET472_FILENAME "NDP472-KB4054530-x86-x64-AllOS-ENU.exe"
 
 ; MUI Settings
+!define MUI_FINISHPAGE_RUN "${INSTALL_DIR}\DGScopeProfileManager.exe"
+!define MUI_FINISHPAGE_RUN_TEXT "Launch DGScope Profile Manager"
+!define MUI_FINISHPAGE_RUN_CHECKED
+
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY

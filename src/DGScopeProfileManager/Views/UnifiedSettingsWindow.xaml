@@ -471,8 +471,39 @@
             <TabItem Header="Advanced Settings">
                 <ScrollViewer>
                     <StackPanel>
-                        <!-- Screen Position -->
-                        <GroupBox Header="Screen Position">
+                        <!-- DGScope Window Position -->
+                        <GroupBox Header="DGScope Window Position">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Display:"/>
+                                <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Name="MonitorComboBox"
+                                          Margin="5" SelectionChanged="MonitorComboBox_SelectionChanged"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="X:"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" Name="WindowLocationXBox"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="Y:"/>
+                                <TextBox Grid.Row="1" Grid.Column="3" Name="WindowLocationYBox"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Width:"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="WindowSizeWidthBox"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="Height:"/>
+                                <TextBox Grid.Row="2" Grid.Column="3" Name="WindowSizeHeightBox"/>
+                            </Grid>
+                        </GroupBox>
+
+                        <!-- Radar Screen Center -->
+                        <GroupBox Header="Radar Screen Center">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>

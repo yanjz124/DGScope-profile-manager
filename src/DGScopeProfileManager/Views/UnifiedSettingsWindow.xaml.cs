@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -385,6 +386,13 @@ public partial class UnifiedSettingsWindow : Window
         DCBFontNameBox.Text = _settings.DCBFontName;
         DCBFontSizeBox.Text = _settings.DCBFontSize.ToString();
 
+        // DGScope Window Position
+        PopulateMonitorDropdown();
+        WindowLocationXBox.Text = _settings.WindowLocationX.ToString();
+        WindowLocationYBox.Text = _settings.WindowLocationY.ToString();
+        WindowSizeWidthBox.Text = _settings.WindowSizeWidth.ToString();
+        WindowSizeHeightBox.Text = _settings.WindowSizeHeight.ToString();
+
         // Screen Position
         ScreenCenterLatBox.Text = _settings.ScreenCenterPointLatitude.ToString("F6");
         ScreenCenterLonBox.Text = _settings.ScreenCenterPointLongitude.ToString("F6");
@@ -456,6 +464,24 @@ public partial class UnifiedSettingsWindow : Window
             _settings.FontSize = int.Parse(FontSizeBox.Text);
             _settings.DCBFontName = DCBFontNameBox.Text;
             _settings.DCBFontSize = int.Parse(DCBFontSizeBox.Text);
+
+            // DGScope Window Position - convert relative to absolute based on selected monitor
+            var relX = int.Parse(WindowLocationXBox.Text);
+            var relY = int.Parse(WindowLocationYBox.Text);
+            var screens = GetScreenBounds();
+            if (MonitorComboBox.SelectedIndex >= 0 && MonitorComboBox.SelectedIndex < screens.Count)
+            {
+                var monBounds = screens[MonitorComboBox.SelectedIndex];
+                _settings.WindowLocationX = monBounds.X + relX;
+                _settings.WindowLocationY = monBounds.Y + relY;
+            }
+            else
+            {
+                _settings.WindowLocationX = relX;
+                _settings.WindowLocationY = relY;
+            }
+            _settings.WindowSizeWidth = int.Parse(WindowSizeWidthBox.Text);
+            _settings.WindowSizeHeight = int.Parse(WindowSizeHeightBox.Text);
 
             // Screen Position
             _settings.ScreenCenterPointLatitude = double.Parse(ScreenCenterLatBox.Text);
@@ -953,6 +979,115 @@ public partial class UnifiedSettingsWindow : Window
         {
             MessageBox.Show($"Error saving and applying settings: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Populate the monitor dropdown with available displays
+    /// </summary>
+    private void PopulateMonitorDropdown()
+    {
+        var monitors = new List<string>();
+        var allScreens = GetScreenBounds();
+
+        for (int i = 0; i < allScreens.Count; i++)
+        {
+            var bounds = allScreens[i];
+            monitors.Add($"Display {i + 1} ({bounds.Width}x{bounds.Height} at {bounds.X},{bounds.Y})");
+        }
+
+        MonitorComboBox.ItemsSource = monitors;
+
+        // Select the monitor that contains the current window position
+        var currentX = _settings.WindowLocationX;
+        var currentY = _settings.WindowLocationY;
+        for (int i = 0; i < allScreens.Count; i++)
+        {
+            var bounds = allScreens[i];
+            if (currentX >= bounds.X && currentX < bounds.X + bounds.Width &&
+                currentY >= bounds.Y && currentY < bounds.Y + bounds.Height)
+            {
+                MonitorComboBox.SelectedIndex = i;
+                // Show position relative to that monitor
+                WindowLocationXBox.Text = (currentX - bounds.X).ToString();
+                WindowLocationYBox.Text = (currentY - bounds.Y).ToString();
+                return;
+            }
+        }
+
+        // Default to first monitor
+        if (monitors.Count > 0)
+            MonitorComboBox.SelectedIndex = 0;
+    }
+
+    /// <summary>
+    /// Get bounds of all screens using Win32 API
+    /// </summary>
+    private static List<(int X, int Y, int Width, int Height)> GetScreenBounds()
+    {
+        var screens = new List<(int X, int Y, int Width, int Height)>();
+
+        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero,
+            (IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData) =>
+            {
+                var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+                if (GetMonitorInfo(hMonitor, ref info))
+                {
+                    var r = info.rcMonitor;
+                    screens.Add((r.left, r.top, r.right - r.left, r.bottom - r.top));
+                }
+                return true;
+            }, IntPtr.Zero);
+
+        if (screens.Count == 0)
+        {
+            screens.Add((0, 0, (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight));
+        }
+
+        // Sort by X position (left to right)
+        screens.Sort((a, b) => a.X.CompareTo(b.X));
+        return screens;
+    }
+
+    // Win32 interop for monitor enumeration
+    private delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, ref RECT lprcMonitor, IntPtr dwData);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, MonitorEnumProc lpfnEnum, IntPtr dwData);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int left, top, right, bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    /// <summary>
+    /// When monitor selection changes, update X/Y to be relative to selected monitor
+    /// </summary>
+    private void MonitorComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (MonitorComboBox.SelectedIndex < 0) return;
+
+        var screens = GetScreenBounds();
+        if (MonitorComboBox.SelectedIndex < screens.Count)
+        {
+            var bounds = screens[MonitorComboBox.SelectedIndex];
+            // When switching monitors, reset to 0,0 relative to that monitor
+            // but preserve size
+            WindowLocationXBox.Text = "0";
+            WindowLocationYBox.Text = "0";
         }
     }
 

@@ -10,6 +10,10 @@
         
         <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
             <StackPanel Orientation="Vertical" Margin="0,0,0,10">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                    <TextBlock Text="Facility ID:" VerticalAlignment="Center" Width="70"/>
+                    <TextBox Name="FacilityIdBox" Width="120" ToolTip="Receiver facility name (e.g., PCT, N90, RDU). Auto-filled from selected TRACON."/>
+                </StackPanel>
                 <CheckBox Name="AutoSelectVideoMapsCheckBox" Content="Automatically select video maps" IsChecked="True" Margin="0,5,0,0"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

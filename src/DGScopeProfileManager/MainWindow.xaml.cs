@@ -24,6 +24,10 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        // Set window title with version from assembly (MinVer/git tag)
+        Title = $"DGScope Profile Manager v{UpdateService.GetCurrentVersion()}";
+
         _persistenceService = new SettingsPersistenceService();
         _settings = _persistenceService.LoadSettings();
         _facilityScanner = new FacilityScanner();
@@ -280,6 +284,7 @@ public partial class MainWindow : Window
 
             // Capture auto-configuration flags
             bool autoSelectVideoMaps = traconWindow.AutoSelectVideoMaps;
+            string? facilityIdOverride = traconWindow.FacilityIdOverride;
 
             // If TRACON has multiple areas, show area selection window
             CrcArea? selectedArea = null;
@@ -378,7 +383,8 @@ public partial class MainWindow : Window
                 selectedArea,
                 profileName,
                 _settings.DefaultSettings,
-                selectedPrefSet);
+                selectedPrefSet,
+                facilityIdOverride);
 
             if (profile != null)
             {
@@ -532,6 +538,47 @@ public partial class MainWindow : Window
         }
     }
     
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            UpdateStatus("Checking for updates...");
+            var updateService = new UpdateService();
+            var updateInfo = await updateService.CheckForUpdatesAsync();
+
+            if (updateInfo != null)
+            {
+                var updateWindow = new UpdateNotificationWindow(updateInfo);
+                updateWindow.Owner = this;
+                updateWindow.ShowDialog();
+
+                if (updateWindow.DontRemindAgain)
+                {
+                    _settings.SkipUpdateCheck = true;
+                    _persistenceService.SaveSettings(_settings);
+                }
+            }
+            else
+            {
+                UpdateStatus("You are running the latest version.");
+                MessageBox.Show(
+                    $"You are running the latest version (v{UpdateService.GetCurrentVersion()}).",
+                    "No Updates",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus("Update check failed.");
+            MessageBox.Show(
+                $"Failed to check for updates:\n\n{ex.Message}",
+                "Update Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private void About_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(
@@ -540,16 +587,14 @@ public partial class MainWindow : Window
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
-    
+
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         Close();
     }
-    
+
     private void UpdateStatus(string message)
     {
         StatusText.Text = $"{DateTime.Now:HH:mm:ss} - {message}";
     }
-    
-    
 }

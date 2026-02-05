@@ -1,7 +1,7 @@
 <Window x:Class="DGScopeProfileManager.Views.ProfileConfigDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Profile Configuration" Height="200" Width="500"
+        Title="Profile Configuration" Height="200" Width="380"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
     <Grid Margin="20">
         <Grid.RowDefinitions>

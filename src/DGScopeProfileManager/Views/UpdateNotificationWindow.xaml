@@ -4,7 +4,7 @@
         x:Class="DGScopeProfileManager.Views.UpdateNotificationWindow"
         Title="Update Available"
         WindowStartupLocation="CenterScreen"
-        Width="450" Height="280"
+        Width="450" SizeToContent="Height"
         ResizeMode="NoResize"
         Background="#2D2D30"
         Foreground="#CCCCCC">
@@ -12,7 +12,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto" MinHeight="60"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
