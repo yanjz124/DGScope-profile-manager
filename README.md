@@ -1,6 +1,6 @@
 # DGScope Profile Manager
 
-A WPF application for managing and generating DGScope radar simulation profiles from CRC (vERAM/vSTARS) configuration data.
+A WPF application for managing and generating DGScope radar simulation profiles from CRC STARS configuration data.
 
 ## Overview
 
