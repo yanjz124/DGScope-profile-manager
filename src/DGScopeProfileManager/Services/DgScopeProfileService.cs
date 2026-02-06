@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
@@ -502,8 +503,8 @@ public class DgScopeProfileService
             // Only create if it doesn't exist, using settings values
             screenCenter = new XElement("ScreenCenterPoint");
             currentPrefSet.Add(screenCenter);
-            SetOrCreateElement(screenCenter, "Latitude", settings.ScreenCenterPointLatitude.ToString("F7"));
-            SetOrCreateElement(screenCenter, "Longitude", settings.ScreenCenterPointLongitude.ToString("F7"));
+            SetOrCreateElement(screenCenter, "Latitude", settings.ScreenCenterPointLatitude.ToString("F7", CultureInfo.InvariantCulture));
+            SetOrCreateElement(screenCenter, "Longitude", settings.ScreenCenterPointLongitude.ToString("F7", CultureInfo.InvariantCulture));
         }
         // If it exists, leave it alone to preserve the profile's coordinates
 
@@ -514,8 +515,8 @@ public class DgScopeProfileService
             previewLoc = new XElement("PreviewAreaLocation");
             currentPrefSet.Add(previewLoc);
         }
-        SetOrCreateElement(previewLoc, "X", settings.PreviewAreaLocationX.ToString("F6"));
-        SetOrCreateElement(previewLoc, "Y", settings.PreviewAreaLocationY.ToString("F6"));
+        SetOrCreateElement(previewLoc, "X", settings.PreviewAreaLocationX.ToString("F6", CultureInfo.InvariantCulture));
+        SetOrCreateElement(previewLoc, "Y", settings.PreviewAreaLocationY.ToString("F6", CultureInfo.InvariantCulture));
 
         // StatusAreaLocation
         var statusLoc = currentPrefSet.Element("StatusAreaLocation");
@@ -524,8 +525,8 @@ public class DgScopeProfileService
             statusLoc = new XElement("StatusAreaLocation");
             currentPrefSet.Add(statusLoc);
         }
-        SetOrCreateElement(statusLoc, "X", settings.StatusAreaLocationX.ToString("F6"));
-        SetOrCreateElement(statusLoc, "Y", settings.StatusAreaLocationY.ToString("F6"));
+        SetOrCreateElement(statusLoc, "X", settings.StatusAreaLocationX.ToString("F6", CultureInfo.InvariantCulture));
+        SetOrCreateElement(statusLoc, "Y", settings.StatusAreaLocationY.ToString("F6", CultureInfo.InvariantCulture));
 
         // Range rings displayed
         SetOrCreateElement(currentPrefSet, "RangeRingsDisplayed", b(settings.RangeRingsDisplayed));
@@ -537,8 +538,8 @@ public class DgScopeProfileService
             rangeRingLoc = new XElement("RangeRingLocation");
             currentPrefSet.Add(rangeRingLoc);
         }
-        SetOrCreateElement(rangeRingLoc, "Latitude", settings.RangeRingLocationLatitude.ToString("F7"));
-        SetOrCreateElement(rangeRingLoc, "Longitude", settings.RangeRingLocationLongitude.ToString("F7"));
+        SetOrCreateElement(rangeRingLoc, "Latitude", settings.RangeRingLocationLatitude.ToString("F7", CultureInfo.InvariantCulture));
+        SetOrCreateElement(rangeRingLoc, "Longitude", settings.RangeRingLocationLongitude.ToString("F7", CultureInfo.InvariantCulture));
 
         // RangeRingSpacing
         SetOrCreateElement(currentPrefSet, "RangeRingSpacing", settings.RangeRingSpacing.ToString());
@@ -560,7 +561,7 @@ public class DgScopeProfileService
         SetOrCreateElement(currentPrefSet, "PTLOwn", b(settings.PTLOwn));
         SetOrCreateElement(currentPrefSet, "PTLAll", b(settings.PTLAll));
         SetOrCreateElement(currentPrefSet, "HistoryNum", settings.HistoryNum.ToString());
-        SetOrCreateElement(currentPrefSet, "HistoryRate", settings.HistoryRate.ToString("F1"));
+        SetOrCreateElement(currentPrefSet, "HistoryRate", settings.HistoryRate.ToString("F1", CultureInfo.InvariantCulture));
         SetOrCreateElement(currentPrefSet, "LeaderLength", settings.LeaderLength.ToString());
 
         // Altitude filters
