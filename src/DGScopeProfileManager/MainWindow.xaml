@@ -1,4 +1,4 @@
-﻿<Window x:Class="DGScopeProfileManager.MainWindow"
+<Window x:Class="DGScopeProfileManager.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -6,21 +6,26 @@
         xmlns:local="clr-namespace:DGScopeProfileManager"
         xmlns:models="clr-namespace:DGScopeProfileManager.Models"
         mc:Ignorable="d"
-        Title="DGScope Profile Manager" Height="700" Width="1200"
+        Title="DGScope Profile Manager" Height="750" Width="1400"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
         <Style TargetType="Button">
             <Setter Property="Padding" Value="10,5"/>
             <Setter Property="Margin" Value="5"/>
-            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinWidth" Value="80"/>
         </Style>
         <Style TargetType="GroupBox">
             <Setter Property="Margin" Value="5"/>
             <Setter Property="Padding" Value="10"/>
         </Style>
         <Style TargetType="TextBlock">
-            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Margin" Value="3"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Style for TreeViewItems with checkbox binding -->
+        <Style x:Key="CheckedTreeViewItem" TargetType="TreeViewItem">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
         </Style>
     </Window.Resources>
 
@@ -33,13 +38,18 @@
                 <MenuItem Header="E_xit" Click="Exit_Click"/>
             </MenuItem>
             <MenuItem Header="_Tools">
-                <MenuItem Header="_Generate Profile" Click="GenerateProfile_Click"/>
                 <MenuItem Header="_Refresh All" Click="RefreshAll_Click"/>
                 <Separator/>
                 <MenuItem Header="_DGScope Default Settings" Click="DefaultSettings_Click"/>
                 <MenuItem Header="_Fix All Video Map Paths" Click="FixAllPaths_Click"/>
                 <Separator/>
                 <MenuItem Header="_Open Profiles Folder" Click="OpenProfilesFolder_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Batch">
+                <MenuItem Header="Select _All in Current ARTCC" Click="SelectAllCurrentArtcc_Click"/>
+                <MenuItem Header="Select All _Facilities" Click="SelectAllFacilities_Click"/>
+                <Separator/>
+                <MenuItem Header="_Clear All Selections" Click="ClearAllSelections_Click"/>
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_Check for Updates" Click="CheckForUpdates_Click"/>
@@ -55,121 +65,261 @@
             </StatusBarItem>
         </StatusBar>
 
-        <!-- Main Content -->
-        <Grid Margin="10">
-            <!-- Main Split View -->
-            <Grid>
+        <!-- Progress Panel (shown during batch generation) -->
+        <Grid DockPanel.Dock="Bottom" Name="ProgressPanel" Visibility="Collapsed" Background="#F0F0F0">
+            <Grid Margin="10,8">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MinWidth="200"/>
-                    <ColumnDefinition Width="5"/>
-                    <ColumnDefinition Width="*" MinWidth="200"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                <!-- Left Panel: CRC Profiles -->
-                <GroupBox Grid.Column="0" Header="CRC ARTCC Profiles">
-                    <DockPanel>
-                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
-                            <Button Content="Generate Profile" Click="GenerateProfile_Click" Name="GenerateButton"/>
-                        </StackPanel>
+                <TextBlock Name="ProgressStatusText" Text="Generating profiles..." Grid.Row="0" FontWeight="SemiBold"/>
+                <TextBlock Name="ProgressDetailText" Text="PCT_Potomac (2 of 5)"
+                           Grid.Row="0" HorizontalAlignment="Right" Foreground="Gray"/>
 
-                        <TreeView Name="CrcProfilesTree"
-                                  SelectedItemChanged="CrcProfilesTree_SelectionChanged"
-                                  MouseDoubleClick="CrcProfilesTree_MouseDoubleClick">
-                            <TreeView.Resources>
-                                <!-- Style for ARTCC level items (expanded by default) -->
-                                <Style x:Key="ArtccItemStyle" TargetType="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="True"/>
-                                </Style>
+                <ProgressBar Name="GenerationProgressBar" Grid.Row="1" Grid.Column="0"
+                             Height="18" Margin="0,5,10,0"/>
 
-                                <!-- Style for Facility level items (collapsed by default) -->
-                                <Style x:Key="FacilityItemStyle" TargetType="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="False"/>
-                                </Style>
-
-                                <!-- ARTCC Level Template -->
-                                <HierarchicalDataTemplate DataType="{x:Type models:CrcProfile}" ItemsSource="{Binding Tracons}"
-                                                          ItemContainerStyle="{StaticResource FacilityItemStyle}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
-                                        <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
-                                        <TextBlock Text="{Binding Tracons.Count}" Foreground="Gray" FontSize="11"/>
-                                        <TextBlock Text=" facilities)" Foreground="Gray" FontSize="11"/>
-                                    </StackPanel>
-                                </HierarchicalDataTemplate>
-
-                                <!-- TRACON/Facility Level Template - now hierarchical with Areas -->
-                                <HierarchicalDataTemplate DataType="{x:Type models:CrcTracon}" ItemsSource="{Binding Areas}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Id}" FontWeight="SemiBold" Margin="10,0,5,0"/>
-                                        <TextBlock Text="{Binding Name}" Foreground="Gray" FontSize="11"/>
-                                    </StackPanel>
-                                </HierarchicalDataTemplate>
-
-                                <!-- Area/PrefSet Level Template -->
-                                <DataTemplate DataType="{x:Type models:CrcArea}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Name}" Margin="10,0,0,0" FontStyle="Italic"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </TreeView.Resources>
-                            <TreeView.ItemContainerStyle>
-                                <Style TargetType="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="True"/>
-                                </Style>
-                            </TreeView.ItemContainerStyle>
-                        </TreeView>
-                    </DockPanel>
-                </GroupBox>
-
-                <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="LightGray"/>
-
-                <!-- Right Panel: DGScope Facilities & Profiles -->
-                <GroupBox Grid.Column="2" Header="DGScope Profiles">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- TreeView for hierarchical display -->
-                        <TreeView Grid.Row="0" Name="FacilitiesTree"
-                                  SelectedItemChanged="FacilityTree_SelectionChanged"
-                                  MouseDoubleClick="FacilitiesTree_MouseDoubleClick">
-                            <TreeView.ItemContainerStyle>
-                                <!-- Expand all items by default -->
-                                <Style TargetType="TreeViewItem">
-                                    <Setter Property="IsExpanded" Value="True"/>
-                                </Style>
-                            </TreeView.ItemContainerStyle>
-                            <TreeView.Resources>
-                                <!-- Facility Level Template - simplified to just show ARTCC code -->
-                                <HierarchicalDataTemplate DataType="{x:Type models:Facility}" ItemsSource="{Binding Profiles}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
-                                        <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
-                                        <TextBlock Text="{Binding Profiles.Count}" Foreground="Gray" FontSize="11"/>
-                                        <TextBlock Text=" profiles)" Foreground="Gray" FontSize="11"/>
-                                    </StackPanel>
-                                </HierarchicalDataTemplate>
-
-                                <!-- Profile Level Template -->
-                                <DataTemplate DataType="{x:Type models:DgScopeProfile}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Name}" Margin="10,0,0,0"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </TreeView.Resources>
-                        </TreeView>
-
-                        <!-- Profile Actions -->
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
-                            <Button Name="LaunchDGScopeButton" Content="Launch DGScope" Click="LaunchDGScope_Click" Background="#4CAF50" Foreground="White"/>
-                            <Button Name="EditProfileButton" Content="Edit Profile" Click="EditProfile_Click"/>
-                            <Button Name="DeleteProfileButton" Content="Delete Profile" Click="DeleteProfile_Click"/>
-                        </StackPanel>
-                    </Grid>
-                </GroupBox>
+                <Button Name="CancelBatchButton" Content="Cancel" Grid.Row="1" Grid.Column="1"
+                        Click="CancelBatch_Click" Margin="0" MinWidth="70" Padding="8,3"/>
             </Grid>
+        </Grid>
+
+        <!-- Main Content - 3 Column Layout -->
+        <Grid Margin="10,5,10,5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="220"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="280" MinWidth="250"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*" MinWidth="200"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panel: CRC Profiles with Checkboxes -->
+            <GroupBox Grid.Column="0" Header="CRC ARTCC Profiles">
+                <TreeView Name="CrcProfilesTree"
+                          SelectedItemChanged="CrcProfilesTree_SelectionChanged">
+                    <TreeView.Resources>
+                        <!-- ARTCC Level Template (SelectableCrcProfile) -->
+                        <HierarchicalDataTemplate DataType="{x:Type models:SelectableCrcProfile}"
+                                                  ItemsSource="{Binding Tracons}">
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
+                                <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
+                                <TextBlock Text="{Binding TraconCount}" Foreground="Gray" FontSize="11"/>
+                                <TextBlock Text=" facilities)" Foreground="Gray" FontSize="11"/>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+
+                        <!-- TRACON/Facility Level Template (SelectableCrcTracon) -->
+                        <HierarchicalDataTemplate DataType="{x:Type models:SelectableCrcTracon}"
+                                                  ItemsSource="{Binding Areas}">
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding Id}" FontWeight="SemiBold"/>
+                                <TextBlock Text=" - " Foreground="Gray" FontSize="11"/>
+                                <TextBlock Text="{Binding Name}" Foreground="Gray" FontSize="11"/>
+                            </StackPanel>
+                        </HierarchicalDataTemplate>
+
+                        <!-- Area/PrefSet Level Template (SelectableCrcArea) -->
+                        <DataTemplate DataType="{x:Type models:SelectableCrcArea}">
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding Name}" FontStyle="Italic"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </TreeView.Resources>
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                </TreeView>
+            </GroupBox>
+
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="LightGray"/>
+
+            <!-- Middle Panel: Configuration -->
+            <GroupBox Grid.Column="2" Header="Generation Options">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Empty State -->
+                        <StackPanel Name="EmptyStatePanel" Visibility="Visible" Margin="5">
+                            <TextBlock Text="Select items from the CRC tree to generate profiles."
+                                       TextWrapping="Wrap" Foreground="Gray" FontStyle="Italic"/>
+                            <TextBlock Text="Tips:" FontWeight="Bold" Margin="0,15,0,5"/>
+                            <TextBlock Text="• Check boxes to select items" TextWrapping="Wrap" FontSize="11"/>
+                            <TextBlock Text="• Check an ARTCC to select all facilities" TextWrapping="Wrap" FontSize="11"/>
+                            <TextBlock Text="• Check a facility to select all areas" TextWrapping="Wrap" FontSize="11"/>
+                        </StackPanel>
+
+                        <!-- Selection Summary -->
+                        <GroupBox Name="SelectionSummaryPanel" Header="Selection" Visibility="Collapsed" Padding="5">
+                            <StackPanel>
+                                <TextBlock Name="SelectionCountText" Text="0 items selected" FontWeight="SemiBold"/>
+                                <ItemsControl Name="SelectionPreviewList" MaxHeight="80" Margin="0,5,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" Foreground="Gray"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Name="MoreItemsText" Text="...and more" FontSize="10" Foreground="Gray"
+                                           Visibility="Collapsed"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Options Panel -->
+                        <GroupBox Name="OptionsPanel" Header="Options" Visibility="Collapsed" Padding="5">
+                            <StackPanel>
+                                <!-- Facility ID Override (single select only) -->
+                                <StackPanel Name="FacilityIdPanel" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <TextBlock Text="Facility ID:" Width="75"/>
+                                    <TextBox Name="FacilityIdBox" Width="80"/>
+                                </StackPanel>
+
+                                <!-- Auto-select video maps -->
+                                <CheckBox Name="AutoSelectVideoMapsCheck"
+                                          Content="Auto-select all video maps"
+                                          IsChecked="True" Margin="0,0,0,5"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- PrefSet Selection (single select only) -->
+                        <GroupBox Name="PrefSetPanel" Header="PrefSet (Optional)" Visibility="Collapsed" Padding="5">
+                            <StackPanel>
+                                <ComboBox Name="PrefSetComboBox" DisplayMemberPath="Name" Margin="0,0,0,5">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Range, StringFormat=Range: {0} NM}"
+                                                           FontSize="10" Foreground="Gray"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="Clear" Click="ClearPrefSet_Click"
+                                        HorizontalAlignment="Left" MinWidth="60" Padding="5,2"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Video Maps (expandable, single select) -->
+                        <Expander Name="VideoMapsExpander" Header="Video Maps" IsExpanded="False"
+                                  Visibility="Collapsed" Margin="0,5,0,0">
+                            <StackPanel Margin="5">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                    <Button Content="Select All" Click="SelectAllMaps_Click" MinWidth="70" Padding="5,2"/>
+                                    <Button Content="Clear" Click="ClearMaps_Click" MinWidth="50" Padding="5,2"/>
+                                </StackPanel>
+                                <ListBox Name="VideoMapsListBox" SelectionMode="Extended" MaxHeight="150"
+                                         SelectionChanged="VideoMapsListBox_SelectionChanged">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="2">
+                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="11"/>
+                                                <TextBlock Text="{Binding Details}" FontSize="9" Foreground="Gray"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Name="VideoMapCountText" Text="0 maps selected"
+                                           FontSize="10" Foreground="Gray" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Profile Naming -->
+                        <GroupBox Name="NamingPanel" Header="Profile Name" Visibility="Collapsed" Padding="5">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Name="ProfilePrefixText" Text="XXX_" VerticalAlignment="Center"/>
+                                    <TextBox Name="ProfileNameBox" Width="120" Text="default"/>
+                                    <TextBlock Text=".xml" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Name="BatchNamingHint"
+                                           Text="(Batch: uses area/facility names)"
+                                           FontSize="10" Foreground="Gray"
+                                           Visibility="Collapsed" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <!-- Generate Buttons -->
+                        <StackPanel Margin="5,15,5,5">
+                            <!-- Single Generate Button -->
+                            <Button Name="GenerateButton" Content="Generate Profile"
+                                    Click="GenerateProfile_Click"
+                                    IsEnabled="False"
+                                    Height="36"
+                                    Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+
+                            <!-- Batch Generate Button (shown when multiple selected) -->
+                            <Button Name="BatchGenerateButton" Content="Generate Profiles"
+                                    Click="BatchGenerateProfiles_Click"
+                                    Visibility="Collapsed"
+                                    Height="36"
+                                    Background="#2196F3" Foreground="White" FontWeight="Bold"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </GroupBox>
+
+            <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="LightGray"/>
+
+            <!-- Right Panel: DGScope Profiles -->
+            <GroupBox Grid.Column="4" Header="DGScope Profiles">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- TreeView for hierarchical display -->
+                    <TreeView Grid.Row="0" Name="FacilitiesTree"
+                              SelectedItemChanged="FacilityTree_SelectionChanged"
+                              MouseDoubleClick="FacilitiesTree_MouseDoubleClick">
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="True"/>
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                        <TreeView.Resources>
+                            <!-- Facility Level Template -->
+                            <HierarchicalDataTemplate DataType="{x:Type models:Facility}" ItemsSource="{Binding Profiles}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
+                                    <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
+                                    <TextBlock Text="{Binding Profiles.Count}" Foreground="Gray" FontSize="11"/>
+                                    <TextBlock Text=" profiles)" Foreground="Gray" FontSize="11"/>
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+
+                            <!-- Profile Level Template -->
+                            <DataTemplate DataType="{x:Type models:DgScopeProfile}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Name}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </TreeView.Resources>
+                    </TreeView>
+
+                    <!-- Profile Actions -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Name="LaunchDGScopeButton" Content="Launch DGScope" Click="LaunchDGScope_Click"
+                                Background="#4CAF50" Foreground="White"/>
+                        <Button Name="EditProfileButton" Content="Edit Profile" Click="EditProfile_Click"/>
+                        <Button Name="DeleteProfileButton" Content="Delete Profile" Click="DeleteProfile_Click"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
         </Grid>
     </DockPanel>
 </Window>
