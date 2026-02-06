@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -811,14 +812,14 @@ public class ProfileGeneratorService
         var homeLocation = root.Element("HomeLocation");
         if (homeLocation != null)
         {
-            SetOrCreateElement(homeLocation, "Latitude", latitude.ToString("F7"));
-            SetOrCreateElement(homeLocation, "Longitude", longitude.ToString("F7"));
+            SetOrCreateElement(homeLocation, "Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture));
+            SetOrCreateElement(homeLocation, "Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture));
         }
         else
         {
             root.Add(new XElement("HomeLocation",
-                new XElement("Latitude", latitude.ToString("F7")),
-                new XElement("Longitude", longitude.ToString("F7"))));
+                new XElement("Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture)),
+                new XElement("Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture))));
         }
     }
 
@@ -837,14 +838,14 @@ public class ProfileGeneratorService
         var screenCenterPoint = currentPrefSet.Element("ScreenCenterPoint");
         if (screenCenterPoint != null)
         {
-            SetOrCreateElement(screenCenterPoint, "Latitude", latitude.ToString("F7"));
-            SetOrCreateElement(screenCenterPoint, "Longitude", longitude.ToString("F7"));
+            SetOrCreateElement(screenCenterPoint, "Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture));
+            SetOrCreateElement(screenCenterPoint, "Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture));
         }
         else
         {
             currentPrefSet.Add(new XElement("ScreenCenterPoint",
-                new XElement("Latitude", latitude.ToString("F7")),
-                new XElement("Longitude", longitude.ToString("F7"))));
+                new XElement("Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture)),
+                new XElement("Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture))));
         }
     }
 
@@ -863,14 +864,14 @@ public class ProfileGeneratorService
         var rangeRingLocation = currentPrefSet.Element("RangeRingLocation");
         if (rangeRingLocation != null)
         {
-            SetOrCreateElement(rangeRingLocation, "Latitude", latitude.ToString("F7"));
-            SetOrCreateElement(rangeRingLocation, "Longitude", longitude.ToString("F7"));
+            SetOrCreateElement(rangeRingLocation, "Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture));
+            SetOrCreateElement(rangeRingLocation, "Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture));
         }
         else
         {
             currentPrefSet.Add(new XElement("RangeRingLocation",
-                new XElement("Latitude", latitude.ToString("F7")),
-                new XElement("Longitude", longitude.ToString("F7"))));
+                new XElement("Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture)),
+                new XElement("Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture))));
         }
     }
 
@@ -930,8 +931,8 @@ public class ProfileGeneratorService
                     new XElement("Name", facilityId),
                     new XElement("Enabled", "true"),
                     new XElement("Location",
-                        new XElement("Latitude", latitude.ToString("F7")),
-                        new XElement("Longitude", longitude.ToString("F7"))),
+                        new XElement("Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture)),
+                        new XElement("Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture))),
                     new XElement("Range", "250"),
                     new XElement("CreateNewAircraft", "true"),
                     new XElement("Url", dstarsUrl)));
@@ -948,8 +949,8 @@ public class ProfileGeneratorService
                 new XElement("Name", facilityId),
                 new XElement("Enabled", "true"),
                 new XElement("Location",
-                    new XElement("Latitude", latitude.ToString("F7")),
-                    new XElement("Longitude", longitude.ToString("F7"))),
+                    new XElement("Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture)),
+                    new XElement("Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture))),
                 new XElement("Range", "250"),
                 new XElement("CreateNewAircraft", "true"),
                 new XElement("Url", dstarsUrl));
@@ -965,14 +966,14 @@ public class ProfileGeneratorService
         var locationElement = scopeServerClient.Element("Location");
         if (locationElement != null)
         {
-            SetOrCreateElement(locationElement, "Latitude", latitude.ToString("F7"));
-            SetOrCreateElement(locationElement, "Longitude", longitude.ToString("F7"));
+            SetOrCreateElement(locationElement, "Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture));
+            SetOrCreateElement(locationElement, "Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture));
         }
         else
         {
             scopeServerClient.Add(new XElement("Location",
-                new XElement("Latitude", latitude.ToString("F7")),
-                new XElement("Longitude", longitude.ToString("F7"))));
+                new XElement("Latitude", latitude.ToString("F7", CultureInfo.InvariantCulture)),
+                new XElement("Longitude", longitude.ToString("F7", CultureInfo.InvariantCulture))));
         }
     }
 
@@ -1078,8 +1079,8 @@ public class ProfileGeneratorService
                     screenCenterPoint = new XElement("ScreenCenterPoint");
                     currentPrefSet.Add(screenCenterPoint);
                 }
-                SetOrCreateElement(screenCenterPoint, "Latitude", prefSet.DisplayCenter.Lat.ToString("F7"));
-                SetOrCreateElement(screenCenterPoint, "Longitude", prefSet.DisplayCenter.Lon.ToString("F7"));
+                SetOrCreateElement(screenCenterPoint, "Latitude", prefSet.DisplayCenter.Lat.ToString("F7", CultureInfo.InvariantCulture));
+                SetOrCreateElement(screenCenterPoint, "Longitude", prefSet.DisplayCenter.Lon.ToString("F7", CultureInfo.InvariantCulture));
             }
 
             // Apply ScopeCentered (inverse of DisplayOffCenter)
@@ -1097,8 +1098,8 @@ public class ProfileGeneratorService
                     rangeRingLocation = new XElement("RangeRingLocation");
                     currentPrefSet.Add(rangeRingLocation);
                 }
-                SetOrCreateElement(rangeRingLocation, "Latitude", prefSet.RangeRingCenter.Lat.ToString("F7"));
-                SetOrCreateElement(rangeRingLocation, "Longitude", prefSet.RangeRingCenter.Lon.ToString("F7"));
+                SetOrCreateElement(rangeRingLocation, "Latitude", prefSet.RangeRingCenter.Lat.ToString("F7", CultureInfo.InvariantCulture));
+                SetOrCreateElement(rangeRingLocation, "Longitude", prefSet.RangeRingCenter.Lon.ToString("F7", CultureInfo.InvariantCulture));
             }
 
             // Apply Leader Direction settings
