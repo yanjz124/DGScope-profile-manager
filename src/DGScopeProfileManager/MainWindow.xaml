@@ -197,7 +197,7 @@
                         <!-- PrefSet Selection (single select only) -->
                         <GroupBox Name="PrefSetPanel" Header="PrefSet (Optional)" Visibility="Collapsed" Padding="5">
                             <StackPanel>
-                                <ComboBox Name="PrefSetComboBox" DisplayMemberPath="Name" Margin="0,0,0,5">
+                                <ComboBox Name="PrefSetComboBox" Margin="0,0,0,5">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
