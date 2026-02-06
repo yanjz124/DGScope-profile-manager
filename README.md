@@ -44,7 +44,7 @@ DGScope Profile Manager automates the creation of DGScope XML profiles by extrac
 
 - **.NET 10.0 Runtime** or later
 - **Windows 10/11** (WPF application)
-- **CRC (vERAM/vSTARS)** installed with ARTCC profiles
+- **CRC** installed with ARTCC profiles
 
 ### Setup
 
