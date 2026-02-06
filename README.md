@@ -14,15 +14,29 @@ DGScope Profile Manager automates the creation of DGScope XML profiles by extrac
 
 ## Features
 
+### Core Features
 - **CRC Profile Import**: Reads ARTCC profiles from `AppData\Local\CRC\ARTCCs`
-- **TRACON Selection**: Choose from available TRACONs, RAPCONs, CERAPs, and RATCFs
-- **Area Selection**: Select specific areas when facilities have multiple radar positions
-- **Custom Profile Names**: Create multiple profiles per facility (e.g., `ACY_main.xml`, `ACY_backup.xml`)
+- **Hierarchical Facility Browser**: Browse ARTCCs → TRACONs → Areas → PrefSets in a tree view
 - **Automatic Configuration**: All facility-specific settings configured automatically from CRC data
 - **Profile Management**: Browse, view, and manage existing DGScope profiles
-- **Direct DGScope Launch**: Launch DGScope directly with selected profile, bypassing file selection dialog
+- **Direct DGScope Launch**: Launch DGScope directly with selected profile
+
+### Batch Generation (v1.3.0)
+- **Multi-Select**: Check multiple facilities or areas using checkboxes in the tree view
+- **Select All**: Quickly select all facilities in an ARTCC or entire regions
+- **Batch Generate**: Generate profiles for all selected items at once with progress tracking
+- **Inline Configuration**: All options visible in a side panel - no dialog windows needed
+
+### Profile Configuration
+- **PrefSet Support**: Apply CRC PrefSet configurations (brightness, range, leader direction, etc.)
+- **Video Maps**: Multi-map support with DCB button assignments
 - **Apply-to-All Defaults**: Set default settings once and apply to all generated profiles
 - **Profile Editor**: Edit existing profiles with live preview
+
+### Quality of Life
+- **Auto-Update**: Automatically checks for updates and offers one-click installation
+- **Locale Support**: Correctly handles decimal separators across different system locales
+- **Auto-Close DGScope**: Option to automatically close DGScope before installing updates
 
 ## Installation
 
@@ -44,28 +58,43 @@ DGScope Profile Manager automates the creation of DGScope XML profiles by extrac
 
 ## Usage
 
-### Generating a New Profile
+### Single Profile Generation
 
-1. **Select ARTCC Profile**: Choose from the available CRC ARTCC profiles (e.g., ZNY, ZDC)
-2. **Select TRACON**: Pick a TRACON/RAPCON facility from the list
-3. **Select Area** (if applicable): If the facility has multiple areas, choose one
-4. **Set Profile Name**: Enter a custom name or use the default facility ID
-5. **Select Video Map**: Choose the video map to use
-6. **Generate**: Profile is created at `{DGScope}\profiles\{ARTCC}\{FacilityID}_{ProfileName}.xml`
+1. **Browse CRC Tree**: Expand the left panel to see ARTCCs → Facilities → Areas → PrefSets
+2. **Select Item**: Check the checkbox next to a single area or facility
+3. **Configure Options**: The center panel shows generation options:
+   - Facility ID override
+   - Auto-select video maps checkbox
+   - PrefSet selection (optional)
+   - Profile name
+4. **Generate**: Click "Generate Profile" - profile is created at `{DGScope}\profiles\{ARTCC}\{FacilityID}_{ProfileName}.xml`
 
-### Using Apply-to-All Defaults
+### Batch Generation
 
-1. Open Settings and configure your preferred default settings
-2. Click "Apply to All" to set as template for all new profiles
-3. Generate new profiles - they will inherit these defaults
-4. Individual profiles can still be edited after creation
+1. **Multi-Select**: Check multiple items in the CRC tree
+   - Check an ARTCC to select all its facilities
+   - Check a facility to select all its areas
+   - Or check individual areas
+2. **Use Batch Menu**: `Batch` menu provides quick selection:
+   - "Select All in Current ARTCC" - selects all facilities in the expanded ARTCC
+   - "Select All Facilities" - selects everything
+   - "Clear All Selections" - deselects everything
+3. **Generate All**: Click "Generate N Profiles" button
+4. **Progress Tracking**: Progress bar shows current item and overall progress
+5. **Cancel**: Click Cancel to stop batch generation (partial results are kept)
 
 ### Launching DGScope
 
-1. **Configure**: Set DGScope.exe path in Settings (one-time setup)
-2. **Select Profile**: Click on any profile in the profile list
-3. **Launch**: Click the green "Launch DGScope" button
-4. DGScope opens directly with the selected profile, skipping file selection
+1. **Select Profile**: Click on any profile in the right panel
+2. **Launch**: Click the green "Launch DGScope" button
+3. DGScope opens directly with the selected profile
+
+### Using Apply-to-All Defaults
+
+1. Open `Tools` → `DGScope Default Settings`
+2. Configure your preferred default settings (brightness, range, leader direction, etc.)
+3. Click "Save" to set as template for all new profiles
+4. Generate new profiles - they will inherit these defaults
 
 ### Editing Profiles
 
@@ -210,9 +239,6 @@ For building releases locally, see [RELEASE_PROCESS.md](RELEASE_PROCESS.md)
 
 See [TODO.md](TODO.md) for planned features:
 
-- Default settings template management
-- Profile backfill from existing configurations
-- Bulk profile generation
 - Profile comparison and merge tools
 - Color picker for visual color selection
 - Profile import/export for backup
@@ -227,7 +253,7 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for:
 
 ## License
 
-[To be determined]
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Credits
 
@@ -240,7 +266,26 @@ For issues, feature requests, or questions:
 
 ## Version History
 
-### v1.0.0 (In Development)
+### v1.3.0
+- **UI Overhaul**: Replaced dialog-based workflow with inline configuration panel
+- **Batch Generation**: Select multiple facilities/areas with checkboxes and generate all at once
+- **Multi-Select TreeView**: Hierarchical selection with cascading (select ARTCC → all children selected)
+- **Progress Tracking**: Real-time progress bar during batch generation with cancel support
+- **Batch Menu**: Quick actions for "Select All in ARTCC", "Select All Facilities", "Clear All"
+- **Locale Fix**: Properly handles decimal separators on European systems (comma vs period)
+
+### v1.2.0
+- **Auto-Update**: Automatic update checking with one-click installation
+- **PrefSets in Tree**: Browse and select PrefSets directly in the facility tree
+- **Auto-Close DGScope**: Option to close DGScope before installing updates
+- **Smart Dialog Skipping**: Skip redundant selection dialogs when only one option exists
+
+### v1.1.0
+- **PrefSet Support**: Apply CRC PrefSet configurations to profiles
+- **Multi-Map Support**: Handle multiple video maps with DCB button assignments
+- **Improved Coordinates**: Better handling of area visibility centers
+
+### v1.0.0
 - Initial release
 - CRC profile import with TRACON/RAPCON/CERAP/RATCF filtering
 - Automatic configuration from CRC data
@@ -250,9 +295,6 @@ For issues, feature requests, or questions:
 - Altimeter station auto-configuration with ICAO prefixes
 - Video map copying with human-readable filenames
 - Profile browsing and management
-- **NEW**: Direct DGScope launch integration - open profiles with one click
-- **NEW**: Apply-to-All defaults - set template settings for all new profiles
-- **NEW**: Unified profile editor with live XML preview
-- **NEW**: Headless testing mode for automated testing
-- Fixed null reference warnings in default settings
-- Improved loading indicators with spinners
+- Direct DGScope launch integration
+- Apply-to-All defaults template
+- Unified profile editor with live XML preview
