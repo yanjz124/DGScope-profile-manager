@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using DGScopeProfileManager.Models;
@@ -89,8 +90,8 @@ public class NexradService
                     continue;
                 }
 
-                if (!double.TryParse(latStr, out var lat) ||
-                    !double.TryParse(lonStr, out var lon) ||
+                if (!double.TryParse(latStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat) ||
+                    !double.TryParse(lonStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon) ||
                     !int.TryParse(elevStr, out var elev))
                 {
                     parseError++;

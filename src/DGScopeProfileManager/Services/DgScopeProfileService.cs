@@ -173,13 +173,13 @@ public class DgScopeProfileService
         if (int.TryParse(root.Element("TargetFrameRate")?.Value ?? "", out int targetFrameRate))
             profile.TargetFrameRate = targetFrameRate;
 
-        // Parse HomeLocation coordinates
+        // Parse HomeLocation coordinates (use InvariantCulture to handle decimal points correctly)
         var homeLocation = root.Element("HomeLocation");
         if (homeLocation != null)
         {
-            if (double.TryParse(homeLocation.Element("Latitude")?.Value ?? "", out double homeLat))
+            if (double.TryParse(homeLocation.Element("Latitude")?.Value ?? "", NumberStyles.Float, CultureInfo.InvariantCulture, out double homeLat))
                 profile.HomeLocationLatitude = homeLat;
-            if (double.TryParse(homeLocation.Element("Longitude")?.Value ?? "", out double homeLon))
+            if (double.TryParse(homeLocation.Element("Longitude")?.Value ?? "", NumberStyles.Float, CultureInfo.InvariantCulture, out double homeLon))
                 profile.HomeLocationLongitude = homeLon;
         }
 

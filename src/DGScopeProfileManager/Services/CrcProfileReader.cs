@@ -1,6 +1,7 @@
-using DGScopeProfileManager.Models;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using DGScopeProfileManager.Models;
 
 namespace DGScopeProfileManager.Services;
 
@@ -519,12 +520,12 @@ public class CrcProfileReader
                     var value = keyValue[1].Trim();
                     
                     if (key.Equals("lat", StringComparison.OrdinalIgnoreCase) &&
-                        double.TryParse(value, out var latVal))
+                        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var latVal))
                     {
                         latitude = latVal;
                     }
                     else if (key.Equals("lon", StringComparison.OrdinalIgnoreCase) &&
-                             double.TryParse(value, out var lonVal))
+                             double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var lonVal))
                     {
                         longitude = lonVal;
                     }

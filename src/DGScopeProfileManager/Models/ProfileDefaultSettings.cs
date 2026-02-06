@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace DGScopeProfileManager.Models;
 
 /// <summary>
@@ -82,9 +84,9 @@ public class ProfileDefaultSettings
             var parts = ScreenCenterPoint.Split(',');
             if (parts.Length == 2)
             {
-                if (double.TryParse(parts[0].Trim(), out var lat))
+                if (double.TryParse(parts[0].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var lat))
                     settings.ScreenCenterPointLatitude = lat;
-                if (double.TryParse(parts[1].Trim(), out var lon))
+                if (double.TryParse(parts[1].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var lon))
                     settings.ScreenCenterPointLongitude = lon;
             }
         }
