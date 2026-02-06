@@ -5,12 +5,19 @@ using System.Runtime.CompilerServices;
 namespace DGScopeProfileManager.Models;
 
 /// <summary>
-/// Base class for selectable tree items with checkbox support
+/// Selectable wrapper for CrcProfile (ARTCC level)
 /// </summary>
-public abstract class SelectableTreeItem : INotifyPropertyChanged
+public class SelectableCrcProfile : INotifyPropertyChanged
 {
     private bool _isSelected;
-    private bool _isExpanded;
+    private bool _isExpanded = true; // ARTCC level expanded by default
+    private bool _updatingFromChildren;
+
+    public CrcProfile Profile { get; }
+    public ObservableCollection<SelectableCrcTracon> Tracons { get; }
+
+    public string ArtccCode => Profile.ArtccCode;
+    public int TraconCount => Tracons.Count;
 
     public bool IsSelected
     {
@@ -21,7 +28,17 @@ public abstract class SelectableTreeItem : INotifyPropertyChanged
             {
                 _isSelected = value;
                 OnPropertyChanged();
-                OnSelectionChanged();
+
+                // Cascade to children (unless we're updating from children)
+                if (!_updatingFromChildren)
+                {
+                    foreach (var tracon in Tracons)
+                    {
+                        tracon.SetSelectionFromParent(value);
+                    }
+                }
+
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -39,31 +56,6 @@ public abstract class SelectableTreeItem : INotifyPropertyChanged
         }
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-    public event EventHandler? SelectionChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected virtual void OnSelectionChanged()
-    {
-        SelectionChanged?.Invoke(this, EventArgs.Empty);
-    }
-}
-
-/// <summary>
-/// Selectable wrapper for CrcProfile (ARTCC level)
-/// </summary>
-public class SelectableCrcProfile : SelectableTreeItem
-{
-    public CrcProfile Profile { get; }
-    public ObservableCollection<SelectableCrcTracon> Tracons { get; }
-
-    public string ArtccCode => Profile.ArtccCode;
-    public int TraconCount => Tracons.Count;
-
     public SelectableCrcProfile(CrcProfile profile)
     {
         Profile = profile;
@@ -75,72 +67,54 @@ public class SelectableCrcProfile : SelectableTreeItem
             selectableTracon.SelectionChanged += OnChildSelectionChanged;
             Tracons.Add(selectableTracon);
         }
-
-        // ARTCC level expanded by default
-        IsExpanded = true;
-    }
-
-    protected override void OnSelectionChanged()
-    {
-        // Cascade selection to all children
-        foreach (var tracon in Tracons)
-        {
-            tracon.SetSelectionWithoutCascade(IsSelected);
-        }
-        base.OnSelectionChanged();
     }
 
     private void OnChildSelectionChanged(object? sender, EventArgs e)
     {
-        // Update parent selection state based on children
-        // Don't trigger cascade back down
-        var allSelected = Tracons.All(t => t.IsSelected);
-        var anySelected = Tracons.Any(t => t.IsSelected || t.HasSelectedChildren);
-
-        if (allSelected)
-            SetSelectionWithoutCascade(true);
-        else if (!anySelected)
-            SetSelectionWithoutCascade(false);
-
-        // Notify parent (MainWindow) of selection change
-        base.OnSelectionChanged();
-    }
-
-    internal void SetSelectionWithoutCascade(bool value)
-    {
-        if (_isSelectedInternal != value)
+        // Update our state based on children without cascading back down
+        _updatingFromChildren = true;
+        try
         {
-            _isSelectedInternal = value;
-            OnPropertyChanged(nameof(IsSelected));
-        }
-    }
+            var allSelected = Tracons.Count > 0 && Tracons.All(t => t.IsSelected);
+            var noneSelected = Tracons.All(t => !t.IsSelected && !t.HasSelectedChildren);
 
-    private bool _isSelectedInternal;
-    public new bool IsSelected
-    {
-        get => _isSelectedInternal;
-        set
-        {
-            if (_isSelectedInternal != value)
+            if (allSelected)
+                IsSelected = true;
+            else if (noneSelected)
+                IsSelected = false;
+            else
             {
-                _isSelectedInternal = value;
-                OnPropertyChanged();
-                OnSelectionChanged();
+                // Partial selection - just notify without changing our state
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
             }
         }
+        finally
+        {
+            _updatingFromChildren = false;
+        }
     }
 
-    /// <summary>
-    /// Check if any descendant is selected
-    /// </summary>
     public bool HasSelectedChildren => Tracons.Any(t => t.IsSelected || t.HasSelectedChildren);
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler? SelectionChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 /// <summary>
 /// Selectable wrapper for CrcTracon (Facility level)
 /// </summary>
-public class SelectableCrcTracon : SelectableTreeItem
+public class SelectableCrcTracon : INotifyPropertyChanged
 {
+    private bool _isSelected;
+    private bool _isExpanded; // Facility level collapsed by default
+    private bool _updatingFromChildren;
+    private bool _updatingFromParent;
+
     public CrcTracon Tracon { get; }
     public SelectableCrcProfile Parent { get; }
     public ObservableCollection<SelectableCrcArea> Areas { get; }
@@ -149,6 +123,43 @@ public class SelectableCrcTracon : SelectableTreeItem
     public string Name => Tracon.Name;
     public string Type => Tracon.Type;
     public int AreaCount => Areas.Count;
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                OnPropertyChanged();
+
+                // Cascade to children (unless we're updating from children or parent)
+                if (!_updatingFromChildren && !_updatingFromParent)
+                {
+                    foreach (var area in Areas)
+                    {
+                        area.SetSelectionFromParent(value);
+                    }
+                }
+
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded != value)
+            {
+                _isExpanded = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public SelectableCrcTracon(CrcTracon tracon, SelectableCrcProfile parent)
     {
@@ -162,71 +173,70 @@ public class SelectableCrcTracon : SelectableTreeItem
             selectableArea.SelectionChanged += OnChildSelectionChanged;
             Areas.Add(selectableArea);
         }
-
-        // Facility level collapsed by default
-        IsExpanded = false;
     }
 
-    protected override void OnSelectionChanged()
+    internal void SetSelectionFromParent(bool value)
     {
-        // Cascade selection to all children
-        foreach (var area in Areas)
+        _updatingFromParent = true;
+        try
         {
-            area.SetSelectionWithoutCascade(IsSelected);
+            IsSelected = value;
+            // Also cascade to children
+            foreach (var area in Areas)
+            {
+                area.SetSelectionFromParent(value);
+            }
         }
-        base.OnSelectionChanged();
+        finally
+        {
+            _updatingFromParent = false;
+        }
     }
 
     private void OnChildSelectionChanged(object? sender, EventArgs e)
     {
-        // Update selection state based on children
-        var allSelected = Areas.Count > 0 && Areas.All(a => a.IsSelected);
-        var anySelected = Areas.Any(a => a.IsSelected);
-
-        if (allSelected)
-            SetSelectionWithoutCascade(true);
-        else if (!anySelected)
-            SetSelectionWithoutCascade(false);
-
-        // Notify parent
-        base.OnSelectionChanged();
-    }
-
-    internal void SetSelectionWithoutCascade(bool value)
-    {
-        if (_isSelectedInternal != value)
+        // Update our state based on children without cascading back down
+        _updatingFromChildren = true;
+        try
         {
-            _isSelectedInternal = value;
-            OnPropertyChanged(nameof(IsSelected));
-        }
-    }
+            var allSelected = Areas.Count > 0 && Areas.All(a => a.IsSelected);
+            var noneSelected = Areas.All(a => !a.IsSelected);
 
-    private bool _isSelectedInternal;
-    public new bool IsSelected
-    {
-        get => _isSelectedInternal;
-        set
-        {
-            if (_isSelectedInternal != value)
+            if (allSelected)
+                IsSelected = true;
+            else if (noneSelected)
+                IsSelected = false;
+            else
             {
-                _isSelectedInternal = value;
-                OnPropertyChanged();
-                OnSelectionChanged();
+                // Partial selection - just notify without changing our state
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
             }
         }
+        finally
+        {
+            _updatingFromChildren = false;
+        }
     }
 
-    /// <summary>
-    /// Check if any child area is selected
-    /// </summary>
     public bool HasSelectedChildren => Areas.Any(a => a.IsSelected);
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler? SelectionChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 /// <summary>
 /// Selectable wrapper for CrcArea (Area/PrefSet level)
 /// </summary>
-public class SelectableCrcArea : SelectableTreeItem
+public class SelectableCrcArea : INotifyPropertyChanged
 {
+    private bool _isSelected;
+    private bool _updatingFromParent;
+
     public CrcArea Area { get; }
     public SelectableCrcTracon Parent { get; }
 
@@ -239,34 +249,49 @@ public class SelectableCrcArea : SelectableTreeItem
     /// </summary>
     public string DisplayName => $"{Parent.Id} - {Name}";
 
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                OnPropertyChanged();
+
+                if (!_updatingFromParent)
+                {
+                    SelectionChanged?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
+    }
+
     public SelectableCrcArea(CrcArea area, SelectableCrcTracon parent)
     {
         Area = area;
         Parent = parent;
     }
 
-    internal void SetSelectionWithoutCascade(bool value)
+    internal void SetSelectionFromParent(bool value)
     {
-        if (_isSelectedInternal != value)
+        _updatingFromParent = true;
+        try
         {
-            _isSelectedInternal = value;
-            OnPropertyChanged(nameof(IsSelected));
+            IsSelected = value;
+        }
+        finally
+        {
+            _updatingFromParent = false;
         }
     }
 
-    private bool _isSelectedInternal;
-    public new bool IsSelected
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public event EventHandler? SelectionChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
-        get => _isSelectedInternal;
-        set
-        {
-            if (_isSelectedInternal != value)
-            {
-                _isSelectedInternal = value;
-                OnPropertyChanged();
-                OnSelectionChanged();
-            }
-        }
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
 
