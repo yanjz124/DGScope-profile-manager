@@ -11,11 +11,11 @@ public partial class TraconSelectionWindow : Window
     public bool AutoSelectVideoMaps { get; private set; }
     public string? FacilityIdOverride { get; private set; }
 
-    public TraconSelectionWindow(CrcProfile profile)
+    public TraconSelectionWindow(CrcProfile profile, CrcTracon? preselectedTracon = null)
     {
         InitializeComponent();
         WindowPositionService.InitializePositionTracking(this, "TraconSelectionWindow");
-        Title = $"Select TRACON to generate - {profile.ArtccCode}";
+        Title = $"Select Facility to generate - {profile.ArtccCode}";
         TraconListBox.ItemsSource = profile.Tracons;
 
         // Auto-fill facility ID when TRACON selection changes
@@ -26,6 +26,12 @@ public partial class TraconSelectionWindow : Window
                 FacilityIdBox.Text = tracon.Id;
             }
         };
+
+        // Preselect the TRACON if specified
+        if (preselectedTracon != null && profile.Tracons.Contains(preselectedTracon))
+        {
+            TraconListBox.SelectedItem = preselectedTracon;
+        }
     }
 
     private void TraconListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)

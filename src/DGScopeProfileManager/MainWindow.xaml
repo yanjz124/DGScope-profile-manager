@@ -60,9 +60,9 @@
             <!-- Main Split View -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" MinWidth="180" MaxWidth="300"/>
+                    <ColumnDefinition Width="*" MinWidth="200"/>
                     <ColumnDefinition Width="5"/>
-                    <ColumnDefinition Width="2.5*"/>
+                    <ColumnDefinition Width="*" MinWidth="200"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Left Panel: CRC Profiles -->
@@ -72,16 +72,34 @@
                             <Button Content="Generate Profile" Click="GenerateProfile_Click" Name="GenerateButton"/>
                         </StackPanel>
 
-                        <ListBox Name="CrcProfilesList"
-                                 SelectionMode="Single"
-                                 SelectionChanged="CrcProfilesList_SelectionChanged"
-                                 MouseDoubleClick="CrcProfilesList_MouseDoubleClick">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding ArtccCode}" FontSize="14" FontWeight="Bold"/>
+                        <TreeView Name="CrcProfilesTree"
+                                  SelectedItemChanged="CrcProfilesTree_SelectionChanged"
+                                  MouseDoubleClick="CrcProfilesTree_MouseDoubleClick">
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="True"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                            <TreeView.Resources>
+                                <!-- ARTCC Level Template -->
+                                <HierarchicalDataTemplate DataType="{x:Type models:CrcProfile}" ItemsSource="{Binding Tracons}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
+                                        <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
+                                        <TextBlock Text="{Binding Tracons.Count}" Foreground="Gray" FontSize="11"/>
+                                        <TextBlock Text=" facilities)" Foreground="Gray" FontSize="11"/>
+                                    </StackPanel>
+                                </HierarchicalDataTemplate>
+
+                                <!-- TRACON Level Template -->
+                                <DataTemplate DataType="{x:Type models:CrcTracon}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Id}" FontWeight="SemiBold" Margin="10,0,5,0"/>
+                                        <TextBlock Text="{Binding Name}" Foreground="Gray" FontSize="11"/>
+                                    </StackPanel>
                                 </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                            </TreeView.Resources>
+                        </TreeView>
                     </DockPanel>
                 </GroupBox>
 

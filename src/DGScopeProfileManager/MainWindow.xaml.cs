@@ -48,7 +48,7 @@ public partial class MainWindow : Window
         }
 
         // Initialize with empty lists
-        CrcProfilesList.ItemsSource = _crcProfiles;
+        CrcProfilesTree.ItemsSource = _crcProfiles;
         FacilitiesTree.ItemsSource = _facilities;
 
         // Disable buttons initially
@@ -114,7 +114,7 @@ public partial class MainWindow : Window
             _facilities.Clear();
             
             // Force UI update
-            CrcProfilesList.ItemsSource = null;
+            CrcProfilesTree.ItemsSource = null;
             FacilitiesTree.ItemsSource = null;
             
             int crcCount = 0;
@@ -157,7 +157,7 @@ public partial class MainWindow : Window
             });
             
             // Refresh UI bindings on UI thread
-            CrcProfilesList.ItemsSource = _crcProfiles;
+            CrcProfilesTree.ItemsSource = _crcProfiles;
             FacilitiesTree.ItemsSource = _facilities;
             
             if (crcCount == 0 && profileCount == 0)
@@ -187,9 +187,10 @@ public partial class MainWindow : Window
         }
     }
     
-    private void CrcProfilesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void CrcProfilesTree_SelectionChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        GenerateButton.IsEnabled = CrcProfilesList.SelectedItem != null;
+        // Enable generate button when an ARTCC or TRACON is selected
+        GenerateButton.IsEnabled = CrcProfilesTree.SelectedItem is CrcProfile or CrcTracon;
     }
     private void RefreshAll_Click(object sender, RoutedEventArgs e)
     {
@@ -253,7 +254,7 @@ public partial class MainWindow : Window
         }
     }
     
-    private void CrcProfilesList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void CrcProfilesTree_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         // Double-click to generate profile
         GenerateProfile_Click(sender, e);
@@ -261,31 +262,46 @@ public partial class MainWindow : Window
 
     private void GenerateProfile_Click(object sender, RoutedEventArgs e)
     {
-        if (CrcProfilesList.SelectedItem is not CrcProfile selectedCrc)
+        // Handle selection from TreeView - can be CrcProfile or CrcTracon
+        CrcProfile? selectedCrc = null;
+        CrcTracon? preselectedTracon = null;
+
+        if (CrcProfilesTree.SelectedItem is CrcProfile crcProfile)
         {
-            MessageBox.Show("Please select an ARTCC profile first.", 
+            selectedCrc = crcProfile;
+        }
+        else if (CrcProfilesTree.SelectedItem is CrcTracon tracon)
+        {
+            // Find the parent CrcProfile that contains this TRACON
+            selectedCrc = _crcProfiles.FirstOrDefault(p => p.Tracons.Contains(tracon));
+            preselectedTracon = tracon;
+        }
+
+        if (selectedCrc == null)
+        {
+            MessageBox.Show("Please select an ARTCC or facility first.",
                 "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        
+
         if (selectedCrc.Tracons.Count == 0)
         {
-            MessageBox.Show($"No TRACONs found in {selectedCrc.ArtccCode} profile.", 
-                "No TRACONs", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show($"No facilities found in {selectedCrc.ArtccCode} profile.",
+                "No Facilities", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
-        
+
         try
         {
             if (string.IsNullOrEmpty(_settings.DgScopeFolderPath))
             {
-                MessageBox.Show("Please configure DGScope folder path in Settings first.", 
+                MessageBox.Show("Please configure DGScope folder path in Settings first.",
                     "Configuration Required", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            
-            // Show TRACON selection window
-            var traconWindow = new TraconSelectionWindow(selectedCrc) { Owner = this };
+
+            // Show TRACON selection window (preselect if user clicked on a specific TRACON)
+            var traconWindow = new TraconSelectionWindow(selectedCrc, preselectedTracon) { Owner = this };
             if (traconWindow.ShowDialog() != true)
                 return;
 
@@ -464,11 +480,6 @@ public partial class MainWindow : Window
                 }
             }
         }
-    }
-    
-    private void CrcProfile_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        GenerateButton.IsEnabled = CrcProfilesList.SelectedItem != null;
     }
     
     private void FacilityTree_SelectionChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
