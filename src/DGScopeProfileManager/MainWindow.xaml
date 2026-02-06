@@ -75,14 +75,20 @@
                         <TreeView Name="CrcProfilesTree"
                                   SelectedItemChanged="CrcProfilesTree_SelectionChanged"
                                   MouseDoubleClick="CrcProfilesTree_MouseDoubleClick">
-                            <TreeView.ItemContainerStyle>
-                                <Style TargetType="TreeViewItem">
+                            <TreeView.Resources>
+                                <!-- Style for ARTCC level items (expanded by default) -->
+                                <Style x:Key="ArtccItemStyle" TargetType="TreeViewItem">
                                     <Setter Property="IsExpanded" Value="True"/>
                                 </Style>
-                            </TreeView.ItemContainerStyle>
-                            <TreeView.Resources>
+
+                                <!-- Style for Facility level items (collapsed by default) -->
+                                <Style x:Key="FacilityItemStyle" TargetType="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="False"/>
+                                </Style>
+
                                 <!-- ARTCC Level Template -->
-                                <HierarchicalDataTemplate DataType="{x:Type models:CrcProfile}" ItemsSource="{Binding Tracons}">
+                                <HierarchicalDataTemplate DataType="{x:Type models:CrcProfile}" ItemsSource="{Binding Tracons}"
+                                                          ItemContainerStyle="{StaticResource FacilityItemStyle}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding ArtccCode}" FontWeight="Bold" FontSize="13"/>
                                         <TextBlock Text=" (" Foreground="Gray" FontSize="11"/>
@@ -91,14 +97,26 @@
                                     </StackPanel>
                                 </HierarchicalDataTemplate>
 
-                                <!-- TRACON Level Template -->
-                                <DataTemplate DataType="{x:Type models:CrcTracon}">
+                                <!-- TRACON/Facility Level Template - now hierarchical with Areas -->
+                                <HierarchicalDataTemplate DataType="{x:Type models:CrcTracon}" ItemsSource="{Binding Areas}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Id}" FontWeight="SemiBold" Margin="10,0,5,0"/>
                                         <TextBlock Text="{Binding Name}" Foreground="Gray" FontSize="11"/>
                                     </StackPanel>
+                                </HierarchicalDataTemplate>
+
+                                <!-- Area/PrefSet Level Template -->
+                                <DataTemplate DataType="{x:Type models:CrcArea}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" Margin="10,0,0,0" FontStyle="Italic"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </TreeView.Resources>
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="IsExpanded" Value="True"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
                         </TreeView>
                     </DockPanel>
                 </GroupBox>

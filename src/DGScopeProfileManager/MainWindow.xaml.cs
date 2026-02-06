@@ -189,8 +189,8 @@ public partial class MainWindow : Window
     
     private void CrcProfilesTree_SelectionChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        // Enable generate button when an ARTCC or TRACON is selected
-        GenerateButton.IsEnabled = CrcProfilesTree.SelectedItem is CrcProfile or CrcTracon;
+        // Enable generate button when an ARTCC, TRACON, or Area is selected
+        GenerateButton.IsEnabled = CrcProfilesTree.SelectedItem is CrcProfile or CrcTracon or CrcArea;
     }
     private void RefreshAll_Click(object sender, RoutedEventArgs e)
     {
@@ -262,9 +262,12 @@ public partial class MainWindow : Window
 
     private void GenerateProfile_Click(object sender, RoutedEventArgs e)
     {
-        // Handle selection from TreeView - can be CrcProfile or CrcTracon
+        // Handle selection from TreeView - can be CrcProfile, CrcTracon, or CrcArea
         CrcProfile? selectedCrc = null;
         CrcTracon? preselectedTracon = null;
+        CrcArea? preselectedArea = null;
+        bool skipTraconDialog = false;
+        bool skipAreaDialog = false;
 
         if (CrcProfilesTree.SelectedItem is CrcProfile crcProfile)
         {
@@ -275,11 +278,29 @@ public partial class MainWindow : Window
             // Find the parent CrcProfile that contains this TRACON
             selectedCrc = _crcProfiles.FirstOrDefault(p => p.Tracons.Contains(tracon));
             preselectedTracon = tracon;
+            skipTraconDialog = true; // Skip TRACON selection since user already selected one
+        }
+        else if (CrcProfilesTree.SelectedItem is CrcArea area)
+        {
+            // Find the parent TRACON and CrcProfile that contains this Area
+            foreach (var profile in _crcProfiles)
+            {
+                var parentTracon = profile.Tracons.FirstOrDefault(t => t.Areas.Contains(area));
+                if (parentTracon != null)
+                {
+                    selectedCrc = profile;
+                    preselectedTracon = parentTracon;
+                    preselectedArea = area;
+                    skipTraconDialog = true;
+                    skipAreaDialog = true; // Skip both dialogs since user selected a specific area
+                    break;
+                }
+            }
         }
 
         if (selectedCrc == null)
         {
-            MessageBox.Show("Please select an ARTCC or facility first.",
+            MessageBox.Show("Please select an ARTCC, facility, or area first.",
                 "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -300,39 +321,61 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // Show TRACON selection window (preselect if user clicked on a specific TRACON)
-            var traconWindow = new TraconSelectionWindow(selectedCrc, preselectedTracon) { Owner = this };
-            if (traconWindow.ShowDialog() != true)
-                return;
+            CrcTracon? selectedTracon;
+            bool autoSelectVideoMaps = false;
+            string? facilityIdOverride = null;
 
-            var selectedTracon = traconWindow.SelectedTracon;
-            if (selectedTracon == null)
-                return;
-
-            // Capture auto-configuration flags
-            bool autoSelectVideoMaps = traconWindow.AutoSelectVideoMaps;
-            string? facilityIdOverride = traconWindow.FacilityIdOverride;
-
-            // If TRACON has multiple areas, show area selection window
-            CrcArea? selectedArea = null;
-            if (selectedTracon.Areas.Count > 1)
+            if (skipTraconDialog && preselectedTracon != null)
             {
-                var areaWindow = new AreaSelectionWindow(selectedTracon.Areas) { Owner = this };
-                if (areaWindow.ShowDialog() != true)
+                // Use the preselected TRACON directly
+                selectedTracon = preselectedTracon;
+                autoSelectVideoMaps = true; // Auto-select video maps when skipping dialogs
+            }
+            else
+            {
+                // Show TRACON selection window (preselect if user clicked on a specific TRACON)
+                var traconWindow = new TraconSelectionWindow(selectedCrc, preselectedTracon) { Owner = this };
+                if (traconWindow.ShowDialog() != true)
                     return;
 
-                if (areaWindow.SelectedArea != null)
-                {
-                    selectedArea = areaWindow.SelectedArea;
-                }
-                else
-                {
+                selectedTracon = traconWindow.SelectedTracon;
+                if (selectedTracon == null)
                     return;
+
+                // Capture auto-configuration flags
+                autoSelectVideoMaps = traconWindow.AutoSelectVideoMaps;
+                facilityIdOverride = traconWindow.FacilityIdOverride;
+            }
+
+            // If TRACON has multiple areas, show area selection window (unless we already have a preselected area)
+            CrcArea? selectedArea = preselectedArea;
+
+            if (!skipAreaDialog && selectedArea == null)
+            {
+                if (selectedTracon.Areas.Count > 1)
+                {
+                    var areaWindow = new AreaSelectionWindow(selectedTracon.Areas) { Owner = this };
+                    if (areaWindow.ShowDialog() != true)
+                        return;
+
+                    if (areaWindow.SelectedArea != null)
+                    {
+                        selectedArea = areaWindow.SelectedArea;
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
+                else if (selectedTracon.Areas.Count == 1)
+                {
+                    // Only one area, use it automatically
+                    selectedArea = selectedTracon.Areas[0];
                 }
             }
-            else if (selectedTracon.Areas.Count == 1)
+            else if (selectedArea == null && selectedTracon.Areas.Count == 1)
             {
-                // Only one area, use it automatically
+                // Even when skipping dialogs, if there's only one area, use it
                 selectedArea = selectedTracon.Areas[0];
             }
 
