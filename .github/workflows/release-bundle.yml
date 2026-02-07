@@ -124,52 +124,6 @@ jobs:
           Write-Host "README.md created"
         shell: pwsh
 
-      - name: Create ZIP Distributions
-        run: |
-          $releaseVersion = "${{ github.event.inputs.release_version }}"
-          if (-not $releaseVersion) {
-            # Extract version from git tag (e.g., "v1.2.2" -> "1.2.2")
-            $tagRef = "${{ github.ref }}"
-            if ($tagRef -match "refs/tags/v(.+)") {
-              $releaseVersion = $matches[1]
-            } else {
-              $releaseVersion = "1.0.0"
-            }
-          }
-          Write-Host "Using release version: $releaseVersion"
-
-          # 1. Create Bundle ZIP (ProfileManager + DGScope + profiles folder)
-          Write-Host "Creating Bundle ZIP..."
-          New-Item -ItemType Directory -Path "release-temp-bundle" -Force | Out-Null
-          New-Item -ItemType Directory -Path "release-temp-bundle/DGScope-Profile-Manager" -Force | Out-Null
-
-          Copy-Item publish/* -Destination "release-temp-bundle/DGScope-Profile-Manager" -Recurse -Force
-
-          $bundleZipName = "DGScope-Profile-Manager-v$releaseVersion-bundle.zip"
-          Compress-Archive -Path "release-temp-bundle/DGScope-Profile-Manager" -DestinationPath $bundleZipName -Force
-          Write-Host "Created $bundleZipName"
-
-          # 2. Create ProfileManager-Only ZIP (just ProfileManager folder + fonts)
-          Write-Host "Creating ProfileManager-Only ZIP..."
-          New-Item -ItemType Directory -Path "release-temp-pm" -Force | Out-Null
-          New-Item -ItemType Directory -Path "release-temp-pm/DGScope-Profile-Manager" -Force | Out-Null
-
-          Copy-Item publish/ProfileManager -Destination "release-temp-pm/DGScope-Profile-Manager/ProfileManager" -Recurse -Force
-          if (Test-Path "publish/fonts") {
-            Copy-Item publish/fonts -Destination "release-temp-pm/DGScope-Profile-Manager/fonts" -Recurse -Force
-            Write-Host "Included fonts in ProfileManager-Only ZIP"
-          }
-
-          $pmZipName = "DGScope-Profile-Manager-v$releaseVersion.zip"
-          Compress-Archive -Path "release-temp-pm/DGScope-Profile-Manager" -DestinationPath $pmZipName -Force
-          Write-Host "Created $pmZipName"
-
-          # Cleanup
-          Remove-Item release-temp-bundle -Recurse -Force
-          Remove-Item release-temp-pm -Recurse -Force
-        shell: pwsh
-        id: create_zip
-
       - name: Setup NSIS
         run: |
           Write-Host "Installing NSIS using winget..."
@@ -232,17 +186,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DGScope-Profile-Manager-Bundle
-          path: |
-            DGScope-Profile-Manager-*.zip
-            DGScope-Profile-Manager-*-Setup.exe
+          path: DGScope-Profile-Manager-*-Setup.exe
           retention-days: 90
 
       - name: Upload Release Assets
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            DGScope-Profile-Manager-*.zip
-            DGScope-Profile-Manager-*-Setup.exe
+          files: DGScope-Profile-Manager-*-Setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
