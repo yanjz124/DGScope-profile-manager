@@ -135,7 +135,8 @@ public class BatchGenerationService
             profileName,
             options.DefaultSettings,
             item.PrefSet,
-            item.FacilityIdOverride);
+            item.FacilityIdOverride,
+            options.ImportAtpaVolumes);
     }
 }
 
@@ -169,6 +170,7 @@ public class BatchGenerationOptions
     public string? CrcVideoMapFolder { get; set; }
     public ProfileDefaultSettings? DefaultSettings { get; set; }
     public bool AutoSelectVideoMaps { get; set; } = true;
+    public bool ImportAtpaVolumes { get; set; } = true;
 }
 
 /// <summary>

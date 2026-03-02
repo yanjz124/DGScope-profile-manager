@@ -191,6 +191,11 @@
                                 <CheckBox Name="AutoSelectVideoMapsCheck"
                                           Content="Auto-select all video maps"
                                           IsChecked="True" Margin="0,0,0,5"/>
+
+                                <!-- Import ATPA volumes from VNAS -->
+                                <CheckBox Name="ImportAtpaVolumesCheck"
+                                          Content="Import ATPA volumes"
+                                          IsChecked="True" Margin="0,0,0,5"/>
                             </StackPanel>
                         </GroupBox>
 
@@ -317,6 +322,8 @@
                                 Background="#4CAF50" Foreground="White"/>
                         <Button Name="EditProfileButton" Content="Edit Profile" Click="EditProfile_Click"/>
                         <Button Name="DeleteProfileButton" Content="Delete Profile" Click="DeleteProfile_Click"/>
+                        <Button Name="ImportAtpaButton" Content="Import ATPA" Click="ImportAtpa_Click"
+                                ToolTip="Import ATPA volumes from VNAS. Select a facility to update all profiles, or a single profile."/>
                     </StackPanel>
                 </Grid>
             </GroupBox>

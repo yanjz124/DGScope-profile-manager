@@ -14,10 +14,12 @@ namespace DGScopeProfileManager.Services;
 public class ProfileGeneratorService
 {
     private readonly NexradService _nexradService;
+    private readonly VnasApiService _vnasApiService;
 
     public ProfileGeneratorService()
     {
         _nexradService = new NexradService();
+        _vnasApiService = new VnasApiService();
 
         // Load NEXRAD stations from file
         var nexradPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "nexrad-stations.txt");
@@ -486,7 +488,8 @@ public class ProfileGeneratorService
         string? customProfileName = null,
         ProfileDefaultSettings? defaultSettings = null,
         CrcPrefSet? crcPrefSet = null,
-        string? facilityIdOverride = null)
+        string? facilityIdOverride = null,
+        bool importAtpaVolumes = true)
     {
         if (selectedVideoMaps == null || selectedVideoMaps.Count == 0)
         {
@@ -605,6 +608,28 @@ public class ProfileGeneratorService
             {
                 ApplyCrcPrefSetSettings(root, crcPrefSet);
                 System.Diagnostics.Debug.WriteLine($"Applied CRC PrefSet: {crcPrefSet.Name}");
+            }
+
+            // 8. Import ATPA volumes from VNAS API (if enabled)
+            if (importAtpaVolumes)
+            {
+                try
+                {
+                    var atpaVolumes = _vnasApiService.FetchAtpaVolumesAsync(crcProfile.ArtccCode).GetAwaiter().GetResult();
+                    if (atpaVolumes.Count > 0)
+                    {
+                        ApplyAtpaVolumes(root, atpaVolumes);
+                        System.Diagnostics.Debug.WriteLine($"✓ Imported {atpaVolumes.Count} ATPA volumes from VNAS for {crcProfile.ArtccCode}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"No ATPA volumes found in VNAS for {crcProfile.ArtccCode}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠ ATPA volume import failed (non-fatal): {ex.Message}");
+                }
             }
 
             // Save the generated profile
@@ -1185,6 +1210,85 @@ public class ProfileGeneratorService
         {
             System.Diagnostics.Debug.WriteLine($"✗ Error applying CRC PrefSet settings: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Apply ATPA volumes fetched from the VNAS API to the DGScope profile XML.
+    /// Populates the ATPAVolumes element with volume definitions including
+    /// runway thresholds, dimensions, scratchpad filters, and 2.5nm approach settings.
+    /// </summary>
+    private void ApplyAtpaVolumes(XElement root, List<VnasAtpaVolume> volumes)
+    {
+        var atpaVolumesElement = root.Element("ATPAVolumes");
+        if (atpaVolumesElement == null)
+        {
+            // Insert after ATPASeparationTable if it exists, otherwise add at end
+            var separationTable = root.Element("ATPASeparationTable");
+            atpaVolumesElement = new XElement("ATPAVolumes");
+            if (separationTable != null)
+            {
+                separationTable.AddAfterSelf(atpaVolumesElement);
+            }
+            else
+            {
+                root.Add(atpaVolumesElement);
+            }
+        }
+        else
+        {
+            atpaVolumesElement.RemoveAll();
+        }
+
+        foreach (var vol in volumes)
+        {
+            var volumeElement = new XElement("ATPAVolume",
+                new XElement("VolumeId", vol.VolumeId),
+                new XElement("Name", vol.Name),
+                new XElement("Active", "false"),
+                new XElement("Draw", "false"),
+                new XElement("RunwayThreshold",
+                    new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
+                    new XElement("Longitude", vol.ThresholdLongitude.ToString(CultureInfo.InvariantCulture))
+                ),
+                new XElement("TrueHeading", vol.MagneticHeading),
+                new XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
+                new XElement("Ceiling", vol.Ceiling),
+                new XElement("Floor", vol.Floor),
+                new XElement("Length", vol.Length.ToString(CultureInfo.InvariantCulture)),
+                new XElement("WidthLeft", vol.WidthLeft),
+                new XElement("WidthRight", vol.WidthRight),
+                new XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
+                new XElement("TwoPointFiveActive", "false"),
+                new XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(CultureInfo.InvariantCulture)),
+                new XElement("Destination", vol.AirportId),
+                new XElement("LeaderFilters"),
+                BuildScratchpadFilters(vol.Scratchpads),
+                new XElement("TcpDisplay"),
+                new XElement("TcpExclusion")
+            );
+
+            atpaVolumesElement.Add(volumeElement);
+        }
+    }
+
+    /// <summary>
+    /// Build the ScratchpadFilters XML element from VNAS scratchpad filter data.
+    /// Maps VNAS number names ("One"→1) and types ("Exclude"→"Exclusion").
+    /// </summary>
+    private static XElement BuildScratchpadFilters(List<VnasScratchpadFilter> scratchpads)
+    {
+        var element = new XElement("ScratchpadFilters");
+
+        foreach (var sp in scratchpads)
+        {
+            element.Add(new XElement("ScratchpadFilter",
+                new XElement("ScratchpadValue", sp.Entry),
+                new XElement("ScratchpadNum", sp.ScratchpadNumber),
+                new XElement("ScratchpadFilterType", sp.FilterType)
+            ));
+        }
+
+        return element;
     }
 
 }

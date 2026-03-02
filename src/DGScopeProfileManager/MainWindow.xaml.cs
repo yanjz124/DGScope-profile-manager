@@ -512,7 +512,8 @@ public partial class MainWindow : Window
                 profileName,
                 _settings.DefaultSettings,
                 prefSet,
-                facilityIdOverride);
+                facilityIdOverride,
+                ImportAtpaVolumesCheck.IsChecked == true);
 
             if (profile != null)
             {
@@ -578,7 +579,8 @@ public partial class MainWindow : Window
             AutoSelectVideoMaps = AutoSelectVideoMapsCheck.IsChecked == true,
             DefaultSettings = _settings.DefaultSettings,
             OutputDirectory = Path.Combine(_settings.DgScopeFolderPath, "profiles"),
-            CrcVideoMapFolder = _settings.CrcVideoMapFolderPath
+            CrcVideoMapFolder = _settings.CrcVideoMapFolderPath,
+            ImportAtpaVolumes = ImportAtpaVolumesCheck.IsChecked == true
         };
 
         try
@@ -798,6 +800,142 @@ public partial class MainWindow : Window
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Import ATPA volumes from VNAS API into existing profiles.
+    /// Select a facility node to update all profiles under it, or a single profile.
+    /// </summary>
+    private async void ImportAtpa_Click(object sender, RoutedEventArgs e)
+    {
+        // Determine target profiles and ARTCC code
+        List<DgScopeProfile> targetProfiles;
+        string artccCode;
+
+        if (FacilitiesTree.SelectedItem is Facility facility)
+        {
+            targetProfiles = facility.Profiles;
+            artccCode = facility.ArtccCode;
+        }
+        else if (FacilitiesTree.SelectedItem is DgScopeProfile profile)
+        {
+            var parentFacility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
+            if (parentFacility == null)
+            {
+                MessageBox.Show("Cannot determine ARTCC for this profile.", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            targetProfiles = new List<DgScopeProfile> { profile };
+            artccCode = parentFacility.ArtccCode;
+        }
+        else
+        {
+            MessageBox.Show("Select a facility or profile first.", "No Selection",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (targetProfiles.Count == 0) return;
+
+        try
+        {
+            UpdateStatus($"Fetching ATPA volumes for {artccCode}...");
+
+            var vnasService = new VnasApiService();
+            var volumes = await vnasService.FetchAtpaVolumesAsync(artccCode);
+
+            if (volumes.Count == 0)
+            {
+                MessageBox.Show($"No ATPA volumes found for {artccCode} on the VNAS API.",
+                    "No Volumes", MessageBoxButton.OK, MessageBoxImage.Information);
+                UpdateStatus("Ready.");
+                return;
+            }
+
+            // Build the ATPAVolumes XML once, reuse for all profiles
+            var generator = new ProfileGeneratorService();
+            int updated = 0;
+
+            foreach (var prof in targetProfiles)
+            {
+                try
+                {
+                    var doc = System.Xml.Linq.XDocument.Load(prof.FilePath);
+                    var root = doc.Root;
+                    if (root == null) continue;
+
+                    var atpaEl = root.Element("ATPAVolumes");
+                    if (atpaEl == null)
+                    {
+                        var sep = root.Element("ATPASeparationTable");
+                        atpaEl = new System.Xml.Linq.XElement("ATPAVolumes");
+                        if (sep != null) sep.AddAfterSelf(atpaEl);
+                        else root.Add(atpaEl);
+                    }
+                    else
+                    {
+                        atpaEl.RemoveAll();
+                    }
+
+                    foreach (var vol in volumes)
+                    {
+                        var spFilters = new System.Xml.Linq.XElement("ScratchpadFilters");
+                        foreach (var sp in vol.Scratchpads)
+                        {
+                            spFilters.Add(new System.Xml.Linq.XElement("ScratchpadFilter",
+                                new System.Xml.Linq.XElement("ScratchpadValue", sp.Entry),
+                                new System.Xml.Linq.XElement("ScratchpadNum", sp.ScratchpadNumber),
+                                new System.Xml.Linq.XElement("ScratchpadFilterType", sp.FilterType)
+                            ));
+                        }
+
+                        atpaEl.Add(new System.Xml.Linq.XElement("ATPAVolume",
+                            new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
+                            new System.Xml.Linq.XElement("Name", vol.Name),
+                            new System.Xml.Linq.XElement("Active", "false"),
+                            new System.Xml.Linq.XElement("Draw", "false"),
+                            new System.Xml.Linq.XElement("RunwayThreshold",
+                                new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                                new System.Xml.Linq.XElement("Longitude", vol.ThresholdLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                            ),
+                            new System.Xml.Linq.XElement("TrueHeading", vol.MagneticHeading),
+                            new System.Xml.Linq.XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
+                            new System.Xml.Linq.XElement("Ceiling", vol.Ceiling),
+                            new System.Xml.Linq.XElement("Floor", vol.Floor),
+                            new System.Xml.Linq.XElement("Length", vol.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                            new System.Xml.Linq.XElement("WidthLeft", vol.WidthLeft),
+                            new System.Xml.Linq.XElement("WidthRight", vol.WidthRight),
+                            new System.Xml.Linq.XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
+                            new System.Xml.Linq.XElement("TwoPointFiveActive", "false"),
+                            new System.Xml.Linq.XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                            new System.Xml.Linq.XElement("Destination", vol.AirportId),
+                            new System.Xml.Linq.XElement("LeaderFilters"),
+                            spFilters,
+                            new System.Xml.Linq.XElement("TcpDisplay"),
+                            new System.Xml.Linq.XElement("TcpExclusion")
+                        ));
+                    }
+
+                    doc.Save(prof.FilePath);
+                    updated++;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to update ATPA for {prof.Name}: {ex.Message}");
+                }
+            }
+
+            UpdateStatus($"Imported {volumes.Count} ATPA volumes into {updated} profile(s) for {artccCode}");
+            MessageBox.Show($"Imported {volumes.Count} ATPA volumes into {updated} profile(s).\nAll other settings were preserved.",
+                "ATPA Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error importing ATPA volumes: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            UpdateStatus("Ready.");
         }
     }
 

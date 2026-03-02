@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Windows;
+using System.Xml.Linq;
 using DGScopeProfileManager.Models;
 using DGScopeProfileManager.Services;
 
@@ -19,7 +21,7 @@ public partial class ProfileEditorWindow : Window
 
         LoadProfileData();
     }
-    
+
     private void LoadProfileData()
     {
         ProfileNameText.Text = _profile.Name;
@@ -40,6 +42,181 @@ public partial class ProfileEditorWindow : Window
         HomeLatitude.Text = _profile.AllSettings.GetValueOrDefault("HomeLatitude", "");
         HomeLongitude.Text = _profile.AllSettings.GetValueOrDefault("HomeLongitude", "");
         AltimeterStations.Text = _profile.AllSettings.GetValueOrDefault("AltimeterStations", "");
+
+        // Load ATPA info from profile XML
+        LoadAtpaInfo();
+    }
+
+    /// <summary>
+    /// Read ATPA volume info from the profile XML and populate the UI
+    /// </summary>
+    private void LoadAtpaInfo()
+    {
+        try
+        {
+            var doc = XDocument.Load(_profile.FilePath);
+            var root = doc.Root;
+            if (root == null) return;
+
+            // ATPA Active status
+            var atpaActive = root.Element("ATPAActive")?.Value ?? "false";
+            AtpaActiveText.Text = atpaActive;
+
+            // Count and list ATPA volumes
+            var atpaVolumes = root.Element("ATPAVolumes");
+            var volumeElements = atpaVolumes?.Elements("ATPAVolume").ToList() ?? new();
+
+            AtpaVolumeCountText.Text = volumeElements.Count.ToString();
+
+            AtpaVolumeList.Items.Clear();
+            foreach (var vol in volumeElements)
+            {
+                var volumeId = vol.Element("VolumeId")?.Value ?? "?";
+                var name = vol.Element("Name")?.Value ?? "";
+                var destination = vol.Element("Destination")?.Value ?? "";
+                AtpaVolumeList.Items.Add($"{volumeId} - {name} ({destination})");
+            }
+        }
+        catch (Exception ex)
+        {
+            AtpaActiveText.Text = "Error";
+            AtpaVolumeCountText.Text = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// Import ATPA volumes from VNAS API into the profile XML.
+    /// Only modifies the ATPAVolumes element — all other profile settings are preserved.
+    /// </summary>
+    private async void ImportAtpaVolumes_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var artccCode = _facility.ArtccCode;
+            if (string.IsNullOrWhiteSpace(artccCode))
+            {
+                MessageBox.Show("Cannot determine ARTCC code for this profile.",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var vnasService = new VnasApiService();
+            var volumes = await vnasService.FetchAtpaVolumesAsync(artccCode);
+
+            if (volumes.Count == 0)
+            {
+                MessageBox.Show($"No ATPA volumes found for {artccCode} on the VNAS API.",
+                    "No Volumes", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Load existing profile XML and update only ATPAVolumes
+            var doc = XDocument.Load(_profile.FilePath);
+            var root = doc.Root;
+            if (root == null) return;
+
+            var atpaVolumesElement = root.Element("ATPAVolumes");
+            if (atpaVolumesElement == null)
+            {
+                var separationTable = root.Element("ATPASeparationTable");
+                atpaVolumesElement = new XElement("ATPAVolumes");
+                if (separationTable != null)
+                    separationTable.AddAfterSelf(atpaVolumesElement);
+                else
+                    root.Add(atpaVolumesElement);
+            }
+            else
+            {
+                atpaVolumesElement.RemoveAll();
+            }
+
+            foreach (var vol in volumes)
+            {
+                var scratchpadFilters = new XElement("ScratchpadFilters");
+                foreach (var sp in vol.Scratchpads)
+                {
+                    scratchpadFilters.Add(new XElement("ScratchpadFilter",
+                        new XElement("ScratchpadValue", sp.Entry),
+                        new XElement("ScratchpadNum", sp.ScratchpadNumber),
+                        new XElement("ScratchpadFilterType", sp.FilterType)
+                    ));
+                }
+
+                atpaVolumesElement.Add(new XElement("ATPAVolume",
+                    new XElement("VolumeId", vol.VolumeId),
+                    new XElement("Name", vol.Name),
+                    new XElement("Active", "false"),
+                    new XElement("Draw", "false"),
+                    new XElement("RunwayThreshold",
+                        new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
+                        new XElement("Longitude", vol.ThresholdLongitude.ToString(CultureInfo.InvariantCulture))
+                    ),
+                    new XElement("TrueHeading", vol.MagneticHeading),
+                    new XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
+                    new XElement("Ceiling", vol.Ceiling),
+                    new XElement("Floor", vol.Floor),
+                    new XElement("Length", vol.Length.ToString(CultureInfo.InvariantCulture)),
+                    new XElement("WidthLeft", vol.WidthLeft),
+                    new XElement("WidthRight", vol.WidthRight),
+                    new XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
+                    new XElement("TwoPointFiveActive", "false"),
+                    new XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(CultureInfo.InvariantCulture)),
+                    new XElement("Destination", vol.AirportId),
+                    new XElement("LeaderFilters"),
+                    scratchpadFilters,
+                    new XElement("TcpDisplay"),
+                    new XElement("TcpExclusion")
+                ));
+            }
+
+            doc.Save(_profile.FilePath);
+
+            // Refresh the display
+            LoadAtpaInfo();
+
+            MessageBox.Show($"Imported {volumes.Count} ATPA volumes from VNAS for {artccCode}.\nAll other profile settings were preserved.",
+                "ATPA Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error importing ATPA volumes: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Clear all ATPA volumes from the profile XML
+    /// </summary>
+    private void ClearAtpaVolumes_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show("Remove all ATPA volumes from this profile?",
+            "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var doc = XDocument.Load(_profile.FilePath);
+            var root = doc.Root;
+            if (root == null) return;
+
+            var atpaVolumes = root.Element("ATPAVolumes");
+            if (atpaVolumes != null)
+            {
+                atpaVolumes.RemoveAll();
+            }
+
+            doc.Save(_profile.FilePath);
+            LoadAtpaInfo();
+
+            MessageBox.Show("ATPA volumes cleared.", "Done",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error clearing ATPA volumes: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void DetailedMode_Changed(object sender, RoutedEventArgs e)
@@ -49,7 +226,7 @@ public partial class ProfileEditorWindow : Window
         LocationSettingsPanel.Visibility = isDetailed ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         OtherSettingsPanel.Visibility = isDetailed ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
     }
-    
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         try
