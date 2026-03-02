@@ -150,8 +150,9 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="ATPA Active:" Margin="5"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Name="AtpaActiveText" Margin="5"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="ATPA Active:" Margin="5" VerticalAlignment="Center"/>
+                            <CheckBox Grid.Row="0" Grid.Column="1" Name="AtpaActiveCheckBox" Margin="5"
+                                      Content="Enabled" Checked="AtpaActive_Changed" Unchecked="AtpaActive_Changed"/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Volumes Loaded:" Margin="5"/>
                             <TextBlock Grid.Row="1" Grid.Column="1" Name="AtpaVolumeCountText" Margin="5"/>

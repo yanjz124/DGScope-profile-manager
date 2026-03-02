@@ -1219,6 +1219,13 @@ public class ProfileGeneratorService
     /// </summary>
     private void ApplyAtpaVolumes(XElement root, List<VnasAtpaVolume> volumes)
     {
+        // Enable ATPA globally
+        var atpaActiveEl = root.Element("ATPAActive");
+        if (atpaActiveEl != null)
+            atpaActiveEl.Value = "true";
+        else
+            root.Add(new XElement("ATPAActive", "true"));
+
         var atpaVolumesElement = root.Element("ATPAVolumes");
         if (atpaVolumesElement == null)
         {
@@ -1244,7 +1251,7 @@ public class ProfileGeneratorService
             var volumeElement = new XElement("ATPAVolume",
                 new XElement("VolumeId", vol.VolumeId),
                 new XElement("Name", vol.Name),
-                new XElement("Active", "false"),
+                new XElement("Active", "true"),
                 new XElement("Draw", "false"),
                 new XElement("RunwayThreshold",
                     new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),

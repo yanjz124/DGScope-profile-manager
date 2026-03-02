@@ -866,6 +866,13 @@ public partial class MainWindow : Window
                     var root = doc.Root;
                     if (root == null) continue;
 
+                    // Enable ATPA globally
+                    var atpaActiveEl = root.Element("ATPAActive");
+                    if (atpaActiveEl != null)
+                        atpaActiveEl.Value = "true";
+                    else
+                        root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
+
                     var atpaEl = root.Element("ATPAVolumes");
                     if (atpaEl == null)
                     {
@@ -894,7 +901,7 @@ public partial class MainWindow : Window
                         atpaEl.Add(new System.Xml.Linq.XElement("ATPAVolume",
                             new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
                             new System.Xml.Linq.XElement("Name", vol.Name),
-                            new System.Xml.Linq.XElement("Active", "false"),
+                            new System.Xml.Linq.XElement("Active", "true"),
                             new System.Xml.Linq.XElement("Draw", "false"),
                             new System.Xml.Linq.XElement("RunwayThreshold",
                                 new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
@@ -936,6 +943,27 @@ public partial class MainWindow : Window
             MessageBox.Show($"Error importing ATPA volumes: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             UpdateStatus("Ready.");
+        }
+    }
+
+    private void ExpandAllFacilities_Click(object sender, RoutedEventArgs e)
+    {
+        SetFacilitiesTreeExpansion(true);
+    }
+
+    private void CollapseAllFacilities_Click(object sender, RoutedEventArgs e)
+    {
+        SetFacilitiesTreeExpansion(false);
+    }
+
+    private void SetFacilitiesTreeExpansion(bool expand)
+    {
+        foreach (var item in FacilitiesTree.Items)
+        {
+            if (FacilitiesTree.ItemContainerGenerator.ContainerFromItem(item) is TreeViewItem treeViewItem)
+            {
+                treeViewItem.IsExpanded = expand;
+            }
         }
     }
 

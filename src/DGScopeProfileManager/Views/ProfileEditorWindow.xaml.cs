@@ -60,7 +60,7 @@ public partial class ProfileEditorWindow : Window
 
             // ATPA Active status
             var atpaActive = root.Element("ATPAActive")?.Value ?? "false";
-            AtpaActiveText.Text = atpaActive;
+            AtpaActiveCheckBox.IsChecked = atpaActive.Equals("true", StringComparison.OrdinalIgnoreCase);
 
             // Count and list ATPA volumes
             var atpaVolumes = root.Element("ATPAVolumes");
@@ -79,7 +79,7 @@ public partial class ProfileEditorWindow : Window
         }
         catch (Exception ex)
         {
-            AtpaActiveText.Text = "Error";
+            AtpaActiveCheckBox.IsChecked = false;
             AtpaVolumeCountText.Text = ex.Message;
         }
     }
@@ -115,6 +115,13 @@ public partial class ProfileEditorWindow : Window
             var root = doc.Root;
             if (root == null) return;
 
+            // Enable ATPA globally
+            var atpaActiveEl = root.Element("ATPAActive");
+            if (atpaActiveEl != null)
+                atpaActiveEl.Value = "true";
+            else
+                root.Add(new XElement("ATPAActive", "true"));
+
             var atpaVolumesElement = root.Element("ATPAVolumes");
             if (atpaVolumesElement == null)
             {
@@ -145,7 +152,7 @@ public partial class ProfileEditorWindow : Window
                 atpaVolumesElement.Add(new XElement("ATPAVolume",
                     new XElement("VolumeId", vol.VolumeId),
                     new XElement("Name", vol.Name),
-                    new XElement("Active", "false"),
+                    new XElement("Active", "true"),
                     new XElement("Draw", "false"),
                     new XElement("RunwayThreshold",
                         new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
@@ -215,6 +222,30 @@ public partial class ProfileEditorWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Error clearing ATPA volumes: {ex.Message}",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void AtpaActive_Changed(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var doc = XDocument.Load(_profile.FilePath);
+            var root = doc.Root;
+            if (root == null) return;
+
+            var value = AtpaActiveCheckBox.IsChecked == true ? "true" : "false";
+            var atpaActiveEl = root.Element("ATPAActive");
+            if (atpaActiveEl != null)
+                atpaActiveEl.Value = value;
+            else
+                root.Add(new XElement("ATPAActive", value));
+
+            doc.Save(_profile.FilePath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error updating ATPA active: {ex.Message}",
                 "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
