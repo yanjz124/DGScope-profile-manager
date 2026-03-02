@@ -183,6 +183,35 @@ public class VnasApiService
             _ => 1
         };
     }
+
+    /// <summary>
+    /// Approximate magnetic declination for continental US using a polynomial model.
+    /// Positive = east declination, negative = west declination.
+    /// Accurate to within ~2° for CONUS (sufficient for ATPA volumes).
+    /// </summary>
+    public static double CalculateMagneticDeclination(double latitude, double longitude)
+    {
+        // Polynomial fit from NOAA WMM reference points (~2025 epoch)
+        // Primary dependence on longitude with latitude correction
+        var lon = longitude;
+        var lat = latitude;
+        var declination = -0.00411 * lon * lon - 1.340 * lon - 89.31;
+        declination -= 0.13 * (lat - 37.0);
+        return declination;
+    }
+
+    /// <summary>
+    /// Convert magnetic heading to true heading using the runway threshold position.
+    /// </summary>
+    public static int MagneticToTrueHeading(int magneticHeading, double latitude, double longitude)
+    {
+        var declination = CalculateMagneticDeclination(latitude, longitude);
+        var trueHeading = magneticHeading + declination;
+
+        // Normalize to 0-360
+        trueHeading = ((trueHeading % 360) + 360) % 360;
+        return (int)Math.Round(trueHeading);
+    }
 }
 
 /// <summary>
@@ -205,6 +234,11 @@ public class VnasAtpaVolume
     public bool TwoPointFiveApproachEnabled { get; set; }
     public double TwoPointFiveApproachDistance { get; set; }
     public List<VnasScratchpadFilter> Scratchpads { get; set; } = new();
+
+    /// <summary>
+    /// True heading computed from magnetic heading and declination at the runway threshold.
+    /// </summary>
+    public int TrueHeading => VnasApiService.MagneticToTrueHeading(MagneticHeading, ThresholdLatitude, ThresholdLongitude);
 }
 
 /// <summary>

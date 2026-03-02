@@ -873,12 +873,18 @@ public partial class MainWindow : Window
                     var root = doc.Root;
                     if (root == null) continue;
 
-                    // Enable ATPA globally
+                    // Enable ATPA globally and monitor cones
                     var atpaActiveEl = root.Element("ATPAActive");
                     if (atpaActiveEl != null)
                         atpaActiveEl.Value = "true";
                     else
                         root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
+
+                    var monitorConesEl = root.Element("DrawATPAMonitorCones");
+                    if (monitorConesEl != null)
+                        monitorConesEl.Value = "true";
+                    else
+                        root.Add(new System.Xml.Linq.XElement("DrawATPAMonitorCones", "true"));
 
                     var atpaEl = root.Element("ATPAVolumes");
                     if (atpaEl == null)
@@ -909,12 +915,12 @@ public partial class MainWindow : Window
                             new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
                             new System.Xml.Linq.XElement("Name", vol.Name),
                             new System.Xml.Linq.XElement("Active", "true"),
-                            new System.Xml.Linq.XElement("Draw", "true"),
+                            new System.Xml.Linq.XElement("Draw", "false"),
                             new System.Xml.Linq.XElement("RunwayThreshold",
                                 new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                                 new System.Xml.Linq.XElement("Longitude", vol.ThresholdLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
                             ),
-                            new System.Xml.Linq.XElement("TrueHeading", vol.MagneticHeading),
+                            new System.Xml.Linq.XElement("TrueHeading", vol.TrueHeading),
                             new System.Xml.Linq.XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
                             new System.Xml.Linq.XElement("Ceiling", vol.Ceiling),
                             new System.Xml.Linq.XElement("Floor", vol.Floor),
@@ -922,7 +928,7 @@ public partial class MainWindow : Window
                             new System.Xml.Linq.XElement("WidthLeft", vol.WidthLeft),
                             new System.Xml.Linq.XElement("WidthRight", vol.WidthRight),
                             new System.Xml.Linq.XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
-                            new System.Xml.Linq.XElement("TwoPointFiveActive", "false"),
+                            new System.Xml.Linq.XElement("TwoPointFiveActive", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
                             new System.Xml.Linq.XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                             new System.Xml.Linq.XElement("Destination", vol.AirportId),
                             new System.Xml.Linq.XElement("LeaderFilters"),

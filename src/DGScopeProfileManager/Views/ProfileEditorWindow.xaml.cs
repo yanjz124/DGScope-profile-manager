@@ -123,12 +123,18 @@ public partial class ProfileEditorWindow : Window
             var root = doc.Root;
             if (root == null) return;
 
-            // Enable ATPA globally
+            // Enable ATPA globally and monitor cones
             var atpaActiveEl = root.Element("ATPAActive");
             if (atpaActiveEl != null)
                 atpaActiveEl.Value = "true";
             else
                 root.Add(new XElement("ATPAActive", "true"));
+
+            var monitorConesEl = root.Element("DrawATPAMonitorCones");
+            if (monitorConesEl != null)
+                monitorConesEl.Value = "true";
+            else
+                root.Add(new XElement("DrawATPAMonitorCones", "true"));
 
             var atpaVolumesElement = root.Element("ATPAVolumes");
             if (atpaVolumesElement == null)
@@ -161,12 +167,12 @@ public partial class ProfileEditorWindow : Window
                     new XElement("VolumeId", vol.VolumeId),
                     new XElement("Name", vol.Name),
                     new XElement("Active", "true"),
-                    new XElement("Draw", "true"),
+                    new XElement("Draw", "false"),
                     new XElement("RunwayThreshold",
                         new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
                         new XElement("Longitude", vol.ThresholdLongitude.ToString(CultureInfo.InvariantCulture))
                     ),
-                    new XElement("TrueHeading", vol.MagneticHeading),
+                    new XElement("TrueHeading", vol.TrueHeading),
                     new XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
                     new XElement("Ceiling", vol.Ceiling),
                     new XElement("Floor", vol.Floor),
@@ -174,7 +180,7 @@ public partial class ProfileEditorWindow : Window
                     new XElement("WidthLeft", vol.WidthLeft),
                     new XElement("WidthRight", vol.WidthRight),
                     new XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
-                    new XElement("TwoPointFiveActive", "false"),
+                    new XElement("TwoPointFiveActive", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
                     new XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(CultureInfo.InvariantCulture)),
                     new XElement("Destination", vol.AirportId),
                     new XElement("LeaderFilters"),
