@@ -24,13 +24,13 @@ public class VnasApiService
     }
 
     /// <summary>
-    /// Fetch ATPA volumes for a given ARTCC from the VNAS API
+    /// Fetch ATPA volumes for a given ARTCC, grouped by child facility ID (TRACON).
     /// </summary>
     /// <param name="artccCode">ARTCC code (e.g., "ZDC") - will be uppercased</param>
-    /// <returns>List of ATPA volumes, or empty list on error</returns>
-    public async Task<List<VnasAtpaVolume>> FetchAtpaVolumesAsync(string artccCode)
+    /// <returns>Dictionary of facility ID → volumes, or empty on error</returns>
+    public async Task<Dictionary<string, List<VnasAtpaVolume>>> FetchAtpaVolumesByFacilityAsync(string artccCode)
     {
-        var volumes = new List<VnasAtpaVolume>();
+        var result = new Dictionary<string, List<VnasAtpaVolume>>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -42,7 +42,7 @@ public class VnasApiService
             if (!response.IsSuccessStatusCode)
             {
                 Debug.WriteLine($"VNAS API returned {response.StatusCode} for {artccCode}");
-                return volumes;
+                return result;
             }
 
             var json = await response.Content.ReadAsStringAsync();
@@ -50,52 +50,74 @@ public class VnasApiService
 
             var root = doc.RootElement;
 
-            // ATPA volumes are under facility.childFacilities[].starsConfiguration.atpaVolumes[]
             if (!root.TryGetProperty("facility", out var facility))
             {
                 Debug.WriteLine("No facility found in VNAS response");
-                return volumes;
+                return result;
             }
 
             if (!facility.TryGetProperty("childFacilities", out var childFacilities))
             {
                 Debug.WriteLine("No childFacilities found in facility");
-                return volumes;
+                return result;
             }
 
             foreach (var child in childFacilities.EnumerateArray())
             {
+                var childId = child.TryGetProperty("id", out var id) ? id.GetString() ?? "" : "";
+                if (string.IsNullOrEmpty(childId)) continue;
+
                 if (!child.TryGetProperty("starsConfiguration", out var starsConfig))
                     continue;
 
                 if (!starsConfig.TryGetProperty("atpaVolumes", out var atpaVolumes))
                     continue;
 
+                var facilityVolumes = new List<VnasAtpaVolume>();
                 foreach (var vol in atpaVolumes.EnumerateArray())
                 {
                     try
                     {
                         var volume = ParseVolume(vol);
                         if (volume != null)
-                        {
-                            volumes.Add(volume);
-                        }
+                            facilityVolumes.Add(volume);
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error parsing ATPA volume: {ex.Message}");
                     }
                 }
+
+                if (facilityVolumes.Count > 0)
+                    result[childId] = facilityVolumes;
             }
 
-            Debug.WriteLine($"Fetched {volumes.Count} ATPA volumes for {artccCode}");
+            Debug.WriteLine($"Fetched ATPA volumes for {artccCode}: {result.Count} facilities, {result.Values.Sum(v => v.Count)} total volumes");
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Error fetching ATPA volumes for {artccCode}: {ex.Message}");
         }
 
-        return volumes;
+        return result;
+    }
+
+    /// <summary>
+    /// Fetch all ATPA volumes for a given ARTCC (flattened across all child facilities).
+    /// </summary>
+    public async Task<List<VnasAtpaVolume>> FetchAtpaVolumesAsync(string artccCode)
+    {
+        var grouped = await FetchAtpaVolumesByFacilityAsync(artccCode);
+        return grouped.Values.SelectMany(v => v).ToList();
+    }
+
+    /// <summary>
+    /// Extract the TRACON/facility ID from a profile name (e.g., "PCT_MTV N" → "PCT").
+    /// </summary>
+    public static string GetFacilityIdFromProfileName(string profileName)
+    {
+        var idx = profileName.IndexOf('_');
+        return idx > 0 ? profileName[..idx] : profileName;
     }
 
     private static VnasAtpaVolume? ParseVolume(JsonElement vol)

@@ -844,9 +844,9 @@ public partial class MainWindow : Window
             UpdateStatus($"Fetching ATPA volumes for {artccCode}...");
 
             var vnasService = new VnasApiService();
-            var volumes = await vnasService.FetchAtpaVolumesAsync(artccCode);
+            var volumesByFacility = await vnasService.FetchAtpaVolumesByFacilityAsync(artccCode);
 
-            if (volumes.Count == 0)
+            if (volumesByFacility.Count == 0)
             {
                 MessageBox.Show($"No ATPA volumes found for {artccCode} on the VNAS API.",
                     "No Volumes", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -854,14 +854,21 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // Build the ATPAVolumes XML once, reuse for all profiles
-            var generator = new ProfileGeneratorService();
             int updated = 0;
+            int totalVolumes = 0;
 
             foreach (var prof in targetProfiles)
             {
                 try
                 {
+                    // Match profile to its facility (e.g., "PCT_MTV N" → "PCT")
+                    var facilityId = VnasApiService.GetFacilityIdFromProfileName(prof.Name);
+                    if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"No ATPA volumes for facility {facilityId} (profile {prof.Name})");
+                        continue;
+                    }
+
                     var doc = System.Xml.Linq.XDocument.Load(prof.FilePath);
                     var root = doc.Root;
                     if (root == null) continue;
@@ -902,7 +909,7 @@ public partial class MainWindow : Window
                             new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
                             new System.Xml.Linq.XElement("Name", vol.Name),
                             new System.Xml.Linq.XElement("Active", "true"),
-                            new System.Xml.Linq.XElement("Draw", "false"),
+                            new System.Xml.Linq.XElement("Draw", "true"),
                             new System.Xml.Linq.XElement("RunwayThreshold",
                                 new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                                 new System.Xml.Linq.XElement("Longitude", vol.ThresholdLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
@@ -927,6 +934,7 @@ public partial class MainWindow : Window
 
                     doc.Save(prof.FilePath);
                     updated++;
+                    totalVolumes += volumes.Count;
                 }
                 catch (Exception ex)
                 {
@@ -934,8 +942,8 @@ public partial class MainWindow : Window
                 }
             }
 
-            UpdateStatus($"Imported {volumes.Count} ATPA volumes into {updated} profile(s) for {artccCode}");
-            MessageBox.Show($"Imported {volumes.Count} ATPA volumes into {updated} profile(s).\nAll other settings were preserved.",
+            UpdateStatus($"Imported ATPA volumes into {updated} profile(s) for {artccCode}");
+            MessageBox.Show($"Imported ATPA volumes into {updated} profile(s).\nEach profile received only its facility's volumes.\nAll other settings were preserved.",
                 "ATPA Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)

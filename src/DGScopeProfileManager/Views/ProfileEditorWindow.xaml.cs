@@ -101,11 +101,19 @@ public partial class ProfileEditorWindow : Window
             }
 
             var vnasService = new VnasApiService();
-            var volumes = await vnasService.FetchAtpaVolumesAsync(artccCode);
+            var volumesByFacility = await vnasService.FetchAtpaVolumesByFacilityAsync(artccCode);
+
+            // Filter by facility ID from profile name (e.g., "PCT_MTV N" → "PCT")
+            var facilityId = VnasApiService.GetFacilityIdFromProfileName(_profile.Name);
+            List<VnasAtpaVolume> volumes;
+            if (volumesByFacility.TryGetValue(facilityId, out var facilityVolumes))
+                volumes = facilityVolumes;
+            else
+                volumes = volumesByFacility.Values.SelectMany(v => v).ToList();
 
             if (volumes.Count == 0)
             {
-                MessageBox.Show($"No ATPA volumes found for {artccCode} on the VNAS API.",
+                MessageBox.Show($"No ATPA volumes found for {artccCode} (facility {facilityId}) on the VNAS API.",
                     "No Volumes", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -153,7 +161,7 @@ public partial class ProfileEditorWindow : Window
                     new XElement("VolumeId", vol.VolumeId),
                     new XElement("Name", vol.Name),
                     new XElement("Active", "true"),
-                    new XElement("Draw", "false"),
+                    new XElement("Draw", "true"),
                     new XElement("RunwayThreshold",
                         new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
                         new XElement("Longitude", vol.ThresholdLongitude.ToString(CultureInfo.InvariantCulture))

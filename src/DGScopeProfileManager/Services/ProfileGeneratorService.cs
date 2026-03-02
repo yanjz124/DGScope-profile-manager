@@ -610,16 +610,31 @@ public class ProfileGeneratorService
                 System.Diagnostics.Debug.WriteLine($"Applied CRC PrefSet: {crcPrefSet.Name}");
             }
 
-            // 8. Import ATPA volumes from VNAS API (if enabled)
+            // 8. Import ATPA volumes from VNAS API (if enabled), filtered by TRACON
             if (importAtpaVolumes)
             {
                 try
                 {
-                    var atpaVolumes = _vnasApiService.FetchAtpaVolumesAsync(crcProfile.ArtccCode).GetAwaiter().GetResult();
+                    var volumesByFacility = _vnasApiService.FetchAtpaVolumesByFacilityAsync(crcProfile.ArtccCode).GetAwaiter().GetResult();
+                    var facilityId = selectedTracon?.Id ?? "";
+
+                    // Use facility-specific volumes if available, otherwise fall back to all
+                    List<VnasAtpaVolume> atpaVolumes;
+                    if (!string.IsNullOrEmpty(facilityId) && volumesByFacility.TryGetValue(facilityId, out var facilityVolumes))
+                    {
+                        atpaVolumes = facilityVolumes;
+                        System.Diagnostics.Debug.WriteLine($"Using {atpaVolumes.Count} ATPA volumes for facility {facilityId}");
+                    }
+                    else
+                    {
+                        atpaVolumes = volumesByFacility.Values.SelectMany(v => v).ToList();
+                        System.Diagnostics.Debug.WriteLine($"No facility match for '{facilityId}', using all {atpaVolumes.Count} volumes");
+                    }
+
                     if (atpaVolumes.Count > 0)
                     {
                         ApplyAtpaVolumes(root, atpaVolumes);
-                        System.Diagnostics.Debug.WriteLine($"✓ Imported {atpaVolumes.Count} ATPA volumes from VNAS for {crcProfile.ArtccCode}");
+                        System.Diagnostics.Debug.WriteLine($"Imported {atpaVolumes.Count} ATPA volumes from VNAS for {crcProfile.ArtccCode}");
                     }
                     else
                     {
@@ -628,7 +643,7 @@ public class ProfileGeneratorService
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"⚠ ATPA volume import failed (non-fatal): {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"ATPA volume import failed (non-fatal): {ex.Message}");
                 }
             }
 
@@ -1252,7 +1267,7 @@ public class ProfileGeneratorService
                 new XElement("VolumeId", vol.VolumeId),
                 new XElement("Name", vol.Name),
                 new XElement("Active", "true"),
-                new XElement("Draw", "false"),
+                new XElement("Draw", "true"),
                 new XElement("RunwayThreshold",
                     new XElement("Latitude", vol.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
                     new XElement("Longitude", vol.ThresholdLongitude.ToString(CultureInfo.InvariantCulture))
