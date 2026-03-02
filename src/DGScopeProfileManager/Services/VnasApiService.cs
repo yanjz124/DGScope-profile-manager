@@ -50,32 +50,41 @@ public class VnasApiService
 
             var root = doc.RootElement;
 
-            // Navigate to starsConfiguration.atpaVolumes
-            if (!root.TryGetProperty("starsConfiguration", out var starsConfig))
+            // ATPA volumes are under facility.childFacilities[].starsConfiguration.atpaVolumes[]
+            if (!root.TryGetProperty("facility", out var facility))
             {
-                Debug.WriteLine("No starsConfiguration found in VNAS response");
+                Debug.WriteLine("No facility found in VNAS response");
                 return volumes;
             }
 
-            if (!starsConfig.TryGetProperty("atpaVolumes", out var atpaVolumes))
+            if (!facility.TryGetProperty("childFacilities", out var childFacilities))
             {
-                Debug.WriteLine("No atpaVolumes found in starsConfiguration");
+                Debug.WriteLine("No childFacilities found in facility");
                 return volumes;
             }
 
-            foreach (var vol in atpaVolumes.EnumerateArray())
+            foreach (var child in childFacilities.EnumerateArray())
             {
-                try
+                if (!child.TryGetProperty("starsConfiguration", out var starsConfig))
+                    continue;
+
+                if (!starsConfig.TryGetProperty("atpaVolumes", out var atpaVolumes))
+                    continue;
+
+                foreach (var vol in atpaVolumes.EnumerateArray())
                 {
-                    var volume = ParseVolume(vol);
-                    if (volume != null)
+                    try
                     {
-                        volumes.Add(volume);
+                        var volume = ParseVolume(vol);
+                        if (volume != null)
+                        {
+                            volumes.Add(volume);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error parsing ATPA volume: {ex.Message}");
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error parsing ATPA volume: {ex.Message}");
+                    }
                 }
             }
 
