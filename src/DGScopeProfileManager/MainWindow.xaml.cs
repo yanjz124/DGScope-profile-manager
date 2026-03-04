@@ -139,9 +139,11 @@ public partial class MainWindow : Window
             int crcCount = 0;
             int profileCount = 0;
 
-            // Run scanning on background thread
+            // Run scanning on background thread with lower priority to avoid UI lag
             await Task.Run(() =>
             {
+                Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+
                 // Load CRC profiles
                 if (!string.IsNullOrWhiteSpace(_settings.CrcFolderPath) &&
                     !string.IsNullOrWhiteSpace(_settings.CrcArtccFolderPath) &&
@@ -514,6 +516,7 @@ public partial class MainWindow : Window
 
             var profile = await Task.Run(() =>
             {
+                Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
                 Directory.CreateDirectory(outputDir);
                 var generator = new ProfileGeneratorService();
                 return generator.GenerateFromCrcWithMultipleMaps(
@@ -704,6 +707,7 @@ public partial class MainWindow : Window
 
                 var fixedCount = await Task.Run(() =>
                 {
+                    Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
                     int count = 0;
                     foreach (var facility in facilities)
                     {
@@ -884,6 +888,7 @@ public partial class MainWindow : Window
 
             var (updated, totalVolumes) = await Task.Run(() =>
             {
+                Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
                 int updatedCount = 0;
                 int volCount = 0;
 
