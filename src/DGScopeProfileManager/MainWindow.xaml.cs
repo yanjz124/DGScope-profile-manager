@@ -337,7 +337,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void LoadPrefSetsForTracon(string traconId)
+    private async void LoadPrefSetsForTracon(string traconId)
     {
         _availablePrefSets.Clear();
         PrefSetComboBox.ItemsSource = null;
@@ -347,8 +347,14 @@ public partial class MainWindow : Window
 
         try
         {
-            var prefSetReader = new CrcPrefSetReader(_settings.CrcFolderPath);
-            _availablePrefSets = prefSetReader.GetPrefSets(traconId);
+            var crcFolder = _settings.CrcFolderPath;
+            var prefSets = await Task.Run(() =>
+            {
+                var prefSetReader = new CrcPrefSetReader(crcFolder);
+                return prefSetReader.GetPrefSets(traconId);
+            });
+
+            _availablePrefSets = prefSets;
             PrefSetComboBox.ItemsSource = _availablePrefSets;
         }
         catch
@@ -447,7 +453,7 @@ public partial class MainWindow : Window
 
     #region Profile Generation
 
-    private void GenerateProfile_Click(object sender, RoutedEventArgs e)
+    private async void GenerateProfile_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedAreas.Count != 1)
         {
@@ -497,23 +503,32 @@ public partial class MainWindow : Window
                 : ProfileNameBox.Text;
             var facilityIdOverride = FacilityIdBox.Text != tracon.Id ? FacilityIdBox.Text : null;
 
-            // Generate profile
+            // Generate profile on background thread to avoid UI freeze
             var outputDir = Path.Combine(_settings.DgScopeFolderPath, "profiles", crcProfile.ArtccCode);
-            Directory.CreateDirectory(outputDir);
+            var importAtpa = ImportAtpaVolumesCheck.IsChecked == true;
+            var crcVideoMapFolder = _settings.CrcVideoMapFolderPath;
+            var defaultSettings = _settings.DefaultSettings;
 
-            var generator = new ProfileGeneratorService();
-            var profile = generator.GenerateFromCrcWithMultipleMaps(
-                crcProfile,
-                outputDir,
-                videoMaps,
-                _settings.CrcVideoMapFolderPath,
-                tracon,
-                selectedArea.Area,
-                profileName,
-                _settings.DefaultSettings,
-                prefSet,
-                facilityIdOverride,
-                ImportAtpaVolumesCheck.IsChecked == true);
+            GenerateButton.IsEnabled = false;
+            UpdateStatus("Generating profile...");
+
+            var profile = await Task.Run(() =>
+            {
+                Directory.CreateDirectory(outputDir);
+                var generator = new ProfileGeneratorService();
+                return generator.GenerateFromCrcWithMultipleMaps(
+                    crcProfile,
+                    outputDir,
+                    videoMaps,
+                    crcVideoMapFolder,
+                    tracon,
+                    selectedArea.Area,
+                    profileName,
+                    defaultSettings,
+                    prefSet,
+                    facilityIdOverride,
+                    importAtpa);
+            });
 
             if (profile != null)
             {
@@ -527,6 +542,10 @@ public partial class MainWindow : Window
         {
             MessageBox.Show($"Error generating profile: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            GenerateButton.IsEnabled = true;
         }
     }
 
@@ -668,7 +687,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void FixAllPaths_Click(object sender, RoutedEventArgs e)
+    private async void FixAllPaths_Click(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -680,16 +699,23 @@ public partial class MainWindow : Window
 
             if (result == MessageBoxResult.Yes)
             {
-                int fixedCount = 0;
-                foreach (var facility in _facilities)
+                UpdateStatus("Fixing paths...");
+                var facilities = _facilities.ToList();
+
+                var fixedCount = await Task.Run(() =>
                 {
-                    var service = new DgScopeProfileService(facility.Path);
-                    foreach (var profile in facility.Profiles)
+                    int count = 0;
+                    foreach (var facility in facilities)
                     {
-                        service.FixFilePaths(profile, makeAbsolute: true);
-                        fixedCount++;
+                        var service = new DgScopeProfileService(facility.Path);
+                        foreach (var profile in facility.Profiles)
+                        {
+                            service.FixFilePaths(profile, makeAbsolute: true);
+                            count++;
+                        }
                     }
-                }
+                    return count;
+                });
 
                 UpdateStatus($"Fixed paths in {fixedCount} profiles");
                 MessageBox.Show($"Successfully fixed paths in {fixedCount} profiles", "Success",
@@ -854,99 +880,106 @@ public partial class MainWindow : Window
                 return;
             }
 
-            int updated = 0;
-            int totalVolumes = 0;
+            UpdateStatus($"Applying ATPA volumes to {targetProfiles.Count} profile(s)...");
 
-            foreach (var prof in targetProfiles)
+            var (updated, totalVolumes) = await Task.Run(() =>
             {
-                try
+                int updatedCount = 0;
+                int volCount = 0;
+
+                foreach (var prof in targetProfiles)
                 {
-                    // Match profile to its facility (e.g., "PCT_MTV N" → "PCT")
-                    var facilityId = VnasApiService.GetFacilityIdFromProfileName(prof.Name);
-                    if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
+                    try
                     {
-                        System.Diagnostics.Debug.WriteLine($"No ATPA volumes for facility {facilityId} (profile {prof.Name})");
-                        continue;
-                    }
-
-                    var doc = System.Xml.Linq.XDocument.Load(prof.FilePath);
-                    var root = doc.Root;
-                    if (root == null) continue;
-
-                    // Enable ATPA globally and monitor cones
-                    var atpaActiveEl = root.Element("ATPAActive");
-                    if (atpaActiveEl != null)
-                        atpaActiveEl.Value = "true";
-                    else
-                        root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
-
-                    var monitorConesEl = root.Element("DrawATPAMonitorCones");
-                    if (monitorConesEl != null)
-                        monitorConesEl.Value = "true";
-                    else
-                        root.Add(new System.Xml.Linq.XElement("DrawATPAMonitorCones", "true"));
-
-                    var atpaEl = root.Element("ATPAVolumes");
-                    if (atpaEl == null)
-                    {
-                        var sep = root.Element("ATPASeparationTable");
-                        atpaEl = new System.Xml.Linq.XElement("ATPAVolumes");
-                        if (sep != null) sep.AddAfterSelf(atpaEl);
-                        else root.Add(atpaEl);
-                    }
-                    else
-                    {
-                        atpaEl.RemoveAll();
-                    }
-
-                    foreach (var vol in volumes)
-                    {
-                        var spFilters = new System.Xml.Linq.XElement("ScratchpadFilters");
-                        foreach (var sp in vol.Scratchpads)
+                        // Match profile to its facility (e.g., "PCT_MTV N" → "PCT")
+                        var facilityId = VnasApiService.GetFacilityIdFromProfileName(prof.Name);
+                        if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
                         {
-                            spFilters.Add(new System.Xml.Linq.XElement("ScratchpadFilter",
-                                new System.Xml.Linq.XElement("ScratchpadValue", sp.Entry),
-                                new System.Xml.Linq.XElement("ScratchpadNum", sp.ScratchpadNumber),
-                                new System.Xml.Linq.XElement("ScratchpadFilterType", sp.FilterType)
+                            System.Diagnostics.Debug.WriteLine($"No ATPA volumes for facility {facilityId} (profile {prof.Name})");
+                            continue;
+                        }
+
+                        var doc = System.Xml.Linq.XDocument.Load(prof.FilePath);
+                        var root = doc.Root;
+                        if (root == null) continue;
+
+                        // Enable ATPA globally and monitor cones
+                        var atpaActiveEl = root.Element("ATPAActive");
+                        if (atpaActiveEl != null)
+                            atpaActiveEl.Value = "true";
+                        else
+                            root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
+
+                        var monitorConesEl = root.Element("DrawATPAMonitorCones");
+                        if (monitorConesEl != null)
+                            monitorConesEl.Value = "true";
+                        else
+                            root.Add(new System.Xml.Linq.XElement("DrawATPAMonitorCones", "true"));
+
+                        var atpaEl = root.Element("ATPAVolumes");
+                        if (atpaEl == null)
+                        {
+                            var sep = root.Element("ATPASeparationTable");
+                            atpaEl = new System.Xml.Linq.XElement("ATPAVolumes");
+                            if (sep != null) sep.AddAfterSelf(atpaEl);
+                            else root.Add(atpaEl);
+                        }
+                        else
+                        {
+                            atpaEl.RemoveAll();
+                        }
+
+                        foreach (var vol in volumes)
+                        {
+                            var spFilters = new System.Xml.Linq.XElement("ScratchpadFilters");
+                            foreach (var sp in vol.Scratchpads)
+                            {
+                                spFilters.Add(new System.Xml.Linq.XElement("ScratchpadFilter",
+                                    new System.Xml.Linq.XElement("ScratchpadValue", sp.Entry),
+                                    new System.Xml.Linq.XElement("ScratchpadNum", sp.ScratchpadNumber),
+                                    new System.Xml.Linq.XElement("ScratchpadFilterType", sp.FilterType)
+                                ));
+                            }
+
+                            atpaEl.Add(new System.Xml.Linq.XElement("ATPAVolume",
+                                new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
+                                new System.Xml.Linq.XElement("Name", vol.Name),
+                                new System.Xml.Linq.XElement("Active", "true"),
+                                new System.Xml.Linq.XElement("Draw", "false"),
+                                new System.Xml.Linq.XElement("RunwayThreshold",
+                                    new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                                    new System.Xml.Linq.XElement("Longitude", vol.ThresholdLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                                ),
+                                new System.Xml.Linq.XElement("TrueHeading", vol.TrueHeading),
+                                new System.Xml.Linq.XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
+                                new System.Xml.Linq.XElement("Ceiling", vol.Ceiling),
+                                new System.Xml.Linq.XElement("Floor", vol.Floor),
+                                new System.Xml.Linq.XElement("Length", vol.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                                new System.Xml.Linq.XElement("WidthLeft", vol.WidthLeft),
+                                new System.Xml.Linq.XElement("WidthRight", vol.WidthRight),
+                                new System.Xml.Linq.XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
+                                new System.Xml.Linq.XElement("TwoPointFiveActive", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
+                                new System.Xml.Linq.XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                                new System.Xml.Linq.XElement("Destination", vol.AirportId),
+                                new System.Xml.Linq.XElement("LeaderFilters"),
+                                spFilters,
+                                new System.Xml.Linq.XElement("TcpDisplay"),
+                                new System.Xml.Linq.XElement("TcpExclusion")
                             ));
                         }
 
-                        atpaEl.Add(new System.Xml.Linq.XElement("ATPAVolume",
-                            new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
-                            new System.Xml.Linq.XElement("Name", vol.Name),
-                            new System.Xml.Linq.XElement("Active", "true"),
-                            new System.Xml.Linq.XElement("Draw", "false"),
-                            new System.Xml.Linq.XElement("RunwayThreshold",
-                                new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                                new System.Xml.Linq.XElement("Longitude", vol.ThresholdLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                            ),
-                            new System.Xml.Linq.XElement("TrueHeading", vol.TrueHeading),
-                            new System.Xml.Linq.XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
-                            new System.Xml.Linq.XElement("Ceiling", vol.Ceiling),
-                            new System.Xml.Linq.XElement("Floor", vol.Floor),
-                            new System.Xml.Linq.XElement("Length", vol.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                            new System.Xml.Linq.XElement("WidthLeft", vol.WidthLeft),
-                            new System.Xml.Linq.XElement("WidthRight", vol.WidthRight),
-                            new System.Xml.Linq.XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
-                            new System.Xml.Linq.XElement("TwoPointFiveActive", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
-                            new System.Xml.Linq.XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                            new System.Xml.Linq.XElement("Destination", vol.AirportId),
-                            new System.Xml.Linq.XElement("LeaderFilters"),
-                            spFilters,
-                            new System.Xml.Linq.XElement("TcpDisplay"),
-                            new System.Xml.Linq.XElement("TcpExclusion")
-                        ));
+                        doc.Save(prof.FilePath);
+                        updatedCount++;
+                        volCount += volumes.Count;
                     }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Failed to update ATPA for {prof.Name}: {ex.Message}");
+                    }
+                }
 
-                    doc.Save(prof.FilePath);
-                    updated++;
-                    totalVolumes += volumes.Count;
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Failed to update ATPA for {prof.Name}: {ex.Message}");
-                }
-            }
+                return (updatedCount, volCount);
+            });
 
             UpdateStatus($"Imported ATPA volumes into {updated} profile(s) for {artccCode}");
             MessageBox.Show($"Imported ATPA volumes into {updated} profile(s).\nEach profile received only its facility's volumes.\nAll other settings were preserved.",
