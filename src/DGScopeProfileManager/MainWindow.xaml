@@ -310,7 +310,8 @@
                             <!-- Profile Level Template -->
                             <DataTemplate DataType="{x:Type models:DgScopeProfile}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Name}" Margin="10,0,0,0"/>
+                                    <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding Name}"/>
                                 </StackPanel>
                             </DataTemplate>
                         </TreeView.Resources>
@@ -320,9 +321,11 @@
                     <StackPanel Grid.Row="1" Margin="0,10,0,0">
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                             <Button Content="Expand All" Click="ExpandAllFacilities_Click"
-                                    Padding="6,2" Margin="0,0,5,0" FontSize="11"/>
+                                    Padding="6,2" Margin="0,0,5,0" FontSize="11" Width="85"/>
                             <Button Content="Collapse All" Click="CollapseAllFacilities_Click"
-                                    Padding="6,2" FontSize="11"/>
+                                    Padding="6,2" Margin="0,0,5,0" FontSize="11" Width="85"/>
+                            <Button Name="SelectAllButton" Content="Select All" Click="ToggleSelectAllProfiles_Click"
+                                    Padding="6,2" FontSize="11" Width="85"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <Button Name="LaunchDGScopeButton" Content="Launch DGScope" Click="LaunchDGScope_Click"
@@ -330,7 +333,7 @@
                             <Button Name="EditProfileButton" Content="Edit Profile" Click="EditProfile_Click"/>
                             <Button Name="DeleteProfileButton" Content="Delete Profile" Click="DeleteProfile_Click"/>
                             <Button Name="ImportAtpaButton" Content="Import ATPA" Click="ImportAtpa_Click"
-                                    ToolTip="Import ATPA volumes from VNAS. Select a facility to update all profiles, or a single profile."/>
+                                    ToolTip="Import ATPA volumes from VNAS for checked profiles. If none checked, uses selected facility or profile."/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

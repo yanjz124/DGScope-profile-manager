@@ -12,6 +12,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto" MinHeight="60"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -37,27 +38,37 @@
             </StackPanel>
         </StackPanel>
 
+        <!-- Release notes (optional) -->
+        <StackPanel Grid.Row="2" Name="ReleaseNotesPanel" Visibility="Collapsed" Margin="0 0 0 15">
+            <TextBlock Text="What's new:" Foreground="#999999" FontWeight="SemiBold" Margin="0 0 0 5"/>
+            <Border Background="#252526" CornerRadius="4" Padding="10" MaxHeight="150">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock Name="ReleaseNotesText" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+
         <!-- Progress bar (hidden by default) -->
-        <StackPanel Grid.Row="2" Name="ProgressPanel" Visibility="Collapsed" VerticalAlignment="Center">
+        <StackPanel Grid.Row="3" Name="ProgressPanel" Visibility="Collapsed" VerticalAlignment="Center">
             <TextBlock Name="ProgressText" Text="Downloading update..." Foreground="#FFFFFF" Margin="0 0 0 10"/>
             <ProgressBar Name="DownloadProgress" Height="20" Minimum="0" Maximum="100" Value="0"/>
         </StackPanel>
 
         <!-- Question text (hidden during download) -->
-        <TextBlock Grid.Row="2" Name="QuestionText"
+        <TextBlock Grid.Row="3" Name="QuestionText"
                    Text="Would you like to download and install the update now?"
                    Foreground="#FFFFFF"
                    TextWrapping="Wrap"
                    VerticalAlignment="Center"/>
 
         <!-- Don't remind checkbox -->
-        <CheckBox Grid.Row="3" Name="DontRemindCheckBox"
+        <CheckBox Grid.Row="4" Name="DontRemindCheckBox"
                   Content="Don't remind me again"
                   Foreground="#999999"
                   Margin="0 15 0 15"/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="4" Name="ButtonPanel"
+        <StackPanel Grid.Row="5" Name="ButtonPanel"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Name="UpdateButton"

@@ -1,11 +1,33 @@
+using System.ComponentModel;
+
 namespace DGScopeProfileManager.Models;
 
 /// <summary>
 /// Represents a DGScope profile (XML-based)
 /// </summary>
-public class DgScopeProfile
+public class DgScopeProfile : INotifyPropertyChanged
 {
+    private bool _isSelected;
+
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether this profile is checked/selected in the tree view
+    /// </summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
     public string FilePath { get; set; } = string.Empty;
     
     // Display settings

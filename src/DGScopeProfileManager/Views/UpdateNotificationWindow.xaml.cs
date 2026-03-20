@@ -27,6 +27,13 @@ public partial class UpdateNotificationWindow : Window
         // Set version text
         CurrentVersionText.Text = updateInfo.CurrentVersion;
         NewVersionText.Text = updateInfo.LatestVersion;
+
+        // Show release notes if available
+        if (!string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes))
+        {
+            ReleaseNotesText.Text = updateInfo.ReleaseNotes.Trim();
+            ReleaseNotesPanel.Visibility = Visibility.Visible;
+        }
     }
 
     private async void UpdateButton_Click(object sender, RoutedEventArgs e)

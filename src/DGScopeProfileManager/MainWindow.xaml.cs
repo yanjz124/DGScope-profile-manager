@@ -835,56 +835,76 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Import ATPA volumes from VNAS API into existing profiles.
-    /// Select a facility node to update all profiles under it, or a single profile.
+    /// Uses checked profiles first; falls back to selected facility/profile in tree.
     /// </summary>
     private async void ImportAtpa_Click(object sender, RoutedEventArgs e)
     {
-        // Determine target profiles and ARTCC code
-        List<DgScopeProfile> targetProfiles;
-        string artccCode;
-
-        if (FacilitiesTree.SelectedItem is Facility facility)
+        // Collect checked profiles grouped by ARTCC
+        var checkedByArtcc = new Dictionary<string, List<DgScopeProfile>>();
+        foreach (var fac in _facilities)
         {
-            targetProfiles = facility.Profiles;
-            artccCode = facility.ArtccCode;
+            var checkedProfiles = fac.Profiles.Where(p => p.IsSelected).ToList();
+            if (checkedProfiles.Count > 0)
+                checkedByArtcc[fac.ArtccCode] = checkedProfiles;
         }
-        else if (FacilitiesTree.SelectedItem is DgScopeProfile profile)
+
+        // If no checkboxes checked, fall back to tree selection (single facility or profile)
+        if (checkedByArtcc.Count == 0)
         {
-            var parentFacility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
-            if (parentFacility == null)
+            if (FacilitiesTree.SelectedItem is Facility facility)
             {
-                MessageBox.Show("Cannot determine ARTCC for this profile.", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                checkedByArtcc[facility.ArtccCode] = facility.Profiles;
+            }
+            else if (FacilitiesTree.SelectedItem is DgScopeProfile profile)
+            {
+                var parentFacility = _facilities.FirstOrDefault(f => f.Profiles.Contains(profile));
+                if (parentFacility == null)
+                {
+                    MessageBox.Show("Cannot determine ARTCC for this profile.", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                checkedByArtcc[parentFacility.ArtccCode] = new List<DgScopeProfile> { profile };
+            }
+            else
+            {
+                MessageBox.Show("Check profiles or select a facility first.", "No Selection",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-            targetProfiles = new List<DgScopeProfile> { profile };
-            artccCode = parentFacility.ArtccCode;
-        }
-        else
-        {
-            MessageBox.Show("Select a facility or profile first.", "No Selection",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
         }
 
-        if (targetProfiles.Count == 0) return;
+        var totalTargetProfiles = checkedByArtcc.Values.Sum(p => p.Count);
+        if (totalTargetProfiles == 0) return;
 
         try
         {
-            UpdateStatus($"Fetching ATPA volumes for {artccCode}...");
-
             var vnasService = new VnasApiService();
-            var volumesByFacility = await vnasService.FetchAtpaVolumesByFacilityAsync(artccCode);
 
-            if (volumesByFacility.Count == 0)
+            // Fetch all ATPA volumes first (needs to be on UI thread for status updates)
+            var allVolumes = new Dictionary<string, Dictionary<string, List<VnasAtpaVolume>>>();
+            foreach (var (artccCode, _) in checkedByArtcc)
             {
-                MessageBox.Show($"No ATPA volumes found for {artccCode} on the VNAS API.",
+                UpdateStatus($"Fetching ATPA volumes for {artccCode}...");
+                var volumesByFacility = await vnasService.FetchAtpaVolumesByFacilityAsync(artccCode);
+                if (volumesByFacility.Count > 0)
+                    allVolumes[artccCode] = volumesByFacility;
+            }
+
+            if (allVolumes.Count == 0)
+            {
+                MessageBox.Show("No ATPA volumes found on the VNAS API.",
                     "No Volumes", MessageBoxButton.OK, MessageBoxImage.Information);
                 UpdateStatus("Ready.");
                 return;
             }
 
-            UpdateStatus($"Applying ATPA volumes to {targetProfiles.Count} profile(s)...");
+            UpdateStatus($"Applying ATPA volumes to {totalTargetProfiles} profile(s)...");
+
+            // Process profiles on background thread
+            var profileData = checkedByArtcc
+                .Where(kvp => allVolumes.ContainsKey(kvp.Key))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(p => (p.Name, p.FilePath)).ToList());
 
             var (updated, totalVolumes) = await Task.Run(() =>
             {
@@ -892,34 +912,32 @@ public partial class MainWindow : Window
                 int updatedCount = 0;
                 int volCount = 0;
 
-                foreach (var prof in targetProfiles)
+                foreach (var (artccCode, profiles) in profileData)
                 {
-                    try
+                    var volumesByFacility = allVolumes[artccCode];
+
+                    foreach (var (profName, profPath) in profiles)
                     {
-                        // Match profile to its facility (e.g., "PCT_MTV N" → "PCT")
-                        var facilityId = VnasApiService.GetFacilityIdFromProfileName(prof.Name);
-                        if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
+                        try
                         {
-                            System.Diagnostics.Debug.WriteLine($"No ATPA volumes for facility {facilityId} (profile {prof.Name})");
-                            continue;
-                        }
+                            var facilityId = VnasApiService.GetFacilityIdFromProfileName(profName);
+                            if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"No ATPA volumes for facility {facilityId} (profile {profName})");
+                                continue;
+                            }
 
-                        var doc = System.Xml.Linq.XDocument.Load(prof.FilePath);
-                        var root = doc.Root;
-                        if (root == null) continue;
+                            var doc = System.Xml.Linq.XDocument.Load(profPath);
+                            var root = doc.Root;
+                            if (root == null) continue;
 
-                        // Enable ATPA globally and monitor cones
-                        var atpaActiveEl = root.Element("ATPAActive");
-                        if (atpaActiveEl != null)
-                            atpaActiveEl.Value = "true";
-                        else
-                            root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
+                            var atpaActiveEl = root.Element("ATPAActive");
+                            if (atpaActiveEl != null) atpaActiveEl.Value = "true";
+                            else root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
 
-                        var monitorConesEl = root.Element("DrawATPAMonitorCones");
-                        if (monitorConesEl != null)
-                            monitorConesEl.Value = "true";
-                        else
-                            root.Add(new System.Xml.Linq.XElement("DrawATPAMonitorCones", "true"));
+                            var monitorConesEl = root.Element("DrawATPAMonitorCones");
+                            if (monitorConesEl != null) monitorConesEl.Value = "true";
+                            else root.Add(new System.Xml.Linq.XElement("DrawATPAMonitorCones", "true"));
 
                         var atpaEl = root.Element("ATPAVolumes");
                         if (atpaEl == null)
@@ -973,21 +991,22 @@ public partial class MainWindow : Window
                             ));
                         }
 
-                        doc.Save(prof.FilePath);
-                        updatedCount++;
-                        volCount += volumes.Count;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Failed to update ATPA for {prof.Name}: {ex.Message}");
+                            doc.Save(profPath);
+                            updatedCount++;
+                            volCount += volumes.Count;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to update ATPA for {profName}: {ex.Message}");
+                        }
                     }
                 }
 
                 return (updatedCount, volCount);
             });
 
-            UpdateStatus($"Imported ATPA volumes into {updated} profile(s) for {artccCode}");
-            MessageBox.Show($"Imported ATPA volumes into {updated} profile(s).\nEach profile received only its facility's volumes.\nAll other settings were preserved.",
+            UpdateStatus($"Imported ATPA volumes into {updated} profile(s)");
+            MessageBox.Show($"Imported ATPA volumes into {updated} profile(s) ({totalVolumes} total volumes).\nEach profile received only its facility's volumes.",
                 "ATPA Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -996,6 +1015,16 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK, MessageBoxImage.Error);
             UpdateStatus("Ready.");
         }
+    }
+
+    private void ToggleSelectAllProfiles_Click(object sender, RoutedEventArgs e)
+    {
+        // If any are unchecked, select all; otherwise deselect all
+        bool anyUnchecked = _facilities.Any(f => f.Profiles.Any(p => !p.IsSelected));
+        foreach (var facility in _facilities)
+            foreach (var profile in facility.Profiles)
+                profile.IsSelected = anyUnchecked;
+        SelectAllButton.Content = anyUnchecked ? "Deselect All" : "Select All";
     }
 
     private void ExpandAllFacilities_Click(object sender, RoutedEventArgs e)
