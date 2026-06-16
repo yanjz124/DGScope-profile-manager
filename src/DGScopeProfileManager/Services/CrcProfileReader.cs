@@ -30,31 +30,33 @@ public class CrcProfileReader
     /// </summary>
     public List<CrcProfile> GetAllProfiles()
     {
-        var profiles = new List<CrcProfile>();
-        
         if (!Directory.Exists(_crcPath))
         {
             throw new DirectoryNotFoundException($"CRC directory not found: {_crcPath}");
         }
-        
+
         // Find all JSON files in the CRC ARTCCs directory
         var jsonFiles = Directory.GetFiles(_crcPath, "*.json", SearchOption.TopDirectoryOnly);
-        
-        foreach (var jsonFile in jsonFiles)
+
+        // Each ARTCC file parses independently, so parse them in parallel. With many
+        // ARTCCs installed this is the difference between a multi-second hang and near-instant.
+        var profiles = new System.Collections.Concurrent.ConcurrentBag<CrcProfile>();
+
+        Parallel.ForEach(jsonFiles, jsonFile =>
         {
             try
             {
-                var profile = LoadProfile(jsonFile);
-                profiles.Add(profile);
+                profiles.Add(LoadProfile(jsonFile));
             }
             catch (Exception ex)
             {
                 // Log error and continue with other files
                 Console.WriteLine($"Error loading profile {jsonFile}: {ex.Message}");
             }
-        }
-        
-        return profiles;
+        });
+
+        // Stable, predictable order for the tree (parallelism leaves the bag unordered)
+        return profiles.OrderBy(p => p.ArtccCode, StringComparer.OrdinalIgnoreCase).ToList();
     }
     
     /// <summary>
@@ -141,72 +143,38 @@ public class CrcProfileReader
         }
         
         // Parse all facilities recursively (including nested TRACONs, ATCTs, etc.)
-        if (root.TryGetProperty("facility", out var facilityElement))
+        if (root.TryGetProperty("facility", out var facilityElement) &&
+            facilityElement.TryGetProperty("childFacilities", out var childFacilitiesElement))
         {
-            if (facilityElement.TryGetProperty("childFacilities", out var childFacilitiesElement))
-            {
-                var logPath = Path.Combine(Path.GetTempPath(), "DGScope_Debug.log");
-                File.AppendAllText(logPath, $"\n[{profile.ArtccCode}] Processing childFacilities at {DateTime.Now}...\n");
-                Console.WriteLine($"[{profile.ArtccCode}] Processing childFacilities... (Log: {logPath})");
-                System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] Processing childFacilities...");
-                ProcessFacilitiesRecursively(childFacilitiesElement, profile, videoMapsLookup, logPath);
-                File.AppendAllText(logPath, $"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total\n");
-                Console.WriteLine($"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total");
-                System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] Found {profile.Tracons.Count} TRACONs total");
-            }
-            else
-            {
-                Console.WriteLine($"[{profile.ArtccCode}] No childFacilities found in facility element");
-                System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] No childFacilities found in facility element");
-            }
+            ProcessFacilitiesRecursively(childFacilitiesElement, profile, videoMapsLookup);
         }
-        else
-        {
-            Console.WriteLine($"[{profile.ArtccCode}] No facility element found in JSON");
-            System.Diagnostics.Debug.WriteLine($"[{profile.ArtccCode}] No facility element found in JSON");
-        }
-        
+
         return profile;
     }
 
     /// <summary>
     /// Recursively process all facilities in the tree and add matching ones to the profile
     /// </summary>
-    private void ProcessFacilitiesRecursively(JsonElement facilitiesElement, CrcProfile profile, Dictionary<string, VideoMapInfo> videoMapsLookup, string logPath)
+    private void ProcessFacilitiesRecursively(JsonElement facilitiesElement, CrcProfile profile, Dictionary<string, VideoMapInfo> videoMapsLookup)
     {
-        var facilityCount = facilitiesElement.GetArrayLength();
-        File.AppendAllText(logPath, $"ProcessFacilitiesRecursively: Processing {facilityCount} facilities\n");
-        System.Diagnostics.Debug.WriteLine($"ProcessFacilitiesRecursively: Processing {facilityCount} facilities");
-        
-        var processedCount = 0;
-        var addedCount = 0;
-        var skippedCount = 0;
-        var errorCount = 0;
-        
         foreach (var child in facilitiesElement.EnumerateArray())
         {
-            processedCount++;
             try
             {
                 var tracon = new CrcTracon();
-                var hasStarsConfig = false;
-                
+
                 if (child.TryGetProperty("id", out var id))
                     tracon.Id = id.GetString() ?? string.Empty;
-                    
+
                 if (child.TryGetProperty("name", out var name))
                     tracon.Name = name.GetString() ?? string.Empty;
-                    
+
                 if (child.TryGetProperty("type", out var type))
                     tracon.Type = type.GetString() ?? string.Empty;
-                
-                // Check if ANY descendant node has starsConfiguration (including sectors/positions)
-                hasStarsConfig = HasStarsConfigurationRecursive(child);
-                
+
                 // Extract ssaAirports from starsConfiguration
                 if (child.TryGetProperty("starsConfiguration", out var starsConfig))
                 {
-                    hasStarsConfig = true;
                     // Extract facility location and ssaAirports from starsConfiguration.areas
                     // The visibilityCenter can be:
                     // - A string: "@{lat=39.452745; lon=-74.591952}"
@@ -459,38 +427,21 @@ public class CrcProfileReader
                     !string.IsNullOrEmpty(tracon.Name) && 
                     tracon.IsControlledFacility())
                 {
-                    File.AppendAllText(logPath, $"  ✓ Adding {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}\n");
-                    System.Diagnostics.Debug.WriteLine($"  ✓ Adding {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}");
                     profile.Tracons.Add(tracon);
-                    addedCount++;
                 }
-                else
-                {
-                    File.AppendAllText(logPath, $"  ✗ Skipping {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}\n");
-                    System.Diagnostics.Debug.WriteLine($"  ✗ Skipping {tracon.Id} ({tracon.Name}) - IsControlled={tracon.IsControlledFacility()}, HasStars={hasStarsConfig}");
-                    skippedCount++;
-                }
-                
+
                 // Recursively process any child facilities under this facility
                 if (child.TryGetProperty("childFacilities", out var nestedChildFacilities))
                 {
-                    File.AppendAllText(logPath, $"  → Recursing into {tracon.Id} with {nestedChildFacilities.GetArrayLength()} children\n");
-                    System.Diagnostics.Debug.WriteLine($"  → Recursing into {tracon.Id} with {nestedChildFacilities.GetArrayLength()} children");
-                    ProcessFacilitiesRecursively(nestedChildFacilities, profile, videoMapsLookup, logPath);
+                    ProcessFacilitiesRecursively(nestedChildFacilities, profile, videoMapsLookup);
                 }
             }
             catch (Exception ex)
             {
-                File.AppendAllText(logPath, $"  ✗ ERROR processing facility: {ex.Message}\n     Stack: {ex.StackTrace}\n");
-                System.Diagnostics.Debug.WriteLine($"  ✗ ERROR processing facility: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"     Stack: {ex.StackTrace}");
-                errorCount++;
+                System.Diagnostics.Debug.WriteLine($"Error processing facility: {ex.Message}");
                 // Skip malformed child facilities
             }
         }
-        
-        File.AppendAllText(logPath, $"ProcessFacilitiesRecursively complete: Processed={processedCount}, Added={addedCount}, Skipped={skippedCount}, Errors={errorCount}\n");
-        System.Diagnostics.Debug.WriteLine($"ProcessFacilitiesRecursively complete: Processed={processedCount}, Added={addedCount}, Skipped={skippedCount}, Errors={errorCount}");
     }
     
     /// <summary>
@@ -536,44 +487,5 @@ public class CrcProfileReader
         {
             // If parsing fails, leave null
         }
-    }
-
-    /// <summary>
-    /// Recursively checks if a facility element or any descendant (sectors, child facilities) has starsConfiguration
-    /// This handles cases where STARS config is on the facility itself or nested in sectors/positions
-    /// </summary>
-    private bool HasStarsConfigurationRecursive(JsonElement element)
-    {
-        // Check if this element has starsConfiguration
-        if (element.TryGetProperty("starsConfiguration", out _))
-        {
-            return true;
-        }
-
-        // Check childFacilities recursively
-        if (element.TryGetProperty("childFacilities", out var childFacilities))
-        {
-            foreach (var child in childFacilities.EnumerateArray())
-            {
-                if (HasStarsConfigurationRecursive(child))
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check sectors/positions that may have starsConfiguration
-        if (element.TryGetProperty("positions", out var positions))
-        {
-            foreach (var position in positions.EnumerateArray())
-            {
-                if (position.TryGetProperty("starsConfiguration", out _))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }

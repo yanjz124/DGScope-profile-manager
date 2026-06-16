@@ -947,8 +947,8 @@ public class ProfileGeneratorService
     /// </summary>
     private void UpdateReceiverConfig(XElement root, string facilityId, double latitude, double longitude)
     {
-        // Construct dSTARS URL: https://dstars.graiani.com/dstars/{FACILITY_ID}/updates
-        var dstarsUrl = $"https://dstars.graiani.com/dstars/{facilityId}/updates";
+        // Construct dSTARS URL from the active data source: {base}/dstars/{FACILITY_ID}/updates
+        var dstarsUrl = DataSourceService.BuildUpdatesUrl(facilityId);
 
         var receivers = root.Element("Receivers");
 

@@ -448,6 +448,88 @@ public class DgScopeProfileService
         }
     }
 
+    /// <summary>
+    /// Result of a bulk server switch operation.
+    /// </summary>
+    public class ServerSwitchResult
+    {
+        public int Updated { get; set; }
+        public int Skipped { get; set; }
+        public int Failed { get; set; }
+        public int TotalFiles { get; set; }
+    }
+
+    /// <summary>
+    /// Rewrites the receiver <c>&lt;Url&gt;</c> in every DGScope profile under
+    /// <paramref name="dgScopeRootPath"/> to point at <paramref name="newBaseUrl"/>,
+    /// preserving each profile's facility path (the <c>/dstars/{FACILITY}/updates</c> segment).
+    /// </summary>
+    public static ServerSwitchResult SwitchServerForAllProfiles(string dgScopeRootPath, string newBaseUrl)
+    {
+        var result = new ServerSwitchResult();
+
+        if (string.IsNullOrWhiteSpace(dgScopeRootPath) || !Directory.Exists(dgScopeRootPath))
+            return result;
+
+        var normalizedBase = DataSourceService.NormalizeBaseUrl(newBaseUrl);
+        var xmlFiles = Directory.GetFiles(dgScopeRootPath, "*.xml", SearchOption.AllDirectories);
+        result.TotalFiles = xmlFiles.Length;
+
+        foreach (var xmlFile in xmlFiles)
+        {
+            try
+            {
+                var doc = XDocument.Load(xmlFile);
+                var scopeServerClient = doc.Root?
+                    .Element("Receivers")?
+                    .Element("Receiver")?
+                    .Element("ScopeServerClient");
+
+                var urlElement = scopeServerClient?.Element("Url");
+                if (urlElement == null || string.IsNullOrWhiteSpace(urlElement.Value))
+                {
+                    result.Skipped++;
+                    continue;
+                }
+
+                // Preserve the existing facility path; only swap the host/base.
+                // Fall back to the <Name> element if the URL can't be parsed.
+                string facilityPath;
+                if (Uri.TryCreate(urlElement.Value, UriKind.Absolute, out var existingUri))
+                {
+                    facilityPath = existingUri.AbsolutePath; // e.g. /dstars/PCT/updates
+                }
+                else
+                {
+                    var facility = scopeServerClient!.Element("Name")?.Value ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(facility))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+                    facilityPath = $"/dstars/{facility}/updates";
+                }
+
+                var newUrl = $"{normalizedBase}{facilityPath}";
+                if (string.Equals(newUrl, urlElement.Value, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Skipped++;
+                    continue;
+                }
+
+                urlElement.Value = newUrl;
+                doc.Save(xmlFile);
+                result.Updated++;
+            }
+            catch
+            {
+                result.Failed++;
+            }
+        }
+
+        return result;
+    }
+
     private static void SetOrCreateElement(XElement parent, string elementName, string value)
     {
         var element = parent.Element(elementName);
@@ -628,8 +710,8 @@ public class DgScopeProfileService
                 if (scopeServerClient != null)
                 {
                     SetOrCreateElement(scopeServerClient, "Name", profile.FacilityId);
-                    // Update the dSTARS URL to match the facility ID
-                    var dstarsUrl = $"https://dstars.graiani.com/dstars/{profile.FacilityId}/updates";
+                    // Update the dSTARS URL to match the facility ID, using the active data source
+                    var dstarsUrl = DataSourceService.BuildUpdatesUrl(profile.FacilityId);
                     SetOrCreateElement(scopeServerClient, "Url", dstarsUrl);
                 }
             }

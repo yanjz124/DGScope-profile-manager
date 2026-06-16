@@ -28,6 +28,11 @@ public class AppSettings
     // Update settings - if true, skip checking for updates on startup
     public bool SkipUpdateCheck { get; set; } = false;
 
+    // Active dSTARS data source base URL (e.g. https://dstars.graiani.com).
+    // Receiver URLs are built as {ServerBaseUrl}/dstars/{FACILITY}/updates.
+    // Defaults to the official server for backward compatibility.
+    public string ServerBaseUrl { get; set; } = "https://dstars.graiani.com";
+
     public AppSettings()
     {
         // Auto-detect CRC root folder from Windows install location

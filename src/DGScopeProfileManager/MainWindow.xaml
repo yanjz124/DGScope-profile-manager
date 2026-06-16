@@ -58,6 +58,50 @@
             </MenuItem>
         </Menu>
 
+        <!-- Data Source Bar -->
+        <Border DockPanel.Dock="Top" Background="#F4F6F8" BorderBrush="#D0D0D0" BorderThickness="0,0,0,1" Padding="10,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Data Source:" FontWeight="SemiBold" VerticalAlignment="Center"/>
+
+                <ComboBox Grid.Column="1" Name="ServerComboBox" MinWidth="160" Margin="6,0,0,0"
+                          VerticalAlignment="Center"
+                          SelectionChanged="ServerComboBox_SelectionChanged"
+                          ToolTip="Choose the dSTARS radar update server used for profiles."/>
+
+                <TextBox Grid.Column="2" Name="CustomServerUrlBox" MinWidth="240" Margin="6,0,0,0"
+                         VerticalAlignment="Center" Visibility="Collapsed"
+                         ToolTip="Custom server base URL, e.g. https://my.server.org"/>
+
+                <Button Grid.Column="3" Name="ApplyServerButton" Content="Apply to All Profiles"
+                        Margin="8,0,0,0" Padding="10,3" MinWidth="140"
+                        Click="ApplyServer_Click"
+                        ToolTip="Rewrite the server URL in every generated profile and use it for new ones."/>
+
+                <!-- Health indicators -->
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Name="OfficialStatusDot" Width="11" Height="11" Fill="#BDBDBD"
+                             VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Name="OfficialStatusText" Text="Official: —" VerticalAlignment="Center"
+                               Margin="0,0,16,0" FontSize="12"/>
+                    <Ellipse Name="VncrccStatusDot" Width="11" Height="11" Fill="#BDBDBD"
+                             VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock Name="VncrccStatusText" Text="VNCRCC: —" VerticalAlignment="Center"
+                               Margin="0,0,12,0" FontSize="12"/>
+                    <Button Name="CheckHealthButton" Content="Check Health" Padding="8,3" MinWidth="90"
+                            Click="CheckHealth_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Status Bar -->
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>

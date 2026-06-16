@@ -68,6 +68,9 @@ public partial class MainWindow : Window
             }
         }
 
+        // Initialize the data source picker and apply the saved server choice app-wide
+        InitializeDataSourcePanel();
+
         // Initialize with empty collections
         CrcProfilesTree.ItemsSource = _selectableProfiles;
         FacilitiesTree.ItemsSource = _facilities;
@@ -90,7 +93,221 @@ public partial class MainWindow : Window
 
         // Check for updates on startup (after window is loaded)
         Loaded += async (s, e) => await CheckForUpdatesAsync();
+
+        // Probe both data sources once the window is up
+        Loaded += async (s, e) => await RefreshServerHealthAsync();
     }
+
+    #region Data Source
+
+    private const string CustomServerTag = "__custom__";
+
+    /// <summary>
+    /// Populate the server picker, select the saved server, and set it app-wide.
+    /// </summary>
+    private void InitializeDataSourcePanel()
+    {
+        DataSourceService.ActiveBaseUrl = DataSourceService.NormalizeBaseUrl(_settings.ServerBaseUrl);
+
+        ServerComboBox.Items.Clear();
+        foreach (var preset in DataSourceService.Presets)
+        {
+            ServerComboBox.Items.Add(new ComboBoxItem { Content = preset.Name, Tag = preset.BaseUrl });
+        }
+        ServerComboBox.Items.Add(new ComboBoxItem { Content = "Custom…", Tag = CustomServerTag });
+
+        var active = DataSourceService.ActiveBaseUrl;
+        var matched = DataSourceService.FindPreset(active);
+        if (matched != null)
+        {
+            foreach (ComboBoxItem item in ServerComboBox.Items)
+            {
+                if (item.Tag is string tag && tag != CustomServerTag &&
+                    string.Equals(DataSourceService.NormalizeBaseUrl(tag), active, StringComparison.OrdinalIgnoreCase))
+                {
+                    ServerComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Saved value isn't one of the presets - treat it as a custom URL
+            CustomServerUrlBox.Text = active;
+            ServerComboBox.SelectedItem = ServerComboBox.Items[ServerComboBox.Items.Count - 1];
+        }
+    }
+
+    private void ServerComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var isCustom = ServerComboBox.SelectedItem is ComboBoxItem item && (item.Tag as string) == CustomServerTag;
+        CustomServerUrlBox.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// The base URL currently chosen in the picker, or null if Custom is selected but empty.
+    /// </summary>
+    private string? GetSelectedBaseUrl()
+    {
+        if (ServerComboBox.SelectedItem is not ComboBoxItem item)
+            return null;
+
+        var tag = item.Tag as string ?? string.Empty;
+        if (tag == CustomServerTag)
+        {
+            var custom = DataSourceService.NormalizeBaseUrl(CustomServerUrlBox.Text);
+            return string.IsNullOrWhiteSpace(custom) ? null : custom;
+        }
+
+        return DataSourceService.NormalizeBaseUrl(tag);
+    }
+
+    private async void ApplyServer_Click(object sender, RoutedEventArgs e)
+    {
+        var baseUrl = GetSelectedBaseUrl();
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            MessageBox.Show("Enter a custom server URL first.", "Data Source",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            MessageBox.Show($"'{baseUrl}' is not a valid http(s) URL.", "Data Source",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Switch the data source to:\n\n{baseUrl}\n\nThis rewrites the receiver URL in every generated profile " +
+            "(facilities are preserved) and uses it for new profiles.\n\nContinue?",
+            "Switch Data Source", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes)
+            return;
+
+        // Persist and apply app-wide first, so new generation uses it even if the rewrite fails
+        DataSourceService.ActiveBaseUrl = baseUrl;
+        _settings.ServerBaseUrl = baseUrl;
+        _persistenceService.SaveSettings(_settings);
+
+        ApplyServerButton.IsEnabled = false;
+        UpdateStatus("Switching data source for all profiles...");
+        try
+        {
+            var path = _settings.DgScopeFolderPath;
+            var result = await Task.Run(() => DgScopeProfileService.SwitchServerForAllProfiles(path, baseUrl));
+
+            UpdateStatus($"Data source: {baseUrl} — updated {result.Updated} profile(s), " +
+                         $"{result.Skipped} unchanged, {result.Failed} failed.");
+
+            MessageBox.Show(
+                $"Server switched to:\n{baseUrl}\n\n" +
+                $"Profiles updated: {result.Updated}\n" +
+                $"Already current/skipped: {result.Skipped}\n" +
+                $"Failed: {result.Failed}\n" +
+                $"Total profile files: {result.TotalFiles}",
+                "Data Source Switched", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus("Error switching data source.");
+            MessageBox.Show($"Error switching data source:\n\n{ex.Message}", "Data Source",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            ApplyServerButton.IsEnabled = true;
+        }
+
+        await RefreshServerHealthAsync();
+    }
+
+    private async void CheckHealth_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshServerHealthAsync();
+    }
+
+    /// <summary>
+    /// Probe both known servers and update the status indicators.
+    /// </summary>
+    private async Task RefreshServerHealthAsync()
+    {
+        var facility = GetProbeFacility();
+
+        SetHealthDot(OfficialStatusDot, OfficialStatusText, "Official", ServerHealthState.Checking, null);
+        SetHealthDot(VncrccStatusDot, VncrccStatusText, "VNCRCC", ServerHealthState.Checking, null);
+        CheckHealthButton.IsEnabled = false;
+
+        try
+        {
+            var officialTask = DataSourceService.CheckHealthAsync(DataSourceService.OfficialBaseUrl, facility);
+            var vncrccTask = DataSourceService.CheckHealthAsync(DataSourceService.VncrccBaseUrl, facility);
+            await Task.WhenAll(officialTask, vncrccTask);
+
+            SetHealthDot(OfficialStatusDot, OfficialStatusText, "Official", officialTask.Result.State, officialTask.Result);
+            SetHealthDot(VncrccStatusDot, VncrccStatusText, "VNCRCC", vncrccTask.Result.State, vncrccTask.Result);
+        }
+        finally
+        {
+            CheckHealthButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Pick a representative facility to probe with - the first loaded profile's facility, else PCT.
+    /// </summary>
+    private string GetProbeFacility()
+    {
+        foreach (var facility in _facilities)
+        {
+            var profile = facility.Profiles?.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.FacilityId));
+            if (profile?.FacilityId is string id && !string.IsNullOrWhiteSpace(id))
+                return id;
+        }
+        return "PCT";
+    }
+
+    private static readonly System.Windows.Media.Brush UpBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50));
+    private static readonly System.Windows.Media.Brush NoDataBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFB, 0x8C, 0x00));
+    private static readonly System.Windows.Media.Brush DownBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE5, 0x39, 0x35));
+    private static readonly System.Windows.Media.Brush IdleBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xBD, 0xBD, 0xBD));
+
+    private static void SetHealthDot(System.Windows.Shapes.Ellipse dot, TextBlock text, string label,
+        ServerHealthState state, ServerHealthResult? result)
+    {
+        System.Windows.Media.Brush brush;
+        string status;
+        switch (state)
+        {
+            case ServerHealthState.Up:
+                brush = UpBrush;
+                status = result?.LatencyMs != null ? $"Up ({result.LatencyMs} ms)" : "Up";
+                break;
+            case ServerHealthState.NoData:
+                brush = NoDataBrush;
+                status = "No data";
+                break;
+            case ServerHealthState.Down:
+                brush = DownBrush;
+                status = "Down";
+                break;
+            case ServerHealthState.Checking:
+                brush = IdleBrush;
+                status = "Checking…";
+                break;
+            default:
+                brush = IdleBrush;
+                status = "—";
+                break;
+        }
+
+        dot.Fill = brush;
+        text.Text = $"{label}: {status}";
+    }
+
+    #endregion
 
     #region Data Loading
 

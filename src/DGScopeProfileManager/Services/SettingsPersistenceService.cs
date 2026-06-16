@@ -49,6 +49,12 @@ public class SettingsPersistenceService
                     SkipUpdateCheck = data.SkipUpdateCheck
                 };
 
+                // Preserve a saved server choice; keep the AppSettings default if absent.
+                if (!string.IsNullOrWhiteSpace(data.ServerBaseUrl))
+                {
+                    settings.ServerBaseUrl = data.ServerBaseUrl;
+                }
+
                 // Load default settings if present
                 if (data.DefaultSettings != null)
                 {
@@ -78,7 +84,8 @@ public class SettingsPersistenceService
                 CrcFolderPath = settings.CrcFolderPath,
                 DgScopeFolderPath = settings.DgScopeFolderPath,
                 DefaultSettings = settings.DefaultSettings,
-                SkipUpdateCheck = settings.SkipUpdateCheck
+                SkipUpdateCheck = settings.SkipUpdateCheck,
+                ServerBaseUrl = settings.ServerBaseUrl
             };
             
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
@@ -96,5 +103,6 @@ public class SettingsPersistenceService
         public string DgScopeFolderPath { get; set; } = string.Empty;
         public ProfileDefaultSettings? DefaultSettings { get; set; }
         public bool SkipUpdateCheck { get; set; } = false;
+        public string ServerBaseUrl { get; set; } = string.Empty;
     }
 }
