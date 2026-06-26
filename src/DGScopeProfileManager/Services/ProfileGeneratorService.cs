@@ -489,7 +489,9 @@ public class ProfileGeneratorService
         ProfileDefaultSettings? defaultSettings = null,
         CrcPrefSet? crcPrefSet = null,
         string? facilityIdOverride = null,
-        bool importAtpaVolumes = true)
+        bool importAtpaVolumes = true,
+        bool importCaSuppression = true,
+        bool importMsawVolumes = false)
     {
         if (selectedVideoMaps == null || selectedVideoMaps.Count == 0)
         {
@@ -610,8 +612,9 @@ public class ProfileGeneratorService
                 System.Diagnostics.Debug.WriteLine($"Applied CRC PrefSet: {crcPrefSet.Name}");
             }
 
-            // 8. Import ATPA volumes from VNAS API (if enabled), filtered by TRACON
-            if (importAtpaVolumes)
+            // 8. Import VNAS runway data (ATPA volumes + CA suppression corridors), filtered by TRACON.
+            // Both features share the same VNAS runway-threshold data, so fetch it once.
+            if (importAtpaVolumes || importCaSuppression)
             {
                 try
                 {
@@ -623,7 +626,7 @@ public class ProfileGeneratorService
                     if (!string.IsNullOrEmpty(facilityId) && volumesByFacility.TryGetValue(facilityId, out var facilityVolumes))
                     {
                         atpaVolumes = facilityVolumes;
-                        System.Diagnostics.Debug.WriteLine($"Using {atpaVolumes.Count} ATPA volumes for facility {facilityId}");
+                        System.Diagnostics.Debug.WriteLine($"Using {atpaVolumes.Count} VNAS runway volumes for facility {facilityId}");
                     }
                     else
                     {
@@ -631,19 +634,51 @@ public class ProfileGeneratorService
                         System.Diagnostics.Debug.WriteLine($"No facility match for '{facilityId}', using all {atpaVolumes.Count} volumes");
                     }
 
-                    if (atpaVolumes.Count > 0)
+                    if (importAtpaVolumes && atpaVolumes.Count > 0)
                     {
                         ApplyAtpaVolumes(root, atpaVolumes);
                         System.Diagnostics.Debug.WriteLine($"Imported {atpaVolumes.Count} ATPA volumes from VNAS for {crcProfile.ArtccCode}");
                     }
-                    else
+
+                    if (importCaSuppression && atpaVolumes.Count > 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"No ATPA volumes found in VNAS for {crcProfile.ArtccCode}");
+                        var caCount = ApplyCaSuppressionVolumes(root, atpaVolumes);
+                        System.Diagnostics.Debug.WriteLine($"Generated {caCount} CA suppression corridors from VNAS for {crcProfile.ArtccCode}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"ATPA volume import failed (non-fatal): {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"VNAS runway import failed (non-fatal): {ex.Message}");
+                }
+            }
+
+            // 9. Generate MSAW volumes from terrain (if enabled). Independent of VNAS;
+            // grids a radius around the facility center and queries USGS 3DEP per cell.
+            if (importMsawVolumes && latitude.HasValue && longitude.HasValue)
+            {
+                try
+                {
+                    var msawService = new MsawVolumeService();
+                    var cells = msawService
+                        .GenerateAsync(latitude.Value, longitude.Value)
+                        .GetAwaiter().GetResult();
+
+                    if (cells.Count > 0)
+                    {
+                        ApplyMsawVolumes(root, cells, receiverFacilityId ?? selectedTracon?.Id ?? crcProfile.ArtccCode);
+                        // Suppression zones are REQUIRED with MSAW or every arrival/over-field
+                        // aircraft nuisance-alerts (§2.5).
+                        var suppressed = ApplyMsawSuppressionVolumes(root, latitude.Value, longitude.Value);
+                        System.Diagnostics.Debug.WriteLine($"Generated {cells.Count} MSAW volumes + {suppressed} suppression zones for {crcProfile.ArtccCode}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"No MSAW terrain data resolved for {crcProfile.ArtccCode} (outside SRTM coverage?)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"MSAW generation failed (non-fatal): {ex.Message}");
                 }
             }
 
@@ -1232,7 +1267,7 @@ public class ProfileGeneratorService
     /// Populates the ATPAVolumes element with volume definitions including
     /// runway thresholds, dimensions, scratchpad filters, and 2.5nm approach settings.
     /// </summary>
-    private void ApplyAtpaVolumes(XElement root, List<VnasAtpaVolume> volumes)
+    public void ApplyAtpaVolumes(XElement root, List<VnasAtpaVolume> volumes)
     {
         // Enable ATPA globally and monitor cones
         var atpaActiveEl = root.Element("ATPAActive");
@@ -1297,6 +1332,183 @@ public class ProfileGeneratorService
 
             atpaVolumesElement.Add(volumeElement);
         }
+    }
+
+    /// <summary>
+    /// Generate Conflict-Alert suppression corridors (final-approach zones) from VNAS runway
+    /// data and write them into the profile's ConflictAlertSuppressionVolumes element.
+    ///
+    /// Per CRC STARS behavior, one corridor is emitted per runway end at ICAO-ID airports.
+    /// The VNAS ATPA runway data supplies the landing threshold and (true) landing heading;
+    /// field elevation comes from the embedded airport database. Corridor geometry uses the
+    /// FAA defaults (Length 30 NM, HalfWidth 2 NM, GS 3.0 deg, 1500 ft above glideslope) and
+    /// DGScope builds the corridor along TrueHeading + 180.
+    /// </summary>
+    /// <returns>The number of suppression corridors written.</returns>
+    public int ApplyCaSuppressionVolumes(XElement root, List<VnasAtpaVolume> runways)
+    {
+        // Enable Conflict Alert globally
+        var caActiveEl = root.Element("ConflictAlertActive");
+        if (caActiveEl != null)
+            caActiveEl.Value = "true";
+        else
+            root.Add(new XElement("ConflictAlertActive", "true"));
+
+        var caVolumesElement = root.Element("ConflictAlertSuppressionVolumes");
+        if (caVolumesElement == null)
+        {
+            caVolumesElement = new XElement("ConflictAlertSuppressionVolumes");
+            root.Add(caVolumesElement);
+        }
+        else
+        {
+            caVolumesElement.RemoveAll();
+        }
+
+        var airports = AirportLookupService.Instance;
+        var written = 0;
+
+        foreach (var rwy in runways)
+        {
+            // CRC behavior: suppress only at airports with an official ICAO identifier.
+            if (!airports.HasIcaoId(rwy.AirportId))
+                continue;
+
+            // Field elevation is required for the corridor's vertical extent.
+            var fieldElevation = airports.GetElevationFt(rwy.AirportId);
+            if (fieldElevation == null)
+                continue;
+
+            var name = string.IsNullOrWhiteSpace(rwy.Name)
+                ? $"{rwy.AirportId} FINAL"
+                : $"{rwy.AirportId} {rwy.Name} FINAL";
+
+            var volumeElement = new XElement("CASuppressionVolume",
+                new XElement("Name", name),
+                new XElement("Active", "true"),
+                new XElement("Draw", "false"),
+                new XElement("RunwayThreshold",
+                    new XElement("Latitude", rwy.ThresholdLatitude.ToString(CultureInfo.InvariantCulture)),
+                    new XElement("Longitude", rwy.ThresholdLongitude.ToString(CultureInfo.InvariantCulture))
+                ),
+                new XElement("TrueHeading", rwy.TrueHeading),
+                new XElement("Length", "30"),
+                new XElement("HalfWidth", "2"),
+                new XElement("FieldElevation", fieldElevation.Value),
+                new XElement("GlideslopeAngle", "3"),
+                new XElement("HeightAboveGlideslope", "1500")
+            );
+
+            caVolumesElement.Add(volumeElement);
+            written++;
+        }
+
+        return written;
+    }
+
+    /// <summary>
+    /// Write terrain-derived MSAW volumes into the profile's MSAWVolumes element and
+    /// enable MSAW. Each cell is a 4-point polygon with Floor 0 and a Ceiling equal to
+    /// the highest terrain in that cell plus the safety buffer.
+    /// </summary>
+    public void ApplyMsawVolumes(XElement root, List<MsawCell> cells, string facilityLabel)
+    {
+        // Enable MSAW globally (leave look-ahead at DGScope's default unless missing)
+        var msawActiveEl = root.Element("MSAWActive");
+        if (msawActiveEl != null)
+            msawActiveEl.Value = "true";
+        else
+            root.Add(new XElement("MSAWActive", "true"));
+
+        if (root.Element("MSAWLookAheadSeconds") == null)
+            root.Add(new XElement("MSAWLookAheadSeconds", "30"));
+
+        var msawVolumesElement = root.Element("MSAWVolumes");
+        if (msawVolumesElement == null)
+        {
+            msawVolumesElement = new XElement("MSAWVolumes");
+            root.Add(msawVolumesElement);
+        }
+        else
+        {
+            msawVolumesElement.RemoveAll();
+        }
+
+        var index = 1;
+        foreach (var cell in cells)
+        {
+            var pointsElement = new XElement("Points");
+            foreach (var (lat, lon) in cell.Corners)
+            {
+                pointsElement.Add(new XElement("GeoPoint",
+                    new XElement("Latitude", lat.ToString("F6", CultureInfo.InvariantCulture)),
+                    new XElement("Longitude", lon.ToString("F6", CultureInfo.InvariantCulture))));
+            }
+
+            var volumeElement = new XElement("MSAWVolume",
+                new XElement("Name", $"{facilityLabel} MSAW {index}"),
+                new XElement("Active", "true"),
+                new XElement("Draw", "false"),
+                new XElement("Floor", "0"),
+                new XElement("Ceiling", cell.Ceiling),
+                pointsElement,
+                new XElement("Radius", "0"));
+
+            msawVolumesElement.Add(volumeElement);
+            index++;
+        }
+    }
+
+    /// <summary>
+    /// Write MSAW suppression circles (one per ICAO airport within the coverage radius) into
+    /// the profile's MSAWSuppressionVolumes element. Without these, MSAW nuisance-alerts every
+    /// arrival on final and aircraft over the field. Each is a circle centered on the airport,
+    /// Floor = field elevation, Ceiling = field elevation + a generous buffer (§2.5).
+    /// </summary>
+    /// <returns>The number of suppression volumes written.</returns>
+    public int ApplyMsawSuppressionVolumes(XElement root, double centerLat, double centerLon,
+        double radiusNm = MsawVolumeService.DefaultRadiusNm)
+    {
+        const int ceilingBufferFt = 4000; // above field, covers arrivals/departures/pattern
+        const int suppressRadiusNm = 10;  // covers field + close-in finals (§2.5)
+
+        var airports = AirportLookupService.Instance.GetIcaoAirportsWithin(centerLat, centerLon, radiusNm);
+
+        var suppressElement = root.Element("MSAWSuppressionVolumes");
+        if (suppressElement == null)
+        {
+            suppressElement = new XElement("MSAWSuppressionVolumes");
+            root.Add(suppressElement);
+        }
+        else
+        {
+            suppressElement.RemoveAll();
+        }
+
+        var written = 0;
+        foreach (var ap in airports)
+        {
+            if (ap.ElevationFt == null || ap.Latitude == null || ap.Longitude == null)
+                continue;
+
+            var label = string.IsNullOrWhiteSpace(ap.IcaoCode) ? ap.LocalCode : ap.IcaoCode;
+            var floor = ap.ElevationFt.Value;
+
+            suppressElement.Add(new XElement("MSAWVolume",
+                new XElement("Name", $"{label} FIELD SUPPRESS"),
+                new XElement("Active", "true"),
+                new XElement("Draw", "false"),
+                new XElement("Floor", floor),
+                new XElement("Ceiling", floor + ceilingBufferFt),
+                new XElement("Points"), // empty => circle
+                new XElement("Center",
+                    new XElement("Latitude", ap.Latitude.Value.ToString("F6", CultureInfo.InvariantCulture)),
+                    new XElement("Longitude", ap.Longitude.Value.ToString("F6", CultureInfo.InvariantCulture))),
+                new XElement("Radius", suppressRadiusNm)));
+            written++;
+        }
+
+        return written;
     }
 
     /// <summary>

@@ -724,12 +724,15 @@ public partial class MainWindow : Window
 
             // Generate profile on background thread to avoid UI freeze
             var outputDir = Path.Combine(_settings.DgScopeFolderPath, "profiles", crcProfile.ArtccCode);
-            var importAtpa = ImportAtpaVolumesCheck.IsChecked == true;
+            var importVolumes = ImportVolumesCheck.IsChecked == true; // ATPA + CA suppression
+            var importMsaw = ImportMsawVolumesCheck.IsChecked == true;
             var crcVideoMapFolder = _settings.CrcVideoMapFolderPath;
             var defaultSettings = _settings.DefaultSettings;
 
             GenerateButton.IsEnabled = false;
-            UpdateStatus("Generating profile...");
+            UpdateStatus(importMsaw
+                ? "Generating profile (building terrain MSAW volumes, this may take a minute)..."
+                : "Generating profile...");
 
             var profile = await Task.Run(() =>
             {
@@ -747,7 +750,9 @@ public partial class MainWindow : Window
                     defaultSettings,
                     prefSet,
                     facilityIdOverride,
-                    importAtpa);
+                    importVolumes,
+                    importVolumes,
+                    importMsaw);
             });
 
             if (profile != null)
@@ -819,7 +824,9 @@ public partial class MainWindow : Window
             DefaultSettings = _settings.DefaultSettings,
             OutputDirectory = Path.Combine(_settings.DgScopeFolderPath, "profiles"),
             CrcVideoMapFolder = _settings.CrcVideoMapFolderPath,
-            ImportAtpaVolumes = ImportAtpaVolumesCheck.IsChecked == true
+            ImportAtpaVolumes = ImportVolumesCheck.IsChecked == true,
+            ImportCaSuppression = ImportVolumesCheck.IsChecked == true,
+            ImportMsawVolumes = ImportMsawVolumesCheck.IsChecked == true
         };
 
         try
@@ -1051,12 +1058,12 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Import ATPA volumes from VNAS API into existing profiles.
-    /// Uses checked profiles first; falls back to selected facility/profile in tree.
+    /// Collect target DGScope profiles grouped by ARTCC: checked profiles first, else the
+    /// selected facility/profile in the tree. Returns null (after messaging the user) if
+    /// nothing is targeted.
     /// </summary>
-    private async void ImportAtpa_Click(object sender, RoutedEventArgs e)
+    private Dictionary<string, List<DgScopeProfile>>? CollectTargetProfilesByArtcc()
     {
-        // Collect checked profiles grouped by ARTCC
         var checkedByArtcc = new Dictionary<string, List<DgScopeProfile>>();
         foreach (var fac in _facilities)
         {
@@ -1065,7 +1072,6 @@ public partial class MainWindow : Window
                 checkedByArtcc[fac.ArtccCode] = checkedProfiles;
         }
 
-        // If no checkboxes checked, fall back to tree selection (single facility or profile)
         if (checkedByArtcc.Count == 0)
         {
             if (FacilitiesTree.SelectedItem is Facility facility)
@@ -1079,7 +1085,7 @@ public partial class MainWindow : Window
                 {
                     MessageBox.Show("Cannot determine ARTCC for this profile.", "Error",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return;
+                    return null;
                 }
                 checkedByArtcc[parentFacility.ArtccCode] = new List<DgScopeProfile> { profile };
             }
@@ -1087,12 +1093,23 @@ public partial class MainWindow : Window
             {
                 MessageBox.Show("Check profiles or select a facility first.", "No Selection",
                     MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                return null;
             }
         }
 
+        return checkedByArtcc.Values.Sum(p => p.Count) > 0 ? checkedByArtcc : null;
+    }
+
+    /// <summary>
+    /// Import ATPA + CA suppression volumes from the VNAS API into existing profiles.
+    /// Uses checked profiles first; falls back to the selected facility/profile in the tree.
+    /// </summary>
+    private async void ImportVolumes_Click(object sender, RoutedEventArgs e)
+    {
+        var checkedByArtcc = CollectTargetProfilesByArtcc();
+        if (checkedByArtcc == null) return;
+
         var totalTargetProfiles = checkedByArtcc.Values.Sum(p => p.Count);
-        if (totalTargetProfiles == 0) return;
 
         try
         {
@@ -1116,9 +1133,9 @@ public partial class MainWindow : Window
                 return;
             }
 
-            UpdateStatus($"Applying ATPA volumes to {totalTargetProfiles} profile(s)...");
+            UpdateStatus($"Applying volumes to {totalTargetProfiles} profile(s)...");
 
-            // Process profiles on background thread
+            // Process profiles on background thread, reusing the generator's volume writers
             var profileData = checkedByArtcc
                 .Where(kvp => allVolumes.ContainsKey(kvp.Key))
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(p => (p.Name, p.FilePath)).ToList());
@@ -1126,6 +1143,7 @@ public partial class MainWindow : Window
             var (updated, totalVolumes) = await Task.Run(() =>
             {
                 Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+                var generator = new ProfileGeneratorService();
                 int updatedCount = 0;
                 int volCount = 0;
 
@@ -1140,7 +1158,7 @@ public partial class MainWindow : Window
                             var facilityId = VnasApiService.GetFacilityIdFromProfileName(profName);
                             if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
                             {
-                                System.Diagnostics.Debug.WriteLine($"No ATPA volumes for facility {facilityId} (profile {profName})");
+                                System.Diagnostics.Debug.WriteLine($"No volumes for facility {facilityId} (profile {profName})");
                                 continue;
                             }
 
@@ -1148,65 +1166,8 @@ public partial class MainWindow : Window
                             var root = doc.Root;
                             if (root == null) continue;
 
-                            var atpaActiveEl = root.Element("ATPAActive");
-                            if (atpaActiveEl != null) atpaActiveEl.Value = "true";
-                            else root.Add(new System.Xml.Linq.XElement("ATPAActive", "true"));
-
-                            var monitorConesEl = root.Element("DrawATPAMonitorCones");
-                            if (monitorConesEl != null) monitorConesEl.Value = "true";
-                            else root.Add(new System.Xml.Linq.XElement("DrawATPAMonitorCones", "true"));
-
-                        var atpaEl = root.Element("ATPAVolumes");
-                        if (atpaEl == null)
-                        {
-                            var sep = root.Element("ATPASeparationTable");
-                            atpaEl = new System.Xml.Linq.XElement("ATPAVolumes");
-                            if (sep != null) sep.AddAfterSelf(atpaEl);
-                            else root.Add(atpaEl);
-                        }
-                        else
-                        {
-                            atpaEl.RemoveAll();
-                        }
-
-                        foreach (var vol in volumes)
-                        {
-                            var spFilters = new System.Xml.Linq.XElement("ScratchpadFilters");
-                            foreach (var sp in vol.Scratchpads)
-                            {
-                                spFilters.Add(new System.Xml.Linq.XElement("ScratchpadFilter",
-                                    new System.Xml.Linq.XElement("ScratchpadValue", sp.Entry),
-                                    new System.Xml.Linq.XElement("ScratchpadNum", sp.ScratchpadNumber),
-                                    new System.Xml.Linq.XElement("ScratchpadFilterType", sp.FilterType)
-                                ));
-                            }
-
-                            atpaEl.Add(new System.Xml.Linq.XElement("ATPAVolume",
-                                new System.Xml.Linq.XElement("VolumeId", vol.VolumeId),
-                                new System.Xml.Linq.XElement("Name", vol.Name),
-                                new System.Xml.Linq.XElement("Active", "true"),
-                                new System.Xml.Linq.XElement("Draw", "false"),
-                                new System.Xml.Linq.XElement("RunwayThreshold",
-                                    new System.Xml.Linq.XElement("Latitude", vol.ThresholdLatitude.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                                    new System.Xml.Linq.XElement("Longitude", vol.ThresholdLongitude.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                                ),
-                                new System.Xml.Linq.XElement("TrueHeading", vol.TrueHeading),
-                                new System.Xml.Linq.XElement("MaxHeadingDeviation", vol.MaximumHeadingDeviation),
-                                new System.Xml.Linq.XElement("Ceiling", vol.Ceiling),
-                                new System.Xml.Linq.XElement("Floor", vol.Floor),
-                                new System.Xml.Linq.XElement("Length", vol.Length.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                                new System.Xml.Linq.XElement("WidthLeft", vol.WidthLeft),
-                                new System.Xml.Linq.XElement("WidthRight", vol.WidthRight),
-                                new System.Xml.Linq.XElement("TwoPointFiveEnabled", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
-                                new System.Xml.Linq.XElement("TwoPointFiveActive", vol.TwoPointFiveApproachEnabled.ToString().ToLowerInvariant()),
-                                new System.Xml.Linq.XElement("TwoPointFiveDistance", vol.TwoPointFiveApproachDistance.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                                new System.Xml.Linq.XElement("Destination", vol.AirportId),
-                                new System.Xml.Linq.XElement("LeaderFilters"),
-                                spFilters,
-                                new System.Xml.Linq.XElement("TcpDisplay"),
-                                new System.Xml.Linq.XElement("TcpExclusion")
-                            ));
-                        }
+                            generator.ApplyAtpaVolumes(root, volumes);
+                            generator.ApplyCaSuppressionVolumes(root, volumes);
 
                             doc.Save(profPath);
                             updatedCount++;
@@ -1214,7 +1175,7 @@ public partial class MainWindow : Window
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Failed to update ATPA for {profName}: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Failed to update volumes for {profName}: {ex.Message}");
                         }
                     }
                 }
@@ -1222,15 +1183,99 @@ public partial class MainWindow : Window
                 return (updatedCount, volCount);
             });
 
-            UpdateStatus($"Imported ATPA volumes into {updated} profile(s)");
-            MessageBox.Show($"Imported ATPA volumes into {updated} profile(s) ({totalVolumes} total volumes).\nEach profile received only its facility's volumes.",
-                "ATPA Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            UpdateStatus($"Imported ATPA + CA volumes into {updated} profile(s)");
+            MessageBox.Show($"Imported ATPA + CA suppression volumes into {updated} profile(s).\nEach profile received only its facility's runways.",
+                "Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error importing ATPA volumes: {ex.Message}", "Error",
+            MessageBox.Show($"Error importing volumes: {ex.Message}", "Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             UpdateStatus("Ready.");
+        }
+    }
+
+    /// <summary>
+    /// Generate terrain MSAW volumes for existing profiles (checked, else selected
+    /// facility/profile). Uses each profile's home location as the grid center.
+    /// </summary>
+    private async void ImportMsaw_Click(object sender, RoutedEventArgs e)
+    {
+        var checkedByArtcc = CollectTargetProfilesByArtcc();
+        if (checkedByArtcc == null) return;
+
+        var targets = checkedByArtcc.Values.SelectMany(p => p)
+            .Select(p => (p.Name, p.FilePath, p.HomeLocationLatitude, p.HomeLocationLongitude))
+            .ToList();
+        if (targets.Count == 0) return;
+
+        var confirm = MessageBox.Show(
+            $"Generate terrain MSAW volumes for {targets.Count} profile(s)?\n\n" +
+            "The first run downloads SRTM terrain tiles for each area (cached afterward). " +
+            "US terrain coverage only.",
+            "Import MSAW", MessageBoxButton.OKCancel, MessageBoxImage.Information);
+        if (confirm != MessageBoxResult.OK) return;
+
+        ImportMsawButton.IsEnabled = false;
+        try
+        {
+            var (updated, skipped) = await Task.Run(async () =>
+            {
+                var generator = new ProfileGeneratorService();
+                var msawService = new MsawVolumeService();
+                int updatedCount = 0, skippedCount = 0;
+
+                foreach (var (name, path, lat, lon) in targets)
+                {
+                    try
+                    {
+                        if (lat == null || lon == null)
+                        {
+                            skippedCount++;
+                            continue;
+                        }
+
+                        var cells = await msawService.GenerateAsync(lat.Value, lon.Value);
+                        if (cells.Count == 0)
+                        {
+                            skippedCount++;
+                            continue;
+                        }
+
+                        var doc = System.Xml.Linq.XDocument.Load(path);
+                        var root = doc.Root;
+                        if (root == null) { skippedCount++; continue; }
+
+                        var facilityLabel = VnasApiService.GetFacilityIdFromProfileName(name);
+                        generator.ApplyMsawVolumes(root, cells, facilityLabel);
+                        generator.ApplyMsawSuppressionVolumes(root, lat.Value, lon.Value);
+                        doc.Save(path);
+                        updatedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"MSAW import failed for {name}: {ex.Message}");
+                        skippedCount++;
+                    }
+                }
+
+                return (updatedCount, skippedCount);
+            });
+
+            UpdateStatus($"Generated MSAW volumes for {updated} profile(s)");
+            MessageBox.Show($"Generated terrain MSAW volumes for {updated} profile(s)." +
+                (skipped > 0 ? $"\nSkipped {skipped} (no home location or no terrain coverage)." : ""),
+                "MSAW Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error generating MSAW volumes: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            UpdateStatus("Ready.");
+        }
+        finally
+        {
+            ImportMsawButton.IsEnabled = true;
         }
     }
 

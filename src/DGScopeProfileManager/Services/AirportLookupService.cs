@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 
@@ -101,13 +102,24 @@ public class AirportLookupService
             if (string.IsNullOrWhiteSpace(localCode))
                 return null;
 
+            // elevation_ft is integer feet in the OurAirports data
+            int? elevation = int.TryParse(fields[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out var elev)
+                ? elev : null;
+            double? lat = double.TryParse(fields[4], NumberStyles.Float, CultureInfo.InvariantCulture, out var la)
+                ? la : null;
+            double? lon = double.TryParse(fields[5], NumberStyles.Float, CultureInfo.InvariantCulture, out var lo)
+                ? lo : null;
+
             return new AirportInfo
             {
                 LocalCode = localCode,
                 IcaoCode = icaoCode,
                 GpsCode = gpsCode,
                 Name = fields[3],
-                Type = fields[2]
+                Type = fields[2],
+                ElevationFt = elevation,
+                Latitude = lat,
+                Longitude = lon
             };
         }
         catch
@@ -174,6 +186,68 @@ public class AirportLookupService
         return prefix + upperLid;
     }
 
+    /// <summary>
+    /// Resolve an airport by FAA local code or ICAO code (e.g. "BWI" or "KBWI").
+    /// </summary>
+    public AirportInfo? GetAirport(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return null;
+
+        var upper = code.ToUpper();
+        if (_airportsByLocal.TryGetValue(upper, out var byLocal))
+            return byLocal;
+        if (_airportsByIcao.TryGetValue(upper, out var byIcao))
+            return byIcao;
+        return null;
+    }
+
+    /// <summary>
+    /// Field elevation (ft MSL) for an airport, or null if unknown.
+    /// </summary>
+    public int? GetElevationFt(string code) => GetAirport(code)?.ElevationFt;
+
+    /// <summary>
+    /// Whether the airport has an official ICAO identifier (per CRC, CA suppression is
+    /// emitted only for ICAO airports). True if the resolved record carries an ICAO code,
+    /// or the code itself is already a US ICAO id (K/P-prefixed 4-letter).
+    /// </summary>
+    public bool HasIcaoId(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return false;
+
+        var airport = GetAirport(code);
+        if (airport != null && !string.IsNullOrWhiteSpace(airport.IcaoCode))
+            return true;
+
+        var upper = code.ToUpper();
+        return upper.Length == 4 && (upper[0] == 'K' || upper[0] == 'P') && _airportsByIcao.ContainsKey(upper);
+    }
+
+    /// <summary>
+    /// ICAO-identified airports within <paramref name="radiusNm"/> of a point that have a
+    /// known location and field elevation. Used to place MSAW suppression circles over fields.
+    /// </summary>
+    public List<AirportInfo> GetIcaoAirportsWithin(double centerLat, double centerLon, double radiusNm)
+    {
+        var cosLat = Math.Cos(centerLat * Math.PI / 180.0);
+        var results = new List<AirportInfo>();
+
+        foreach (var airport in _airportsByIcao.Values)
+        {
+            if (airport.Latitude == null || airport.Longitude == null || airport.ElevationFt == null)
+                continue;
+
+            var dLatNm = (airport.Latitude.Value - centerLat) * 60.0;
+            var dLonNm = (airport.Longitude.Value - centerLon) * 60.0 * cosLat;
+            if (Math.Sqrt(dLatNm * dLatNm + dLonNm * dLonNm) <= radiusNm)
+                results.Add(airport);
+        }
+
+        return results;
+    }
+
     public class AirportInfo
     {
         public string LocalCode { get; set; } = string.Empty;
@@ -181,5 +255,8 @@ public class AirportLookupService
         public string GpsCode { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
+        public int? ElevationFt { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
 }

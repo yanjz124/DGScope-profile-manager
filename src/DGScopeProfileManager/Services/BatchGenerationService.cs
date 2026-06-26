@@ -136,7 +136,9 @@ public class BatchGenerationService
             options.DefaultSettings,
             item.PrefSet,
             item.FacilityIdOverride,
-            options.ImportAtpaVolumes);
+            options.ImportAtpaVolumes,
+            options.ImportCaSuppression,
+            options.ImportMsawVolumes);
     }
 }
 
@@ -171,6 +173,8 @@ public class BatchGenerationOptions
     public ProfileDefaultSettings? DefaultSettings { get; set; }
     public bool AutoSelectVideoMaps { get; set; } = true;
     public bool ImportAtpaVolumes { get; set; } = true;
+    public bool ImportCaSuppression { get; set; } = true;
+    public bool ImportMsawVolumes { get; set; } = false;
 }
 
 /// <summary>
