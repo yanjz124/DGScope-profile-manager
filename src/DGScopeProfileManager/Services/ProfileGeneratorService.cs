@@ -105,6 +105,15 @@ public class ProfileGeneratorService
                 {
                     if (File.Exists(sourceFilePath))
                     {
+                        // Skip maps with no renderable geometry (empty, or only Point/
+                        // MultiPoint). DGScope can't draw these and warns on load; some CRC
+                        // exports include such placeholder maps.
+                        if (!HasRenderableGeometry(sourceFilePath))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"⊘ Skipped empty/non-line video map: {sourceFilePath}");
+                            continue;
+                        }
+
                         File.Copy(sourceFilePath, destFilePath, overwrite: true);
                         System.Diagnostics.Debug.WriteLine($"✓ Copied video map: {sourceFilePath} -> {destFilePath}");
                     }
@@ -174,6 +183,83 @@ public class ProfileGeneratorService
         }
 
         return mapFiles;
+    }
+
+    /// <summary>
+    /// Whether a GeoJSON file contains at least one line/polygon geometry with actual
+    /// coordinates. Empty geometries and point-only maps (which DGScope can't render and
+    /// warns on) return false. On any parse error we return true so the map is still
+    /// copied rather than silently dropped.
+    /// </summary>
+    private static bool HasRenderableGeometry(string geoJsonPath)
+    {
+        try
+        {
+            using var stream = File.OpenRead(geoJsonPath);
+            using var doc = System.Text.Json.JsonDocument.Parse(stream);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("features", out var features) ||
+                features.ValueKind != System.Text.Json.JsonValueKind.Array)
+                return GeometryHasCoordinates(root); // bare geometry, not a FeatureCollection
+
+            foreach (var feature in features.EnumerateArray())
+            {
+                if (feature.TryGetProperty("geometry", out var geometry) &&
+                    GeometryHasCoordinates(geometry))
+                    return true;
+            }
+            return false;
+        }
+        catch
+        {
+            return true; // don't drop a map just because we couldn't inspect it
+        }
+    }
+
+    /// <summary>
+    /// True if a GeoJSON geometry is a line/polygon type with non-empty coordinates.
+    /// Point/MultiPoint are excluded (DGScope renders lines only). Recurses into
+    /// GeometryCollection.
+    /// </summary>
+    private static bool GeometryHasCoordinates(System.Text.Json.JsonElement geometry)
+    {
+        if (geometry.ValueKind != System.Text.Json.JsonValueKind.Object)
+            return false;
+
+        var type = geometry.TryGetProperty("type", out var t) ? t.GetString() : null;
+
+        if (type == "GeometryCollection")
+        {
+            if (geometry.TryGetProperty("geometries", out var geometries) &&
+                geometries.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var g in geometries.EnumerateArray())
+                    if (GeometryHasCoordinates(g))
+                        return true;
+            }
+            return false;
+        }
+
+        if (type != "LineString" && type != "Polygon" &&
+            type != "MultiLineString" && type != "MultiPolygon")
+            return false; // Point / MultiPoint / unknown — not renderable as lines
+
+        // Renderable type: require at least one actual coordinate value somewhere in the array.
+        return geometry.TryGetProperty("coordinates", out var coords) && HasAnyNumber(coords);
+    }
+
+    private static bool HasAnyNumber(System.Text.Json.JsonElement element)
+    {
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Number)
+            return true;
+        if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var child in element.EnumerateArray())
+                if (HasAnyNumber(child))
+                    return true;
+        }
+        return false;
     }
 
     private void ApplyVideoMapFiles(XElement root, List<VideoMapFile> videoMapFiles)
