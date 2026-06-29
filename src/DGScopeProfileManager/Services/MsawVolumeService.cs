@@ -66,7 +66,10 @@ public class MsawVolumeService
                 });
             }
 
-            progress?.Report((++done, total));
+            // Local compute is near-instant, so throttle status updates to avoid flooding the UI.
+            done++;
+            if (progress != null && (done % 50 == 0 || done == total))
+                progress.Report((done, total));
         }
 
         return cells;

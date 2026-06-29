@@ -236,17 +236,11 @@
                                           Content="Auto-select all video maps"
                                           IsChecked="True" Margin="0,0,0,5"/>
 
-                                <!-- Import VNAS volumes: ATPA + CA suppression -->
+                                <!-- Import all volumes: ATPA + CA suppression + terrain MSAW -->
                                 <CheckBox Name="ImportVolumesCheck"
-                                          Content="Import volumes (ATPA + CA)"
+                                          Content="Import volumes (ATPA + CA + MSAW)"
                                           IsChecked="True" Margin="0,0,0,5"
-                                          ToolTip="Import ATPA monitor volumes and Conflict Alert suppression corridors (ICAO-airport runway ends) from VNAS runway data."/>
-
-                                <!-- Generate terrain MSAW volumes (local SRTM DEM) -->
-                                <CheckBox Name="ImportMsawVolumesCheck"
-                                          Content="Import MSAW volumes (terrain)"
-                                          IsChecked="False" Margin="0,0,0,5"
-                                          ToolTip="Generate terrain-based MSAW volumes around the facility (40 NM, 2 NM cells) from SRTM elevation. First run downloads terrain tiles (~tens of MB); cached and fast afterward."/>
+                                          ToolTip="Import ATPA monitor volumes, Conflict Alert suppression corridors, and terrain MSAW volumes (+ field suppression). MSAW downloads SRTM terrain tiles on first use per area (cached afterward); US terrain coverage only."/>
                             </StackPanel>
                         </GroupBox>
 
@@ -384,9 +378,7 @@
                             <Button Name="EditProfileButton" Content="Edit Profile" Click="EditProfile_Click"/>
                             <Button Name="DeleteProfileButton" Content="Delete Profile" Click="DeleteProfile_Click"/>
                             <Button Name="ImportVolumesButton" Content="Import Volumes" Click="ImportVolumes_Click"
-                                    ToolTip="Import ATPA + CA suppression volumes from VNAS for checked profiles. If none checked, uses selected facility or profile."/>
-                            <Button Name="ImportMsawButton" Content="Import MSAW" Click="ImportMsaw_Click"
-                                    ToolTip="Generate terrain MSAW volumes for checked profiles (or selected facility/profile). First run downloads SRTM terrain tiles; cached afterward."/>
+                                    ToolTip="Import ATPA + CA suppression + terrain MSAW volumes for checked profiles. If none checked, uses the selected facility or profile. MSAW downloads SRTM tiles on first use (cached)."/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

@@ -724,14 +724,13 @@ public partial class MainWindow : Window
 
             // Generate profile on background thread to avoid UI freeze
             var outputDir = Path.Combine(_settings.DgScopeFolderPath, "profiles", crcProfile.ArtccCode);
-            var importVolumes = ImportVolumesCheck.IsChecked == true; // ATPA + CA suppression
-            var importMsaw = ImportMsawVolumesCheck.IsChecked == true;
+            var importVolumes = ImportVolumesCheck.IsChecked == true; // ATPA + CA suppression + MSAW
             var crcVideoMapFolder = _settings.CrcVideoMapFolderPath;
             var defaultSettings = _settings.DefaultSettings;
 
             GenerateButton.IsEnabled = false;
-            UpdateStatus(importMsaw
-                ? "Generating profile (building terrain MSAW volumes, this may take a minute)..."
+            UpdateStatus(importVolumes
+                ? "Generating profile (importing volumes incl. terrain MSAW)..."
                 : "Generating profile...");
 
             var profile = await Task.Run(() =>
@@ -752,7 +751,7 @@ public partial class MainWindow : Window
                     facilityIdOverride,
                     importVolumes,
                     importVolumes,
-                    importMsaw);
+                    importVolumes);
             });
 
             if (profile != null)
@@ -826,7 +825,7 @@ public partial class MainWindow : Window
             CrcVideoMapFolder = _settings.CrcVideoMapFolderPath,
             ImportAtpaVolumes = ImportVolumesCheck.IsChecked == true,
             ImportCaSuppression = ImportVolumesCheck.IsChecked == true,
-            ImportMsawVolumes = ImportMsawVolumesCheck.IsChecked == true
+            ImportMsawVolumes = ImportVolumesCheck.IsChecked == true
         };
 
         try
@@ -1101,90 +1100,121 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Import ATPA + CA suppression volumes from the VNAS API into existing profiles.
-    /// Uses checked profiles first; falls back to the selected facility/profile in the tree.
+    /// Import all volumes — ATPA, CA suppression, and terrain MSAW (+ field suppression) —
+    /// from the VNAS API and local terrain into existing profiles. Uses checked profiles
+    /// first; falls back to the selected facility/profile in the tree. Progress (profile
+    /// count, plus MSAW cell counts) is shown in the status bar.
     /// </summary>
     private async void ImportVolumes_Click(object sender, RoutedEventArgs e)
     {
         var checkedByArtcc = CollectTargetProfilesByArtcc();
         if (checkedByArtcc == null) return;
 
-        var totalTargetProfiles = checkedByArtcc.Values.Sum(p => p.Count);
+        // Flatten to a processing list, carrying each profile's home location for MSAW
+        var targets = checkedByArtcc
+            .SelectMany(kvp => kvp.Value.Select(p => (
+                Artcc: kvp.Key, p.Name, p.FilePath, p.HomeLocationLatitude, p.HomeLocationLongitude)))
+            .ToList();
+        var total = targets.Count;
+        if (total == 0) return;
 
+        var confirm = MessageBox.Show(
+            $"Import ATPA, CA suppression, and terrain MSAW volumes for {total} profile(s)?\n\n" +
+            "MSAW downloads SRTM terrain tiles on first use per area (cached afterward). " +
+            "US terrain coverage only.",
+            "Import Volumes", MessageBoxButton.OKCancel, MessageBoxImage.Information);
+        if (confirm != MessageBoxResult.OK) return;
+
+        ImportVolumesButton.IsEnabled = false;
         try
         {
             var vnasService = new VnasApiService();
 
-            // Fetch all ATPA volumes first (needs to be on UI thread for status updates)
+            // Fetch VNAS runway/ATPA data per ARTCC up front
             var allVolumes = new Dictionary<string, Dictionary<string, List<VnasAtpaVolume>>>();
-            foreach (var (artccCode, _) in checkedByArtcc)
+            foreach (var artccCode in checkedByArtcc.Keys)
             {
-                UpdateStatus($"Fetching ATPA volumes for {artccCode}...");
+                UpdateStatus($"Fetching runway/ATPA data for {artccCode}...");
                 var volumesByFacility = await vnasService.FetchAtpaVolumesByFacilityAsync(artccCode);
                 if (volumesByFacility.Count > 0)
                     allVolumes[artccCode] = volumesByFacility;
             }
 
-            if (allVolumes.Count == 0)
-            {
-                MessageBox.Show("No ATPA volumes found on the VNAS API.",
-                    "No Volumes", MessageBoxButton.OK, MessageBoxImage.Information);
-                UpdateStatus("Ready.");
-                return;
-            }
+            // Progress objects created on the UI thread marshal callbacks back to it.
+            var statusProgress = (IProgress<string>)new Progress<string>(UpdateStatus);
+            var msawPrefix = "";
+            var msawProgress = new Progress<(int done, int totalCells)>(p =>
+                UpdateStatus($"{msawPrefix}: MSAW {p.done}/{p.totalCells} cells"));
 
-            UpdateStatus($"Applying volumes to {totalTargetProfiles} profile(s)...");
-
-            // Process profiles on background thread, reusing the generator's volume writers
-            var profileData = checkedByArtcc
-                .Where(kvp => allVolumes.ContainsKey(kvp.Key))
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(p => (p.Name, p.FilePath)).ToList());
-
-            var (updated, totalVolumes) = await Task.Run(() =>
+            var (updated, skipped) = await Task.Run(async () =>
             {
                 Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
                 var generator = new ProfileGeneratorService();
-                int updatedCount = 0;
-                int volCount = 0;
+                var msawService = new MsawVolumeService();
+                int updatedCount = 0, skippedCount = 0;
+                int index = 0;
 
-                foreach (var (artccCode, profiles) in profileData)
+                foreach (var (artcc, name, path, lat, lon) in targets)
                 {
-                    var volumesByFacility = allVolumes[artccCode];
+                    index++;
+                    var label = VnasApiService.GetFacilityIdFromProfileName(name);
+                    statusProgress.Report($"Importing volumes: {index}/{total} — {label} (ATPA + CA)");
 
-                    foreach (var (profName, profPath) in profiles)
+                    try
                     {
-                        try
+                        var doc = System.Xml.Linq.XDocument.Load(path);
+                        var root = doc.Root;
+                        if (root == null) { skippedCount++; continue; }
+
+                        var changed = false;
+
+                        // ATPA + CA suppression (when VNAS has this facility's runways)
+                        if (allVolumes.TryGetValue(artcc, out var volumesByFacility) &&
+                            volumesByFacility.TryGetValue(label, out var volumes) && volumes.Count > 0)
                         {
-                            var facilityId = VnasApiService.GetFacilityIdFromProfileName(profName);
-                            if (!volumesByFacility.TryGetValue(facilityId, out var volumes) || volumes.Count == 0)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"No volumes for facility {facilityId} (profile {profName})");
-                                continue;
-                            }
-
-                            var doc = System.Xml.Linq.XDocument.Load(profPath);
-                            var root = doc.Root;
-                            if (root == null) continue;
-
                             generator.ApplyAtpaVolumes(root, volumes);
                             generator.ApplyCaSuppressionVolumes(root, volumes);
+                            changed = true;
+                        }
 
-                            doc.Save(profPath);
-                            updatedCount++;
-                            volCount += volumes.Count;
-                        }
-                        catch (Exception ex)
+                        // Terrain MSAW + field suppression (needs a home location)
+                        if (lat.HasValue && lon.HasValue)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Failed to update volumes for {profName}: {ex.Message}");
+                            msawPrefix = $"Importing volumes: {index}/{total} — {label}";
+                            var cells = await msawService.GenerateAsync(lat.Value, lon.Value, progress: msawProgress);
+                            if (cells.Count > 0)
+                            {
+                                generator.ApplyMsawVolumes(root, cells, label);
+                                generator.ApplyMsawSuppressionVolumes(root, lat.Value, lon.Value);
+                                changed = true;
+                            }
                         }
+
+                        if (changed)
+                        {
+                            doc.Save(path);
+                            updatedCount++;
+                        }
+                        else
+                        {
+                            skippedCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Import volumes failed for {name}: {ex.Message}");
+                        skippedCount++;
                     }
                 }
 
-                return (updatedCount, volCount);
+                return (updatedCount, skippedCount);
             });
 
-            UpdateStatus($"Imported ATPA + CA volumes into {updated} profile(s)");
-            MessageBox.Show($"Imported ATPA + CA suppression volumes into {updated} profile(s).\nEach profile received only its facility's runways.",
+            UpdateStatus($"Imported volumes into {updated} profile(s)" +
+                (skipped > 0 ? $" ({skipped} skipped)" : ""));
+            MessageBox.Show(
+                $"Imported ATPA + CA + MSAW volumes into {updated} of {total} profile(s)." +
+                (skipped > 0 ? $"\nSkipped {skipped} (no matching runways/terrain or no home location)." : ""),
                 "Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -1193,89 +1223,9 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK, MessageBoxImage.Error);
             UpdateStatus("Ready.");
         }
-    }
-
-    /// <summary>
-    /// Generate terrain MSAW volumes for existing profiles (checked, else selected
-    /// facility/profile). Uses each profile's home location as the grid center.
-    /// </summary>
-    private async void ImportMsaw_Click(object sender, RoutedEventArgs e)
-    {
-        var checkedByArtcc = CollectTargetProfilesByArtcc();
-        if (checkedByArtcc == null) return;
-
-        var targets = checkedByArtcc.Values.SelectMany(p => p)
-            .Select(p => (p.Name, p.FilePath, p.HomeLocationLatitude, p.HomeLocationLongitude))
-            .ToList();
-        if (targets.Count == 0) return;
-
-        var confirm = MessageBox.Show(
-            $"Generate terrain MSAW volumes for {targets.Count} profile(s)?\n\n" +
-            "The first run downloads SRTM terrain tiles for each area (cached afterward). " +
-            "US terrain coverage only.",
-            "Import MSAW", MessageBoxButton.OKCancel, MessageBoxImage.Information);
-        if (confirm != MessageBoxResult.OK) return;
-
-        ImportMsawButton.IsEnabled = false;
-        try
-        {
-            var (updated, skipped) = await Task.Run(async () =>
-            {
-                var generator = new ProfileGeneratorService();
-                var msawService = new MsawVolumeService();
-                int updatedCount = 0, skippedCount = 0;
-
-                foreach (var (name, path, lat, lon) in targets)
-                {
-                    try
-                    {
-                        if (lat == null || lon == null)
-                        {
-                            skippedCount++;
-                            continue;
-                        }
-
-                        var cells = await msawService.GenerateAsync(lat.Value, lon.Value);
-                        if (cells.Count == 0)
-                        {
-                            skippedCount++;
-                            continue;
-                        }
-
-                        var doc = System.Xml.Linq.XDocument.Load(path);
-                        var root = doc.Root;
-                        if (root == null) { skippedCount++; continue; }
-
-                        var facilityLabel = VnasApiService.GetFacilityIdFromProfileName(name);
-                        generator.ApplyMsawVolumes(root, cells, facilityLabel);
-                        generator.ApplyMsawSuppressionVolumes(root, lat.Value, lon.Value);
-                        doc.Save(path);
-                        updatedCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"MSAW import failed for {name}: {ex.Message}");
-                        skippedCount++;
-                    }
-                }
-
-                return (updatedCount, skippedCount);
-            });
-
-            UpdateStatus($"Generated MSAW volumes for {updated} profile(s)");
-            MessageBox.Show($"Generated terrain MSAW volumes for {updated} profile(s)." +
-                (skipped > 0 ? $"\nSkipped {skipped} (no home location or no terrain coverage)." : ""),
-                "MSAW Import Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error generating MSAW volumes: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-            UpdateStatus("Ready.");
-        }
         finally
         {
-            ImportMsawButton.IsEnabled = true;
+            ImportVolumesButton.IsEnabled = true;
         }
     }
 
