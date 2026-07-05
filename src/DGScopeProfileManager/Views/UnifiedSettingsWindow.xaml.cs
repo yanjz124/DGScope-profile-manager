@@ -794,7 +794,8 @@ public partial class UnifiedSettingsWindow : Window
             if (NexradComboBox.SelectedItem is NexradDisplayItem selectedNexrad)
             {
                 _profile.AllSettings["NexradSensorID"] = selectedNexrad.Station.Icao;
-                System.Diagnostics.Debug.WriteLine($"Saving NEXRAD: {selectedNexrad.Station.Icao}");
+                _profile.AllSettings["NexradStationType"] = selectedNexrad.Station.StationType;
+                System.Diagnostics.Debug.WriteLine($"Saving NEXRAD: {selectedNexrad.Station.Icao} ({selectedNexrad.Station.StationType})");
             }
 
             // Save profile to XML (writes CurrentPrefSet subtree and root fonts; also updates VideoMapFilename)

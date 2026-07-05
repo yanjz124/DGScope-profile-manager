@@ -956,6 +956,51 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void FixAllNexradUrls_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var result = MessageBox.Show(
+                "This will correct the NEXRAD radar overlay URL in all profiles so the product path " +
+                "matches each profile's radar type (WSR-88D uses product 94, TDWR uses product 180).\n\n" +
+                "The selected radar station is not changed. Continue?",
+                "Fix All NEXRAD URLs",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                UpdateStatus("Fixing NEXRAD URLs...");
+                var facilities = _facilities.ToList();
+
+                var fixedCount = await Task.Run(() =>
+                {
+                    Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+                    int count = 0;
+                    foreach (var facility in facilities)
+                    {
+                        var service = new DgScopeProfileService(facility.Path);
+                        foreach (var profile in facility.Profiles)
+                        {
+                            if (service.FixNexradUrl(profile))
+                                count++;
+                        }
+                    }
+                    return count;
+                });
+
+                UpdateStatus($"Fixed NEXRAD URLs in {fixedCount} profiles");
+                MessageBox.Show($"Successfully corrected NEXRAD URLs in {fixedCount} profiles.", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error fixing NEXRAD URLs: {ex.Message}", "Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
     {
         try

@@ -432,7 +432,48 @@ public class DgScopeProfileService
             doc.Save(profile.FilePath);
         }
     }
-    
+
+    /// <summary>
+    /// Corrects the NEXRAD radar overlay URL for a profile so the product path matches the
+    /// configured sensor's radar type. WSR-88D uses product 94 (DS.p94r0) while TDWR uses
+    /// product 180 (DS.180z0); an incorrect path (e.g. a TDWR sensor with the WSR-88D path)
+    /// will not resolve. Returns true if the URL was changed.
+    /// </summary>
+    public bool FixNexradUrl(DgScopeProfile profile)
+    {
+        var doc = XDocument.Load(profile.FilePath);
+        var root = doc.Root;
+        if (root == null)
+        {
+            throw new InvalidOperationException($"Invalid XML file: {profile.FilePath}");
+        }
+
+        var nexrad = root.Element("Nexrad");
+        var sensorId = nexrad?.Element("SensorID")?.Value;
+        if (nexrad == null || string.IsNullOrWhiteSpace(sensorId))
+        {
+            // No NEXRAD configured for this profile - nothing to fix.
+            return false;
+        }
+
+        // Prefer a stored station type; fall back to the ICAO prefix (T = TDWR, K = WSR-88D).
+        var isTdwr = profile.AllSettings.TryGetValue("NexradStationType", out var nexradStationType)
+                && !string.IsNullOrWhiteSpace(nexradStationType)
+            ? nexradStationType.Contains("TDWR", StringComparison.OrdinalIgnoreCase)
+            : NexradStation.IsTdwrSensorId(sensorId);
+
+        var correctUrl = NexradStation.BuildRadarUrl(sensorId, isTdwr);
+        var urlElement = nexrad.Element("URL");
+        if (urlElement != null && urlElement.Value == correctUrl)
+        {
+            return false;
+        }
+
+        SetOrCreateElement(nexrad, "URL", correctUrl);
+        doc.Save(profile.FilePath);
+        return true;
+    }
+
     /// <summary>
     /// Applies batch settings to multiple profiles
     /// </summary>
@@ -692,8 +733,13 @@ public class DgScopeProfileService
             SetOrCreateElement(nexrad, "WxRadarMode", "NWSNexrad");
             SetOrCreateElement(nexrad, "Enabled", "true");
 
-            // Construct NEXRAD URL
-            var nexradUrl = $"https://tgftp.nws.noaa.gov/SL.us008001/DF.of/DC.radar/DS.p94r0/SI.{nexradSensorId.ToLower()}/sn.last";
+            // Construct NEXRAD URL (WSR-88D and TDWR use different radar products/paths).
+            // Prefer a stored station type; fall back to the ICAO prefix (T = TDWR, K = WSR-88D).
+            var isTdwr = profile.AllSettings.TryGetValue("NexradStationType", out var nexradStationType)
+                    && !string.IsNullOrWhiteSpace(nexradStationType)
+                ? nexradStationType.Contains("TDWR", StringComparison.OrdinalIgnoreCase)
+                : NexradStation.IsTdwrSensorId(nexradSensorId);
+            var nexradUrl = NexradStation.BuildRadarUrl(nexradSensorId, isTdwr);
             SetOrCreateElement(nexrad, "URL", nexradUrl);
             SetOrCreateElement(nexrad, "DownloadInterval", "300");
 

@@ -13,6 +13,33 @@ public class NexradStation
     public int Elevation { get; set; }
 
     /// <summary>
+    /// True if this station is a TDWR (Terminal Doppler Weather Radar) rather than a WSR-88D.
+    /// Prefers the parsed station type; falls back to the ICAO prefix (TDWR ICAOs start with 'T',
+    /// WSR-88D with 'K') when the type is unavailable.
+    /// </summary>
+    public bool IsTdwr => StationType.Contains("TDWR", StringComparison.OrdinalIgnoreCase)
+        || (string.IsNullOrEmpty(StationType) && IsTdwrSensorId(Icao));
+
+    /// <summary>
+    /// Determine TDWR vs WSR-88D from a sensor ICAO alone. TDWR sites use a 'T' prefix,
+    /// WSR-88D sites use a 'K' prefix.
+    /// </summary>
+    public static bool IsTdwrSensorId(string sensorId) =>
+        !string.IsNullOrWhiteSpace(sensorId) &&
+        sensorId.TrimStart().StartsWith("T", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Build the NWS radar overlay URL for a sensor. WSR-88D uses Base Reflectivity product 94
+    /// (DS.p94r0); TDWR uses Base Reflectivity product 180 (DS.180z0). The two products live at
+    /// different paths, so the correct one must be selected per radar type.
+    /// </summary>
+    public static string BuildRadarUrl(string sensorId, bool isTdwr)
+    {
+        var product = isTdwr ? "180z0" : "p94r0";
+        return $"https://tgftp.nws.noaa.gov/SL.us008001/DF.of/DC.radar/DS.{product}/SI.{sensorId.ToLower()}/sn.last";
+    }
+
+    /// <summary>
     /// Calculate distance in nautical miles to another lat/lon point
     /// </summary>
     public double DistanceToNauticalMiles(double targetLat, double targetLon)

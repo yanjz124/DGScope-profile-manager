@@ -527,7 +527,7 @@ public class ProfileGeneratorService
             var nexradStation = _nexradService.FindClosestStation(latitude.Value, longitude.Value);
             if (nexradStation != null)
             {
-                UpdateNexradConfig(root, nexradStation.Icao, 300);
+                UpdateNexradConfig(root, nexradStation.Icao, 300, nexradStation.IsTdwr);
                 System.Diagnostics.Debug.WriteLine($"✓ Selected NEXRAD station: {nexradStation.Icao} ({nexradStation.Name}) - {nexradStation.DistanceToNauticalMiles(latitude.Value, longitude.Value):F1} NM away");
             }
         }
@@ -680,7 +680,7 @@ public class ProfileGeneratorService
                 var nexradStation = _nexradService.FindClosestStation(latitude.Value, longitude.Value);
                 if (nexradStation != null)
                 {
-                    UpdateNexradConfig(root, nexradStation.Icao, 300);
+                    UpdateNexradConfig(root, nexradStation.Icao, 300, nexradStation.IsTdwr);
                     System.Diagnostics.Debug.WriteLine($"✓ Selected NEXRAD station: {nexradStation.Icao} ({nexradStation.Name}) - {nexradStation.DistanceToNauticalMiles(latitude.Value, longitude.Value):F1} NM away");
                 }
             }
@@ -886,7 +886,7 @@ public class ProfileGeneratorService
             var nexradStation = _nexradService.FindClosestStation(latitude.Value, longitude.Value);
             if (nexradStation != null)
             {
-                UpdateNexradConfig(root, nexradStation.Icao, 300);
+                UpdateNexradConfig(root, nexradStation.Icao, 300, nexradStation.IsTdwr);
             }
         }
 
@@ -1141,10 +1141,10 @@ public class ProfileGeneratorService
     /// <summary>
     /// Update NEXRAD weather radar configuration
     /// </summary>
-    private void UpdateNexradConfig(XElement root, string sensorId, int downloadInterval)
+    private void UpdateNexradConfig(XElement root, string sensorId, int downloadInterval, bool isTdwr)
     {
-        // Construct NEXRAD URL
-        var nexradUrl = $"https://tgftp.nws.noaa.gov/SL.us008001/DF.of/DC.radar/DS.p94r0/SI.{sensorId.ToLower()}/sn.last";
+        // Construct NEXRAD URL (WSR-88D and TDWR use different radar products/paths)
+        var nexradUrl = NexradStation.BuildRadarUrl(sensorId, isTdwr);
 
         var nexrad = root.Element("Nexrad");
 
