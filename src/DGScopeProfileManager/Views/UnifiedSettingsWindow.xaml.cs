@@ -417,7 +417,7 @@ public partial class UnifiedSettingsWindow : Window
             NexradComboBox.IsEnabled = true;
 
             // Try to select current NEXRAD from profile if it exists
-            var currentNexrad = _profile.AllSettings.GetValueOrDefault("NexradSensorID", null);
+            var currentNexrad = _profile.AllSettings.GetValueOrDefault("NexradSensorID", string.Empty);
             if (!string.IsNullOrEmpty(currentNexrad))
             {
                 var matchingItem = nexradItems.FirstOrDefault(item =>
