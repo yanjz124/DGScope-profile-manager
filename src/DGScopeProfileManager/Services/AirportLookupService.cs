@@ -229,12 +229,19 @@ public class AirportLookupService
     /// ICAO-identified airports within <paramref name="radiusNm"/> of a point that have a
     /// known location and field elevation. Used to place MSAW suppression circles over fields.
     /// </summary>
-    public List<AirportInfo> GetIcaoAirportsWithin(double centerLat, double centerLon, double radiusNm)
+    /// <summary>
+    /// Return all loaded US airports within <paramref name="radiusNm"/> of the given point.
+    /// Iterates the local-code index (every parsed airport, deduped by local code) rather than
+    /// the ICAO index, so smaller satellite/GA fields — which frequently have a blank icao_code
+    /// in the OurAirports data — are still included. Excluding them left those airports without
+    /// MSAW field suppression, nuisance-alerting arrivals descending into them.
+    /// </summary>
+    public List<AirportInfo> GetAirportsWithin(double centerLat, double centerLon, double radiusNm)
     {
         var cosLat = Math.Cos(centerLat * Math.PI / 180.0);
         var results = new List<AirportInfo>();
 
-        foreach (var airport in _airportsByIcao.Values)
+        foreach (var airport in _airportsByLocal.Values)
         {
             if (airport.Latitude == null || airport.Longitude == null || airport.ElevationFt == null)
                 continue;

@@ -1558,7 +1558,7 @@ public class ProfileGeneratorService
         const int ceilingBufferFt = 4000; // above field, covers arrivals/departures/pattern
         const int suppressRadiusNm = 10;  // covers field + close-in finals (§2.5)
 
-        var airports = AirportLookupService.Instance.GetIcaoAirportsWithin(centerLat, centerLon, radiusNm);
+        var airports = AirportLookupService.Instance.GetAirportsWithin(centerLat, centerLon, radiusNm);
 
         var suppressElement = root.Element("MSAWSuppressionVolumes");
         if (suppressElement == null)
