@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="DGScopeProfileManager.Views.DgScopeUpdateWindow"
+        Title="DGScope Update Available"
+        WindowStartupLocation="CenterScreen"
+        Width="450" SizeToContent="Height"
+        ResizeMode="NoResize"
+        Background="#2D2D30"
+        Foreground="#CCCCCC">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" MinHeight="60"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0"
+                   Text="A new DGScope version is available!"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Foreground="#4CAF50"
+                   Margin="0 0 0 15"/>
+
+        <!-- Version info -->
+        <StackPanel Grid.Row="1" Margin="0 0 0 15">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Installed DGScope: " Foreground="#999999"/>
+                <TextBlock Name="CurrentVersionText" Text="v0.0.0" Foreground="#FFFFFF"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0 5 0 0">
+                <TextBlock Text="Latest DGScope: " Foreground="#999999"/>
+                <TextBlock Name="NewVersionText" Text="v0.0.0" Foreground="#4CAF50" FontWeight="Bold"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Release notes (optional) -->
+        <StackPanel Grid.Row="2" Name="ReleaseNotesPanel" Visibility="Collapsed" Margin="0 0 0 15">
+            <TextBlock Text="What's new:" Foreground="#999999" FontWeight="SemiBold" Margin="0 0 0 5"/>
+            <Border Background="#252526" CornerRadius="4" Padding="10" MaxHeight="150">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock Name="ReleaseNotesText" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+
+        <!-- Progress bar (hidden by default) -->
+        <StackPanel Grid.Row="3" Name="ProgressPanel" Visibility="Collapsed" VerticalAlignment="Center">
+            <TextBlock Name="ProgressText" Text="Downloading DGScope..." Foreground="#FFFFFF" Margin="0 0 0 10"/>
+            <ProgressBar Name="DownloadProgress" Height="20" Minimum="0" Maximum="100" Value="0"/>
+        </StackPanel>
+
+        <!-- Question text (hidden during download) -->
+        <TextBlock Grid.Row="3" Name="QuestionText"
+                   Text="Would you like to download and install the DGScope update now? DGScope will be closed if it is running."
+                   Foreground="#FFFFFF"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center"/>
+
+        <!-- Don't remind checkbox -->
+        <CheckBox Grid.Row="4" Name="DontRemindCheckBox"
+                  Content="Don't check for DGScope updates on startup"
+                  Foreground="#999999"
+                  Margin="0 15 0 15"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="5" Name="ButtonPanel"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Name="UpdateButton"
+                    Content="Install Now"
+                    Width="110"
+                    Height="32"
+                    Margin="0 0 10 0"
+                    Click="UpdateButton_Click"
+                    Background="#4CAF50"
+                    Foreground="#FFFFFF"
+                    FontWeight="Bold"/>
+            <Button Name="LaterButton"
+                    Content="Not Now"
+                    Width="100"
+                    Height="32"
+                    Click="LaterButton_Click"
+                    Background="#555555"
+                    Foreground="#FFFFFF"
+                    FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>

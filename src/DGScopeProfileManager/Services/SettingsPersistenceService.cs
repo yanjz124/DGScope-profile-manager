@@ -46,7 +46,8 @@ public class SettingsPersistenceService
                 {
                     CrcFolderPath = data.CrcFolderPath,
                     DgScopeFolderPath = data.DgScopeFolderPath,
-                    SkipUpdateCheck = data.SkipUpdateCheck
+                    SkipUpdateCheck = data.SkipUpdateCheck,
+                    SkipDgScopeUpdateCheck = data.SkipDgScopeUpdateCheck
                 };
 
                 // Preserve a saved server choice; keep the AppSettings default if absent.
@@ -85,6 +86,7 @@ public class SettingsPersistenceService
                 DgScopeFolderPath = settings.DgScopeFolderPath,
                 DefaultSettings = settings.DefaultSettings,
                 SkipUpdateCheck = settings.SkipUpdateCheck,
+                SkipDgScopeUpdateCheck = settings.SkipDgScopeUpdateCheck,
                 ServerBaseUrl = settings.ServerBaseUrl
             };
             
@@ -103,6 +105,7 @@ public class SettingsPersistenceService
         public string DgScopeFolderPath { get; set; } = string.Empty;
         public ProfileDefaultSettings? DefaultSettings { get; set; }
         public bool SkipUpdateCheck { get; set; } = false;
+        public bool SkipDgScopeUpdateCheck { get; set; } = false;
         public string ServerBaseUrl { get; set; } = string.Empty;
     }
 }

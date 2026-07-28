@@ -96,7 +96,12 @@ jobs:
           
           Copy-Item $scopeFolder.FullName -Destination publish/scope -Recurse
           Write-Host "DGScope copied to publish/scope"
-          
+
+          # Record the exact DGScope release tag so the Profile Manager can compare versions
+          # reliably (scope.exe's file version can't distinguish -alphaN pre-releases).
+          $release.tag_name | Out-File -FilePath "publish/scope/.dgscope-version" -Encoding ASCII -NoNewline
+          Write-Host "Wrote DGScope version marker: $($release.tag_name)"
+
           # Cleanup
           Remove-Item scope.zip -Force
           Remove-Item scope-extract -Recurse -Force

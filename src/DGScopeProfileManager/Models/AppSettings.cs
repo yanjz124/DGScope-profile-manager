@@ -28,6 +28,10 @@ public class AppSettings
     // Update settings - if true, skip checking for updates on startup
     public bool SkipUpdateCheck { get; set; } = false;
 
+    // If true, skip checking for DGScope (the bundled scope) updates on startup.
+    // Tracked separately from SkipUpdateCheck so the two update streams are independent.
+    public bool SkipDgScopeUpdateCheck { get; set; } = false;
+
     // Active dSTARS data source base URL (e.g. https://dstars.graiani.com).
     // Receiver URLs are built as {ServerBaseUrl}/dstars/{FACILITY}/updates.
     // Defaults to the official server for backward compatibility.

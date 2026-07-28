@@ -94,6 +94,9 @@ public partial class MainWindow : Window
         // Check for updates on startup (after window is loaded)
         Loaded += async (s, e) => await CheckForUpdatesAsync();
 
+        // Independently check for DGScope updates on startup
+        Loaded += async (s, e) => await CheckForDgScopeUpdatesAsync(silent: true);
+
         // Probe both data sources once the window is up
         Loaded += async (s, e) => await RefreshServerHealthAsync();
     }
@@ -337,6 +340,64 @@ public partial class MainWindow : Window
         {
             Debug.WriteLine($"Update check failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Check for a DGScope (bundled scope) update, independently of the Profile Manager's own
+    /// version. When <paramref name="silent"/> is true (startup), nothing is shown unless an update
+    /// is available; when false (manual menu), an up-to-date result is reported to the user.
+    /// </summary>
+    private async Task CheckForDgScopeUpdatesAsync(bool silent)
+    {
+        if (silent && _settings.SkipDgScopeUpdateCheck)
+            return;
+
+        try
+        {
+            var dgScopeUpdateService = new DgScopeUpdateService();
+            var updateInfo = await dgScopeUpdateService.CheckForUpdatesAsync(_settings.DgScopeExePath);
+
+            if (updateInfo != null)
+            {
+                var updateWindow = new DgScopeUpdateWindow(updateInfo) { Owner = this };
+                updateWindow.ShowDialog();
+
+                if (updateWindow.DontRemindAgain)
+                {
+                    _settings.SkipDgScopeUpdateCheck = true;
+                    _persistenceService.SaveSettings(_settings);
+                }
+            }
+            else if (!silent)
+            {
+                var installed = dgScopeUpdateService.GetInstalledVersion(_settings.DgScopeExePath);
+                var installedText = string.IsNullOrWhiteSpace(installed) ? "unknown" : installed;
+                UpdateStatus("DGScope is up to date.");
+                MessageBox.Show(
+                    $"DGScope is up to date (installed: {installedText}).",
+                    "No DGScope Updates",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"DGScope update check failed: {ex.Message}");
+            if (!silent)
+            {
+                MessageBox.Show(
+                    $"Failed to check for DGScope updates:\n\n{ex.Message}",
+                    "Update Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private async void CheckForDgScopeUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateStatus("Checking for DGScope updates...");
+        await CheckForDgScopeUpdatesAsync(silent: false);
     }
 
     private async void LoadFolders()
@@ -1040,8 +1101,14 @@ public partial class MainWindow : Window
 
     private void About_Click(object sender, RoutedEventArgs e)
     {
+        var dgScopeVersion = new DgScopeUpdateService().GetInstalledVersion(_settings.DgScopeExePath);
+        var dgScopeText = string.IsNullOrWhiteSpace(dgScopeVersion) ? "not detected" : dgScopeVersion;
+
         MessageBox.Show(
-            $"DGScope Profile Manager\nVersion {UpdateService.GetCurrentVersion()}\n\nManage DGScope profiles and import from CRC data.",
+            "DGScope Profile Manager\n\n" +
+            $"Profile Manager:  v{UpdateService.GetCurrentVersion()}\n" +
+            $"DGScope:  {dgScopeText}\n\n" +
+            "Manage DGScope profiles and import from CRC data.",
             "About",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
