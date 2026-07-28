@@ -42,7 +42,16 @@ public class CrcProfileReader
         // ARTCCs installed this is the difference between a multi-second hang and near-instant.
         var profiles = new System.Collections.Concurrent.ConcurrentBag<CrcProfile>();
 
-        Parallel.ForEach(jsonFiles, jsonFile =>
+        // Cap parallelism to leave the rest of the machine responsive. Each ARTCC JSON is large,
+        // so an unbounded ForEach saturates every core (and spikes GC) at startup, which stutters
+        // the whole computer for a few seconds. Using roughly half the cores keeps the scan fast
+        // while leaving headroom for the UI and other apps.
+        var options = new ParallelOptions
+        {
+            MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2)
+        };
+
+        Parallel.ForEach(jsonFiles, options, jsonFile =>
         {
             try
             {
