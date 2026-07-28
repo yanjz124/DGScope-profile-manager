@@ -66,3 +66,7 @@ Desktop.ini
 
 # Windows NUL device artifact
 nul
+
+# Built installer artifacts (releases attach these to GitHub Releases, not the repo)
+*-Setup.exe
+DGScope-Profile-Manager-*.exe
