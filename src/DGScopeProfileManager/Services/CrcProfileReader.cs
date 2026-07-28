@@ -222,13 +222,14 @@ public class CrcProfileReader
                                 }
                             }
 
-                            // Parse all areas and collect ssaAirports
-                            // Get mapGroups array to link areas by index
-                            var mapGroupsArray = new List<JsonElement>();
-                            if (starsConfig.TryGetProperty("mapGroups", out var mapGroupsForLinking))
-                            {
-                                mapGroupsArray = mapGroupsForLinking.EnumerateArray().ToList();
-                            }
+                            // Resolve which mapGroup(s) each area's DCB maps come from. CRC/vNAS
+                            // assign maps per control position (TCP), not per area; the only bridge
+                            // to an area is the facility's positions list:
+                            //   area  <- position.areaId
+                            //   position.tcpId -> tcp(subset+sectorId) -> mapGroup.tcps -> mapGroup
+                            // (Pairing areas to mapGroups by list index is wrong — order and count
+                            //  don't match; e.g. N90 has 24 areas but 13 mapGroups.)
+                            var mapGroupIdsByAreaId = BuildAreaToMapGroups(child, starsConfig);
 
                             var ssaAirportsSet = new HashSet<string>();
                             for (int areaIndex = 0; areaIndex < areasArray.Count; areaIndex++)
@@ -236,19 +237,16 @@ public class CrcProfileReader
                                 var area = areasArray[areaIndex];
                                 var crcArea = new CrcArea();
 
-                                // Link this area to its corresponding mapGroup by index
-                                if (areaIndex < mapGroupsArray.Count)
-                                {
-                                    var correspondingMapGroup = mapGroupsArray[areaIndex];
-                                    if (correspondingMapGroup.TryGetProperty("id", out var mgId))
-                                    {
-                                        crcArea.MapGroupId = mgId.GetString();
-                                    }
-                                }
-
                                 // Extract area ID and name
                                 if (area.TryGetProperty("id", out var areaId))
                                     crcArea.Id = areaId.GetString() ?? string.Empty;
+
+                                // Link this area to its mapGroup(s) via its control positions
+                                if (!string.IsNullOrEmpty(crcArea.Id) &&
+                                    mapGroupIdsByAreaId.TryGetValue(crcArea.Id, out var areaMapGroupIds))
+                                {
+                                    crcArea.MapGroupIds = areaMapGroupIds.ToList();
+                                }
                                 if (area.TryGetProperty("name", out var areaName))
                                     crcArea.Name = areaName.GetString() ?? string.Empty;
 
@@ -453,6 +451,97 @@ public class CrcProfileReader
         }
     }
     
+    /// <summary>
+    /// Build a map from area id to the set of mapGroup ids serving it, using the facility's control
+    /// positions as the bridge (CRC/vNAS assign maps per TCP, not per area):
+    ///   area &lt;- position.areaId ; position.tcpId -> tcp(subset+sectorId) -> mapGroup.tcps -> mapGroup
+    /// A combined position's area maps to several mapGroups; areas with no radar positions (tower
+    /// cabs) map to none.
+    /// </summary>
+    private static Dictionary<string, HashSet<string>> BuildAreaToMapGroups(JsonElement facility, JsonElement starsConfig)
+    {
+        var result = new Dictionary<string, HashSet<string>>();
+
+        // tcp id -> "subset+sectorId" key (e.g. "2J")
+        var tcpKeyById = new Dictionary<string, string>();
+        if (starsConfig.TryGetProperty("tcps", out var tcps) && tcps.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var t in tcps.EnumerateArray())
+            {
+                if (!t.TryGetProperty("id", out var tid)) continue;
+                var idStr = tid.GetString();
+                var key = TcpKey(t);
+                if (!string.IsNullOrEmpty(idStr) && key != null)
+                    tcpKeyById[idStr] = key;
+            }
+        }
+
+        // "subset+sectorId" key -> mapGroup id
+        var mapGroupIdByKey = new Dictionary<string, string>();
+        if (starsConfig.TryGetProperty("mapGroups", out var mapGroups) && mapGroups.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var g in mapGroups.EnumerateArray())
+            {
+                if (!g.TryGetProperty("id", out var gid)) continue;
+                var gidStr = gid.GetString();
+                if (string.IsNullOrEmpty(gidStr)) continue;
+                if (g.TryGetProperty("tcps", out var gtcps) && gtcps.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var k in gtcps.EnumerateArray())
+                    {
+                        var ks = k.GetString();
+                        if (!string.IsNullOrEmpty(ks))
+                            mapGroupIdByKey[ks] = gidStr;
+                    }
+                }
+            }
+        }
+
+        // Walk the facility's positions: areaId + tcpId -> mapGroup id
+        if (facility.TryGetProperty("positions", out var positions) && positions.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var p in positions.EnumerateArray())
+            {
+                if (!p.TryGetProperty("starsConfiguration", out var psc)) continue;
+                var areaId = psc.TryGetProperty("areaId", out var aid) ? aid.GetString() : null;
+                var tcpId = psc.TryGetProperty("tcpId", out var tcpIdEl) ? tcpIdEl.GetString() : null;
+                if (string.IsNullOrEmpty(areaId) || string.IsNullOrEmpty(tcpId)) continue;
+
+                if (tcpKeyById.TryGetValue(tcpId, out var key) &&
+                    mapGroupIdByKey.TryGetValue(key, out var groupId))
+                {
+                    if (!result.TryGetValue(areaId, out var set))
+                    {
+                        set = new HashSet<string>();
+                        result[areaId] = set;
+                    }
+                    set.Add(groupId);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The mapGroup.tcps key for a tcp entry: its subset (numeric in the source) concatenated with
+    /// its sectorId (a short string), e.g. subset 2 + sectorId "J" -> "2J".
+    /// </summary>
+    private static string? TcpKey(JsonElement tcp)
+    {
+        if (!tcp.TryGetProperty("sectorId", out var sectorEl)) return null;
+        var sector = sectorEl.GetString();
+        if (string.IsNullOrEmpty(sector)) return null;
+
+        if (!tcp.TryGetProperty("subset", out var subsetEl)) return null;
+        var subset = subsetEl.ValueKind == JsonValueKind.Number
+            ? subsetEl.GetInt32().ToString(CultureInfo.InvariantCulture)
+            : subsetEl.GetString();
+        if (string.IsNullOrEmpty(subset)) return null;
+
+        return subset + sector;
+    }
+
     /// <summary>
     /// Extract latitude and longitude from string format "@{lat=39.452745; lon=-74.591952}"
     /// </summary>

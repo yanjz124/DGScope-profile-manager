@@ -140,11 +140,11 @@ public class ProfileGeneratorService
             // A map can have multiple button assignments (appear at multiple positions)
             var relevantAssignments = map.ButtonAssignments;
 
-            if (selectedArea != null && !string.IsNullOrWhiteSpace(selectedArea.MapGroupId))
+            if (selectedArea != null && selectedArea.MapGroupIds.Count > 0)
             {
-                // Only include assignments from the selected area
+                // Only include assignments from the selected area's mapGroup(s)
                 relevantAssignments = map.ButtonAssignments
-                    .Where(a => a.MapGroupId == selectedArea.MapGroupId)
+                    .Where(a => selectedArea.MapGroupIds.Contains(a.MapGroupId))
                     .ToList();
             }
 

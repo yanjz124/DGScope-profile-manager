@@ -77,7 +77,14 @@ public class CrcArea
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
     public List<string> SsaAirports { get; set; } = new();
-    public string? MapGroupId { get; set; } // ID of the corresponding mapGroup for this area
+
+    // IDs of the mapGroups whose DCB maps belong to this area, resolved via the area's control
+    // positions (position.areaId -> position.tcpId -> tcp(subset+sectorId) -> mapGroup.tcps).
+    // Usually one per area; combined positions (e.g. "New York Combined") span several.
+    public List<string> MapGroupIds { get; set; } = new();
+
+    // Back-compat convenience: the first (often only) mapGroup id, or null if none.
+    public string? MapGroupId => MapGroupIds.Count > 0 ? MapGroupIds[0] : null;
 
     public string AirportsDisplay => SsaAirports.Count > 0
         ? $"Airports: {string.Join(", ", SsaAirports)}"

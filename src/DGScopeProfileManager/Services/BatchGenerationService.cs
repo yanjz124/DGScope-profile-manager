@@ -95,11 +95,11 @@ public class BatchGenerationService
             // Use all available video maps for the TRACON
             // If an area is specified, filter to maps relevant to that area
             videoMaps = item.Tracon.AvailableVideoMaps;
-            if (item.Area != null && !string.IsNullOrEmpty(item.Area.MapGroupId))
+            if (item.Area != null && item.Area.MapGroupIds.Count > 0)
             {
-                var areaMapGroupId = item.Area.MapGroupId;
+                var areaGroups = item.Area.MapGroupIds;
                 var filteredMaps = videoMaps
-                    .Where(m => m.ButtonAssignments.Any(a => a.MapGroupId == areaMapGroupId))
+                    .Where(m => m.ButtonAssignments.Any(a => areaGroups.Contains(a.MapGroupId)))
                     .ToList();
                 if (filteredMaps.Count > 0)
                     videoMaps = filteredMaps;
